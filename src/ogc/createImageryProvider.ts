@@ -1,0 +1,62 @@
+import * as Cesium from 'cesium';
+import type { OgcLayerConfig } from './types';
+
+/**
+ * Turns one of our layer configs into a Cesium `ImageryProvider`.
+ *
+ * An `ImageryProvider` doesn't fetch anything by itself — it's a strategy
+ * object that knows how to *compute a tile URL* for a given (x, y, level).
+ * Cesium's imagery layer system calls into it as you pan/zoom to decide
+ * what to request. This is the same interface Cesium uses internally for
+ * Bing Maps, OpenStreetMap, etc, so any OGC server that speaks WMS/WMTS
+ * slots in exactly the same way as a "big name" basemap would.
+ */
+export function createImageryProvider(
+  config: OgcLayerConfig,
+): Cesium.ImageryProvider {
+  switch (config.type) {
+    case 'wms':
+      // WebMapServiceImageryProvider builds standard WMS GetMap requests
+      // (SERVICE=WMS&REQUEST=GetMap&BBOX=...&LAYERS=...) under the hood,
+      // re-issuing one per visible tile.
+      return new Cesium.WebMapServiceImageryProvider({
+        url: config.url,
+        layers: config.layers,
+        parameters: {
+          // Ask for a transparent PNG so this layer can sit on top of
+          // others instead of covering the whole globe with a solid tile.
+          transparent: true,
+          format: 'image/png',
+        },
+      });
+
+    case 'wmts':
+      // WebMapTileServiceImageryProvider requests pre-rendered tiles from
+      // a fixed grid. `tileMatrixSetID` must match one the server actually
+      // publishes in its GetCapabilities document (commonly something like
+      // "EPSG:3857" or "GoogleMapsCompatible" for a web-mercator grid).
+      return new Cesium.WebMapTileServiceImageryProvider({
+        url: config.url,
+        layer: config.layer,
+        style: config.style || 'default',
+        format: config.format || 'image/png',
+        tileMatrixSetID: config.tileMatrixSetID,
+      });
+
+    case 'xyz':
+      // UrlTemplateImageryProvider is the generic escape hatch: point it at
+      // any URL containing {z}/{x}/{y} (or {s} for a load-balanced
+      // subdomain) and it will substitute them per tile. Useful for XYZ/TMS
+      // tile servers and WMTS "RESTful" endpoints that hand you a template.
+      return new Cesium.UrlTemplateImageryProvider({
+        url: config.urlTemplate,
+      });
+
+    default: {
+      // Exhaustiveness check: if a new OgcServiceType is ever added to the
+      // union without a case above, TypeScript will flag this line.
+      const exhaustive: never = config;
+      throw new Error(`Unsupported layer type: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}

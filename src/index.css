@@ -1,0 +1,28 @@
+/*
+ * Global reset for a full-screen map app.
+ *
+ * Cesium wants to own the entire viewport: its canvas draws the globe and
+ * needs to know its own pixel size to size the WebGL render buffer and
+ * pick the right level-of-detail tiles. If `html`/`body`/`#root` don't
+ * stretch to 100% of the viewport (and something adds default margins or
+ * lets the page scroll), Cesium's canvas ends up the wrong size and you
+ * get a small/blurry globe with letterboxing.
+ */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* no page scrollbars over a full-screen canvas */
+}
+
+body {
+  font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}

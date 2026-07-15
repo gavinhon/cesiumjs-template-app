@@ -1,0 +1,141 @@
+/*
+ * The sidebar floats on top of the full-screen Cesium canvas rather than
+ * pushing it aside, so the map still visually "covers the entire screen"
+ * as requested — this panel is an overlay, not a layout column.
+ */
+.sidebar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  bottom: 16px;
+  z-index: 10; /* above the Cesium canvas, which has no explicit z-index */
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  overflow-y: auto;
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(20, 22, 28, 0.85);
+  color: #e5e7eb;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  font-size: 13px;
+}
+
+.sidebar__header h1 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.sidebar__header p {
+  margin: 0 0 16px;
+  line-height: 1.4;
+  opacity: 0.75;
+}
+
+.add-layer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-size: 13px;
+}
+
+.field small {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.add-layer-form button[type='submit'] {
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-layer-form button[type='submit']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.layer-list__empty {
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.6;
+}
+
+.layer-list__item {
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.layer-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.layer-list__row + .layer-list__row {
+  margin-top: 6px;
+}
+
+.layer-list__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.layer-list__remove {
+  border: none;
+  background: none;
+  color: #f87171;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.layer-list__type {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+.layer-list__row input[type='range'] {
+  flex: 1;
+}
