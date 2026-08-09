@@ -1,4 +1,27 @@
 /*
+ * Monotone design tokens, shared by every component's stylesheet.
+ *
+ * "Monotone" here means literally hue-free: every color below is gray or
+ * white at some opacity/lightness, so contrast comes from value (light vs.
+ * dark) and transparency rather than color. The one deliberate exception is
+ * `--danger`, kept as a genuine red — a "remove this layer" affordance is
+ * worth the one spot of color for recognizability.
+ */
+:root {
+  --ink: #ececea; /* primary text, near-white */
+  --muted: #97968f; /* secondary text */
+  --panel: rgba(17, 17, 16, 0.88); /* translucent panel background */
+  --panel-strong: rgba(10, 10, 9, 0.95); /* less translucent, for pill controls */
+  --panel-soft: rgba(255, 255, 255, 0.04); /* subtle fill for nested rows/inputs */
+  --border: rgba(236, 236, 234, 0.14);
+  --border-soft: rgba(236, 236, 234, 0.08);
+  --accent: #ececea; /* "primary action" color — white, not a hue */
+  --accent-ink: #111110; /* text color on top of --accent */
+  --danger: #c9635f;
+  --shadow: 0 22px 48px rgba(0, 0, 0, 0.4);
+}
+
+/*
  * Global reset for a full-screen map app.
  *
  * Cesium wants to own the entire viewport: its canvas draws the globe and
@@ -19,10 +42,50 @@ body,
 }
 
 body {
-  font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+  font:
+    14px/1.4 'IBM Plex Sans',
+    system-ui,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  /* The app commits to one dark, monotone look rather than adapting to the
+     OS light/dark preference, so this isn't `light dark` — this also fills
+     in a matching near-black background for the instant before Cesium's
+     canvas has mounted, instead of a white flash. */
+  color-scheme: dark;
+  background: #0a0a09;
+  color: var(--ink);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Form controls (checkboxes, radios, range sliders) are drawn by the OS/
+   browser, not by our CSS — `accent-color` is the one hook we get to keep
+   them grayscale instead of the default system blue. */
+input,
+select {
+  accent-color: var(--ink);
+}
+
+/* A thin, grayscale scrollbar for panels that need to scroll internally
+   (see .sidebar) — Firefox's standard property plus the WebKit equivalent. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 236, 234, 0.35) rgba(255, 255, 255, 0.05);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(236, 236, 234, 0.3);
+  border-radius: 999px;
 }

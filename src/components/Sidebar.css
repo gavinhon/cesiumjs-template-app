@@ -2,34 +2,58 @@
  * The sidebar floats on top of the full-screen Cesium canvas rather than
  * pushing it aside, so the map still visually "covers the entire screen"
  * as requested — this panel is an overlay, not a layout column.
+ *
+ * Visual language is monotone (grayscale) glass: translucent dark panels,
+ * hairline borders, condensed uppercase headings, monospace field labels —
+ * color tokens are defined once in src/index.css and reused here.
  */
 .sidebar {
   position: absolute;
-  top: 16px;
+  /* 16px toolbar offset + ~44px toolbar height + 12px gap, so the panel
+     sits just below the toolbar instead of overlapping it. */
+  top: 72px;
   left: 16px;
   bottom: 16px;
   z-index: 10; /* above the Cesium canvas, which has no explicit z-index */
   width: 320px;
   max-width: calc(100vw - 32px);
   overflow-y: auto;
-  border-radius: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
   padding: 16px;
-  background: rgba(20, 22, 28, 0.85);
-  color: #e5e7eb;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  background: var(--panel);
+  color: var(--ink);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
   font-size: 13px;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+.sidebar--collapsed {
+  transform: translateX(-100%);
+  opacity: 0;
+  visibility: hidden;
+  /* Keeps the (invisible, off-screen) panel from intercepting clicks meant
+     for the map or the toggle button. */
+  pointer-events: none;
 }
 
 .sidebar__header h1 {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-family: 'Saira Condensed', 'Arial Narrow', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .sidebar__header p {
   margin: 0 0 16px;
   line-height: 1.4;
-  opacity: 0.75;
+  color: var(--muted);
 }
 
 .add-layer-form {
@@ -38,48 +62,83 @@
   gap: 10px;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .field label {
-  font-size: 12px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .field input,
 .field select {
-  padding: 6px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
   font-size: 13px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.field input::placeholder {
+  color: rgba(151, 150, 143, 0.6);
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: rgba(236, 236, 234, 0.5);
+  box-shadow: 0 0 0 3px rgba(236, 236, 234, 0.12);
+}
+
+.field select option {
+  background: #141413;
+  color: var(--ink);
 }
 
 .field small {
   font-size: 11px;
-  opacity: 0.6;
+  color: var(--muted);
 }
 
 .add-layer-form button[type='submit'] {
-  padding: 8px;
-  border: none;
-  border-radius: 4px;
-  background: #3b82f6;
-  color: white;
+  padding: 10px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.add-layer-form button[type='submit']:hover {
+  transform: translateY(-1px);
 }
 
 .add-layer-form button[type='submit']:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.45;
+  transform: none;
 }
 
 .layer-list {
@@ -94,13 +153,14 @@
 .layer-list__empty {
   font-size: 12px;
   font-style: italic;
-  opacity: 0.6;
+  color: var(--muted);
 }
 
 .layer-list__item {
-  padding: 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--panel-soft);
 }
 
 .layer-list__row {
@@ -111,29 +171,40 @@
 }
 
 .layer-list__row + .layer-list__row {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .layer-list__name {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
 }
 
 .layer-list__remove {
   border: none;
   background: none;
-  color: #f87171;
+  color: var(--muted);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+/* The one deliberate spot of hue in an otherwise grayscale UI: a "remove
+   this layer" action is common enough, and destructive enough, that a hint
+   of red on hover is worth breaking monotone for — it reads instantly
+   without needing a second look. */
+.layer-list__remove:hover {
+  color: var(--danger);
 }
 
 .layer-list__type {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 10px;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .layer-list__row input[type='range'] {

@@ -13,6 +13,17 @@ import {
 // on Cesium's shared public demo token.
 Cesium.Ion.defaultAccessToken = '';
 
+// Every Viewer shows a "Cesium ion" logo in the bottom-left credits area by
+// default, whether or not the app actually uses ion — this is the one
+// documented hook for turning it off (`CreditDisplay.cesiumCredit` is a
+// static property, so this must run before the Viewer is constructed).
+// It only removes that logo; OSM's own attribution link — required by their
+// usage policy — is a separate credit and is untouched.
+// Cesium's own .d.ts types this as non-nullable `Credit`, but the runtime
+// setter handles `undefined` fine (it just means "no logo to show").
+// @ts-expect-error -- see comment above; this is a typings gap, not a bug.
+Cesium.CreditDisplay.cesiumCredit = undefined;
+
 interface CesiumMapProps {
   /** Called once the Viewer has been created, so parents can add layers to it. */
   onViewerReady: (viewer: Cesium.Viewer) => void;

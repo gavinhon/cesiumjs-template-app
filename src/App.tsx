@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import * as Cesium from 'cesium'
 import { CesiumMap } from './cesium/CesiumMap'
+import { Toolbar } from './components/Toolbar'
 import { Sidebar } from './components/Sidebar'
 import './App.css'
 
@@ -11,10 +12,18 @@ function App() {
   // sibling component, can add/remove imagery layers on the same viewer.
   const [viewer, setViewer] = useState<Cesium.Viewer | null>(null)
 
+  // Whether the OGC layers panel is open. Lives here, not inside <Sidebar>,
+  // because the button that toggles it lives in the sibling <Toolbar>.
+  const [layersPanelOpen, setLayersPanelOpen] = useState(false)
+
   return (
     <div className="app">
       <CesiumMap onViewerReady={setViewer} />
-      <Sidebar viewer={viewer} />
+      <Toolbar
+        layersPanelOpen={layersPanelOpen}
+        onToggleLayersPanel={() => setLayersPanelOpen((open) => !open)}
+      />
+      <Sidebar viewer={viewer} open={layersPanelOpen} />
     </div>
   )
 }
