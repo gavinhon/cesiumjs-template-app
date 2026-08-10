@@ -47,6 +47,9 @@ existed, "sidebar" told you nothing.
 Import order, loosely: React, then third-party, then `@/`, then relative,
 then CSS last.
 
+The one exception is `src/main.tsx`, where `@/styles/global.css` must be
+imported **before** `@/App` — see the CSS section below for why.
+
 ## TypeScript
 
 `strict` is on. Some specifics:
@@ -97,6 +100,21 @@ Plain CSS, no preprocessor, no CSS-in-JS.
 - **A stylesheet sits next to the component that imports it**, and only that
   component's file imports it. Shared styling belongs to a shared component
   in `src/ui/`.
+- **The global stylesheet must load first.** `.control-button` and a
+  component's `.foo__button` are both single-class selectors, so they have
+  equal specificity and **source order decides the winner**. Component
+  styles are meant to override the `.control` primitives they compose with,
+  which only works if `global.css` is emitted first — hence the import
+  order in `src/main.tsx`.
+
+  This has bitten us once already: importing `App` before `global.css`
+  inverted the order, `.control-button { padding: 0 18px }` beat
+  `.drawing-toolbar__button { padding: 0 }`, and the icon buttons' 40px
+  content box collapsed to 2px — the SVG icons vanished. The submit buttons
+  silently lost their accent fill at the same time. If a component's
+  override of padding, background, or border-radius mysteriously does
+  nothing, check stylesheet order before anything else.
+
 - Cesium draws with WebGL and can't read CSS variables. The few colours that
   must exist on both sides are mirrored in `useDrawingTools.ts` — change
   both together.

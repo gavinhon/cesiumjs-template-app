@@ -64,6 +64,13 @@ step by step. For style questions, [docs/conventions.md](docs/conventions.md).
 6. **UI floats over the map**, absolutely positioned with a `z-index`.
    Never lay out beside the canvas — resizing it forces Cesium to rebuild
    its render buffer and re-pick LOD tiles.
+7. **`src/main.tsx` imports `@/styles/global.css` before `@/App`.** Don't
+   "fix" this to put the CSS import last. `.control-button` and a
+   component's `.foo__button` have equal specificity, so source order
+   decides; component styles can only override the shared `.control`
+   primitives if the global sheet loads first. Getting this backwards
+   collapsed the drawing toolbar's icon buttons to a 2px content box and
+   stripped the accent fill off every submit button.
 
 ## Conventions in brief
 
@@ -74,7 +81,8 @@ step by step. For style questions, [docs/conventions.md](docs/conventions.md).
   than re-creating their markup. If you're about to duplicate UI structure
   from another feature, extract it into `src/ui/` instead.
 - **Imports:** `@/` alias across directories, relative within a feature,
-  `import type` for types, CSS import last.
+  `import type` for types, CSS import last — _except_ in `src/main.tsx`,
+  where `@/styles/global.css` must come before `@/App` (see invariant 7).
 - **Colours come from `src/styles/tokens.css`.** Raw hex in a component
   stylesheet is a bug. The few colours Cesium needs in JS are mirrored in
   `useDrawingTools.ts` — change both together.
