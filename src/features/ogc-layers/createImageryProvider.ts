@@ -11,9 +11,7 @@ import type { OgcLayerConfig } from './types';
  * Bing Maps, OpenStreetMap, etc, so any OGC server that speaks WMS/WMTS
  * slots in exactly the same way as a "big name" basemap would.
  */
-export function createImageryProvider(
-  config: OgcLayerConfig,
-): Cesium.ImageryProvider {
+export function createImageryProvider(config: OgcLayerConfig): Cesium.ImageryProvider {
   switch (config.type) {
     case 'wms': {
       const { boundingBox } = config;

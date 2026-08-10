@@ -1,10 +1,8 @@
-import { useId, useState, type ComponentPropsWithoutRef, type FormEvent } from 'react';
-import type { OgcLayerConfig, OgcServiceType } from '../ogc/types';
-import {
-  fetchWmsLayers,
-  type GeographicBoundingBox,
-  type WmsLayerOption,
-} from '../ogc/wmsCapabilities';
+import { useId, useState, type FormEvent } from 'react';
+import { Field, SelectField } from '@/ui/Field';
+import { createId } from '@/lib/ids';
+import type { OgcLayerConfig, OgcServiceType } from './types';
+import { fetchWmsLayers, type GeographicBoundingBox, type WmsLayerOption } from './wmsCapabilities';
 
 interface AddLayerFormProps {
   onAdd: (config: OgcLayerConfig) => void;
@@ -18,36 +16,6 @@ type WmsLookup =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'success'; layers: WmsLayerOption[] };
-
-/** A locally-unique id for a layer — no backend, so no need for a real uuid library. */
-function generateId() {
-  return crypto.randomUUID();
-}
-
-interface FieldProps extends Omit<ComponentPropsWithoutRef<'input'>, 'id'> {
-  formId: string;
-  fieldId: string;
-  label: string;
-  hint?: string;
-}
-
-/**
- * A labeled text input with an optional hint line underneath.
- *
- * Every simple text field in this form (name, URL, layer, style, format, ...)
- * is one of these — pulling it out avoids repeating the same
- * label/input/hint markup eight times below.
- */
-function Field({ formId, fieldId, label, hint, ...inputProps }: FieldProps) {
-  const htmlId = `${formId}-${fieldId}`;
-  return (
-    <div className="field">
-      <label htmlFor={htmlId}>{label}</label>
-      <input id={htmlId} {...inputProps} />
-      {hint && <small>{hint}</small>}
-    </div>
-  );
-}
 
 /**
  * Form for connecting to a new OGC layer.
@@ -72,12 +40,12 @@ export function AddLayerForm({ onAdd, disabled }: AddLayerFormProps) {
   const [urlTemplate, setUrlTemplate] = useState('');
   const [wmsLookup, setWmsLookup] = useState<WmsLookup>({ status: 'idle' });
   // The selected layer's real extent, if known from the capabilities
-  // lookup — carried through to submit so "zoom to layer" (in the sidebar
+  // lookup — carried through to submit so "zoom to layer" (in the layer
   // list) can fly straight to it instead of a whole-globe fallback.
   const [wmsBoundingBox, setWmsBoundingBox] = useState<GeographicBoundingBox>();
 
   // Ask the WMS server what layers it has, and offer them as a picklist —
-  // see src/ogc/wmsCapabilities.ts for how the request/parsing works.
+  // see ./wmsCapabilities.ts for how the request/parsing works.
   async function handleLookupLayers() {
     setWmsLookup({ status: 'loading' });
     try {
@@ -108,7 +76,7 @@ export function AddLayerForm({ onAdd, disabled }: AddLayerFormProps) {
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    const id = generateId();
+    const id = createId();
     const label = name.trim() || `${type.toUpperCase()} layer`;
 
     // Build the discriminated-union config matching whichever type is
@@ -145,19 +113,18 @@ export function AddLayerForm({ onAdd, disabled }: AddLayerFormProps) {
   }
 
   return (
-    <form className="add-layer-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor={`${formId}-type`}>Service type</label>
-        <select
-          id={`${formId}-type`}
-          value={type}
-          onChange={(e) => setType(e.target.value as OgcServiceType)}
-        >
-          <option value="wms">WMS (Web Map Service)</option>
-          <option value="wmts">WMTS (Web Map Tile Service)</option>
-          <option value="xyz">XYZ tile template</option>
-        </select>
-      </div>
+    <form className="panel-form" onSubmit={handleSubmit}>
+      <SelectField
+        formId={formId}
+        fieldId="type"
+        label="Service type"
+        value={type}
+        onChange={(e) => setType(e.target.value as OgcServiceType)}
+      >
+        <option value="wms">WMS (Web Map Service)</option>
+        <option value="wmts">WMTS (Web Map Tile Service)</option>
+        <option value="xyz">XYZ tile template</option>
+      </SelectField>
 
       <Field
         formId={formId}
@@ -193,7 +160,7 @@ export function AddLayerForm({ onAdd, disabled }: AddLayerFormProps) {
         <>
           <button
             type="button"
-            className="control control-button add-layer-form__lookup"
+            className="control control-button panel-form__action"
             onClick={handleLookupLayers}
             disabled={!url.trim() || wmsLookup.status === 'loading'}
           >
@@ -201,30 +168,29 @@ export function AddLayerForm({ onAdd, disabled }: AddLayerFormProps) {
           </button>
 
           {wmsLookup.status === 'error' && (
-            <p className="add-layer-form__status add-layer-form__status--error">
+            <p className="panel-form__status panel-form__status--error">
               {wmsLookup.message} You can still enter the layer name manually below.
             </p>
           )}
 
           {wmsLookup.status === 'success' ? (
-            <div className="field">
-              <label htmlFor={`${formId}-layers`}>Layer</label>
-              <select
-                id={`${formId}-layers`}
-                required
-                value={layerName}
-                onChange={(e) => handleSelectLayer(e.target.value, wmsLookup.layers)}
-              >
-                <option value="" disabled>
-                  Select a layer…
+            <SelectField
+              formId={formId}
+              fieldId="layers"
+              label="Layer"
+              required
+              value={layerName}
+              onChange={(e) => handleSelectLayer(e.target.value, wmsLookup.layers)}
+            >
+              <option value="" disabled>
+                Select a layer…
+              </option>
+              {wmsLookup.layers.map((layer) => (
+                <option key={layer.name} value={layer.name}>
+                  {layer.title}
                 </option>
-                {wmsLookup.layers.map((layer) => (
-                  <option key={layer.name} value={layer.name}>
-                    {layer.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+              ))}
+            </SelectField>
           ) : (
             <Field
               formId={formId}
@@ -297,7 +263,7 @@ export function AddLayerForm({ onAdd, disabled }: AddLayerFormProps) {
 
       <button
         type="submit"
-        className="control control-button add-layer-form__submit"
+        className="control control-button panel-form__submit"
         disabled={disabled}
       >
         {disabled ? 'Loading map…' : 'Add layer'}

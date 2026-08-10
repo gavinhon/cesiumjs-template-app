@@ -3,56 +3,111 @@
 A starter app for building CesiumJS map apps: React 19, Vite, TypeScript, and
 CesiumJS, wired up **without** a Cesium ion account.
 
-- Full-screen 3D globe, camera pre-aimed at Singapore.
-- No Cesium ion dependency: base imagery is plain OpenStreetMap tiles, terrain
-  is the default WGS84 ellipsoid.
-- No default Cesium widgets (toolbar, timeline, search box, ...) — a small
-  custom toolbar (search box + "OGC Layers" button) is the app's only chrome.
-- A panel, opened from the toolbar, for connecting to WMS, WMTS, or generic
-  XYZ tile services — including looking up a WMS server's real layer names
-  and extents from its capabilities document.
-- A drawing/measurement toolbar on the right: place points, draw lines and
-  polygons, measure point-to-point distance, and drop text labels — plus a
-  2D/3D toggle, since the drawing tools work in both. Nothing here is saved;
-  reloading the page clears it, by design.
-- Dark "ops dashboard" UI (near-black glass panels, one tactical-green
-  accent, monospace labels) built from a small set of shared design tokens.
+## What you get
 
-Source files are commented to explain *why*, not just *what* — read through
-[src/cesium/CesiumMap.tsx](src/cesium/CesiumMap.tsx) and
-[src/ogc/](src/ogc) to learn how the pieces fit together.
+- **A full-screen 3D globe**, camera pre-aimed at Singapore, with none of
+  Cesium's built-in widgets (no toolbar, timeline, or search box) — the map
+  itself is the UI.
+- **No Cesium ion dependency.** Base imagery is plain OpenStreetMap tiles;
+  terrain is the default WGS84 ellipsoid. No token, no account, no signup.
+- **An OGC layers panel** for connecting to WMS, WMTS, or generic XYZ tile
+  services — including looking up a WMS server's real layer names and
+  extents from its capabilities document.
+- **A 3D Tiles panel** for loading tilesets (buildings, point clouds,
+  photogrammetry) from a `tileset.json` URL: a remote service, an
+  S3/CloudFront bucket, or a dataset dropped under this app's `public/`.
+- **Drawing and measurement tools**: place points, draw lines and polygons,
+  measure point-to-point distance, drop text labels — plus a 2D/3D toggle,
+  since the tools work in both. Nothing is persisted; a reload clears it.
+- **A coherent dark "ops dashboard" UI** built from a small set of shared
+  design tokens and shared components, so new features look like the
+  existing ones without extra effort.
 
 ## Getting started
 
 ```bash
 npm install
+```
+
+```bash
 npm run dev
 ```
 
 Open the printed local URL; you should see the globe centered on Singapore.
 
+## Commands
+
+| Command             | What it does                                          |
+| ------------------- | ----------------------------------------------------- |
+| `npm run dev`       | Vite dev server with hot reload                       |
+| `npm run build`     | Typecheck, then produce a production build in `dist/` |
+| `npm run preview`   | Serve the production build locally                    |
+| `npm run typecheck` | TypeScript only, no bundling                          |
+| `npm run lint`      | Oxlint                                                |
+| `npm run format`    | Rewrite files with Prettier                           |
+| `npm run check`     | Typecheck + lint + format check — run before pushing  |
+
 ## Project structure
 
-- `src/cesium/` — the Cesium `Viewer` setup (`CesiumMap.tsx`), the Singapore
-  camera constants, and the 2D/3D toggle (`useSceneMode.ts`).
-- `src/ogc/` — the OGC layer data model (`types.ts`), the factory that turns
-  a layer config into a Cesium `ImageryProvider` (`createImageryProvider.ts`),
-  the hook that keeps React state and the Cesium viewer's imagery layers in
-  sync (`useOgcLayers.ts`), and the WMS GetCapabilities lookup
-  (`wmsCapabilities.ts`).
-- `src/drawing/` — `useDrawingTools.ts`, the hook driving point/line/polygon/
-  measure/label drawing via Cesium's `Entity` API.
-- `src/components/` — the toolbar (`Toolbar.tsx`) and the layers panel it
-  opens (`Sidebar.tsx`, `AddLayerForm.tsx`, `LayerList.tsx`), plus the
-  drawing toolbar (`DrawingToolbar.tsx`).
+```
+src/
+├── main.tsx              entry point; mounts <App>
+├── App.tsx               app shell: owns the Viewer, decides which panel is open
+├── cesium/               the Cesium Viewer itself, and scene-wide concerns
+│   ├── CesiumMap.tsx       creates/destroys the Viewer; the React↔Cesium bridge
+│   ├── initialView.ts      where the camera starts — usually your first edit
+│   └── useSceneMode.ts     the 2D/3D toggle
+├── features/             one folder per feature; each owns its own state + UI
+│   ├── ogc-layers/         WMS / WMTS / XYZ imagery layers
+│   ├── tiles-3d/           3D Tiles datasets
+│   └── drawing/            point/line/polygon/measure/label tools
+├── ui/                   shared, feature-agnostic building blocks
+│   ├── Panel.tsx           the floating side-panel shell every feature uses
+│   ├── Field.tsx           labeled input/select rows
+│   ├── ResourceList.tsx    the "things added to the map" list
+│   └── Toolbar.tsx         top-left toolbar + the panel registry
+├── lib/                  small shared helpers with no UI or Cesium ties
+└── styles/               design tokens + the global reset
+```
+
+The rule of thumb: **feature code goes in `src/features/<name>/`, and
+everything in there — types, state hook, panel, form, list — stays
+together.** `src/ui/` holds only things two or more features share. See
+[docs/adding-a-feature.md](docs/adding-a-feature.md) for the recipe.
+
+## Documentation
+
+- **[docs/architecture.md](docs/architecture.md)** — how React and Cesium
+  are bridged, how state flows, and the invariants that keep them in sync.
+  Read this first.
+- **[docs/adding-a-feature.md](docs/adding-a-feature.md)** — a step-by-step
+  recipe for adding a new feature panel, following the existing patterns.
+- **[docs/conventions.md](docs/conventions.md)** — code style, naming, CSS,
+  and commenting rules.
+- **[CLAUDE.md](CLAUDE.md)** — the same rules condensed for coding agents.
+
+Source files are commented to explain _why_, not just _what_ —
+[src/cesium/CesiumMap.tsx](src/cesium/CesiumMap.tsx) and
+[src/features/ogc-layers/](src/features/ogc-layers) are the best places to
+start reading.
 
 ## Branching into your own app
 
-This is meant to be a starting point: strip out the sidebar if you don't need
-OGC layer management, swap the base imagery for your own basemap, or wire in
-Cesium ion (`Cesium.Ion.defaultAccessToken = "..."`) if you decide you want
-ion-hosted terrain/imagery/3D Tiles after all.
+This is a starting point, not a framework. Common first moves:
+
+- Change the starting camera in
+  [src/cesium/initialView.ts](src/cesium/initialView.ts).
+- Swap the base imagery in
+  [src/cesium/CesiumMap.tsx](src/cesium/CesiumMap.tsx) for your own basemap.
+- Delete a feature folder you don't need, plus its entry in the `PANELS`
+  registry in [src/ui/Toolbar.tsx](src/ui/Toolbar.tsx) and its element in
+  `App.tsx`. Nothing else references it.
+- Retheme by editing [src/styles/tokens.css](src/styles/tokens.css) (and
+  the mirrored colours in `src/features/drawing/useDrawingTools.ts`).
+- Wire in Cesium ion (`Cesium.Ion.defaultAccessToken = "..."`) if you decide
+  you want ion-hosted terrain, imagery, or 3D Tiles after all.
 
 ## Tooling
 
-Built with [Vite](https://vite.dev/), linted with [Oxlint](https://oxc.rs).
+Built with [Vite](https://vite.dev/), linted with [Oxlint](https://oxc.rs),
+formatted with [Prettier](https://prettier.io).

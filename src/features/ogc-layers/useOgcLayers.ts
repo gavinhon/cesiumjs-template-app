@@ -12,10 +12,11 @@ interface ManagedLayer extends ActiveLayer {
  * Owns the list of OGC layers the user has connected, and keeps it in sync
  * with the Cesium viewer's `imageryLayers` collection.
  *
- * This is the bridge between React state (what the sidebar renders) and
+ * This is the bridge between React state (what the panel renders) and
  * Cesium state (what's actually drawn on the globe) — every function here
- * mutates the Cesium side effect *and* updates the React list so the two
- * never drift apart.
+ * performs the Cesium side effect *and* updates the React list, so the two
+ * never drift apart. Every feature in this app owns its Cesium objects
+ * through a hook shaped like this one; see `docs/architecture.md`.
  */
 export function useOgcLayers(viewer: Cesium.Viewer | null) {
   const [layers, setLayers] = useState<ManagedLayer[]>([]);
@@ -27,10 +28,7 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
       const provider = createImageryProvider(config);
       const cesiumLayer = viewer.imageryLayers.addImageryProvider(provider);
 
-      setLayers((prev) => [
-        ...prev,
-        { config, cesiumLayer, visible: true, alpha: 1 },
-      ]);
+      setLayers((prev) => [...prev, { config, cesiumLayer, visible: true, alpha: 1 }]);
 
       // We'd like to fly the camera to a newly-added layer's extent so it's
       // immediately visible instead of possibly being off-screen. But none

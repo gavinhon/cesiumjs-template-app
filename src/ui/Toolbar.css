@@ -1,11 +1,12 @@
-/* Pinned to the top-left corner, above the map and the panel. Shared "dark
-   glass" look comes from the .control classes in index.css — this file
-   only adds this toolbar's own sizing and layout. */
+/* Pinned to the top-left corner, above the map and the panels. The shared
+   "dark glass" look comes from the .control classes in
+   src/styles/global.css — this file only adds this toolbar's own sizing
+   and layout. */
 .toolbar {
   position: absolute;
   top: 16px;
   left: 16px;
-  z-index: 20; /* above .sidebar, so it stays clickable while the panel is open */
+  z-index: 20; /* above .panel, so it stays clickable while a panel is open */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -17,14 +18,14 @@
   border-radius: var(--radius-md);
 }
 
-/* The "OGC Layers" feature button — same height as the search bar, so the
-   two form one visually aligned row. */
+/* A panel button — same height as the search bar, so the two form one
+   visually aligned row. */
 .toolbar__button {
   height: 44px;
   border-radius: var(--radius-md);
 }
 
-/* Pressed state while the layers panel is open: filled with the accent
+/* Pressed state while that button's panel is open: filled with the accent
    color instead of just glowing on hover, so "on" reads unambiguously. */
 .toolbar__button--active {
   background: var(--accent);

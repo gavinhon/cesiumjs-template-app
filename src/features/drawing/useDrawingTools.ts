@@ -4,6 +4,9 @@ import * as Cesium from 'cesium';
 /** Which drawing/measurement mode is currently active, if any. */
 export type DrawingTool = 'none' | 'point' | 'line' | 'polygon' | 'measure' | 'label';
 
+// Cesium draws into WebGL, not the DOM, so these can't read the CSS custom
+// properties in src/styles/tokens.css — they're hand-mirrored copies. If
+// you retheme the app, update both places.
 const DRAW_COLOR = Cesium.Color.fromCssColorString('#4f9d5c'); // matches --accent
 const MEASURE_COLOR = Cesium.Color.fromCssColorString('#d4a017'); // amber, so measurements read as distinct from drawn shapes
 const LABEL_BACKGROUND = Cesium.Color.fromCssColorString('rgba(13, 16, 14, 0.85)'); // matches --surface

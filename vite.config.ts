@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import cesium from 'vite-plugin-cesium'
+import { fileURLToPath, URL } from 'node:url';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import cesium from 'vite-plugin-cesium';
 
 // https://vite.dev/config/
 //
@@ -17,4 +18,12 @@ import cesium from 'vite-plugin-cesium'
 //      at startup to know where to fetch those files from (default: "/cesium").
 export default defineConfig({
   plugins: [react(), cesium()],
-})
+  resolve: {
+    alias: {
+      // Mirror of the `paths` mapping in tsconfig.app.json. TypeScript's
+      // `paths` only teaches the *type checker* how to resolve `@/...`;
+      // the bundler needs to be told separately, and the two must agree.
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
+});

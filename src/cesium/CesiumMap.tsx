@@ -1,10 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
-import {
-  SINGAPORE_LATITUDE,
-  SINGAPORE_LONGITUDE,
-  SINGAPORE_VIEW_HEIGHT,
-} from './singapore';
+import { INITIAL_VIEW } from './initialView';
 
 // We never call any Cesium ion API (createWorldImagery, createWorldTerrain,
 // the ion-backed geocoder/base-layer-picker, ...), so this app doesn't need
@@ -31,7 +27,7 @@ interface CesiumMapProps {
 
 /**
  * Mounts a full-screen, "blank" Cesium globe: no ion account, no built-in
- * toolbar widgets, camera pre-aimed at Singapore.
+ * toolbar widgets, camera pre-aimed at `INITIAL_VIEW`.
  *
  * Cesium's `Viewer` is a *class*, not a React component — it imperatively
  * takes over a DOM element and drives its own WebGL render loop. That's a
@@ -90,14 +86,14 @@ export function CesiumMap({ onViewerReady }: CesiumMapProps) {
       shouldAnimate: false, // no clock ticking; we show no time-dynamic data
     });
 
-    // Point the camera at Singapore, looking straight down from ~120km up.
+    // Point the camera at the starting view, looking straight down.
     // `Cartesian3.fromDegrees(lon, lat, height)` converts a geographic
     // coordinate into the 3D Cartesian point Cesium's camera actually uses.
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(
-        SINGAPORE_LONGITUDE,
-        SINGAPORE_LATITUDE,
-        SINGAPORE_VIEW_HEIGHT,
+        INITIAL_VIEW.longitude,
+        INITIAL_VIEW.latitude,
+        INITIAL_VIEW.height,
       ),
     });
 

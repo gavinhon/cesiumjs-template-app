@@ -16,7 +16,17 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting */
+    /* `@/...` resolves to `src/...`, so a module never has to reach across
+       the tree with `../../`. Paths are relative to this file's directory
+       (no `baseUrl` — it's deprecated as of TypeScript 6). Vite needs the
+       same mapping to resolve these at build time; see the `resolve.alias`
+       in vite.config.ts, and keep the two in sync. */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* Type checking */
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,

@@ -1,7 +1,7 @@
 /**
  * Looks up the layers a WMS server actually offers, by fetching and
  * parsing its GetCapabilities document — the standard "what do you have?"
- * request every WMS server must answer. This is what lets the sidebar show
+ * request every WMS server must answer. This is what lets the panel show
  * a picklist of real layer names instead of asking the user to already
  * know the server's internal identifier for one.
  *
@@ -12,7 +12,7 @@
  * limitation this feature introduces — Cesium's `WebMapServiceImageryProvider`
  * has the exact same requirement for the map *tiles* themselves (WebGL
  * refuses to use a cross-origin image as a texture without CORS either).
- * If a lookup fails, the sidebar just falls back to typing the layer name
+ * If a lookup fails, the form just falls back to typing the layer name
  * manually — the tiles may still work fine even when the lookup doesn't.
  */
 

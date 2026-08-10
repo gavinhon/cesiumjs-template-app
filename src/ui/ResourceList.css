@@ -1,0 +1,77 @@
+/* The list of resources a panel has added to the map — see ResourceList.tsx. */
+.resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resource-list__empty {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.resource-list__item {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-variant);
+}
+
+.resource-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.resource-list__row + .resource-list__row {
+  margin-top: 8px;
+}
+
+.resource-list__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.resource-list__name-text {
+  cursor: pointer;
+}
+
+.resource-list__name-text:hover {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.resource-list__remove {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* The one deliberate spot of a second hue in an otherwise green-on-black
+   UI: a "remove this" action reads faster with a hint of red on hover —
+   the same "green = go, red = stop" logic a tactical display uses. */
+.resource-list__remove:hover {
+  color: var(--danger);
+}
+
+/* A short monospace tag on the second row, e.g. the layer's service type. */
+.resource-list__badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.resource-list__row input[type='range'] {
+  flex: 1;
+}

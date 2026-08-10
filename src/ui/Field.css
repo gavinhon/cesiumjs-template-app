@@ -1,0 +1,60 @@
+/* The labeled input/select row used by every panel form — see Field.tsx. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field input,
+.field select {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-variant);
+  color: var(--ink);
+  font: 400 13px/1.4 var(--font);
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.field input::placeholder {
+  color: var(--muted);
+}
+
+.field input:focus,
+.field select:focus {
+  box-shadow: var(--shadow-active);
+}
+
+/* A <select>'s dropdown list is drawn by the OS, which does not inherit the
+   panel's background — without this the options render as dark text on a
+   default light popup. */
+.field select option {
+  background: #0d100e;
+  color: var(--ink);
+}
+
+.field small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.field small code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-variant);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink);
+}

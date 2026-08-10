@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { DrawingTool } from '../drawing/useDrawingTools';
+import type { DrawingTool } from './useDrawingTools';
 import './DrawingToolbar.css';
 
 interface DrawingToolbarProps {
@@ -20,7 +20,14 @@ const icons: Record<Exclude<DrawingTool, 'none'> | 'clear', ReactNode> = {
     </svg>
   ),
   line: (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <line x1="5" y1="19" x2="19" y2="5" />
       <circle cx="5" cy="19" r="2.2" fill="currentColor" stroke="none" />
       <circle cx="19" cy="5" r="2.2" fill="currentColor" stroke="none" />

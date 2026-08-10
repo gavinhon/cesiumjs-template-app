@@ -1,0 +1,45 @@
+/*
+ * Design tokens — the single source of truth for the app's look.
+ *
+ * A dark, ops/C2-dashboard aesthetic: near-black glass panels, hairline
+ * borders, one muted tactical-green accent for anything active or primary,
+ * and sharp (not pill-shaped) corners — the opposite instinct from a
+ * consumer map app's soft rounded UI.
+ *
+ * Rule of thumb when adding UI: reach for a token, never a raw hex value.
+ * Every floating control in the app is built from these same few values,
+ * which is what makes the whole thing read as one system. If you need a
+ * colour that isn't here, add a token rather than a one-off literal — and
+ * if you're retheming the app, this file plus `index.html`'s font links are
+ * the only places you should have to touch.
+ */
+:root {
+  --font: Roboto, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --surface: rgba(13, 16, 14, 0.92); /* every floating card's background */
+  --surface-variant: rgba(255, 255, 255, 0.05); /* subtle fill for things *inside* a card */
+  --ink: #dbe4dc; /* primary text — off-white with a faint green cast */
+  --muted: #7c8a7c; /* secondary text */
+  --border: rgba(150, 170, 140, 0.16);
+  --accent: #4f9d5c; /* the one primary/active color */
+  --accent-ink: #06110a; /* text on top of --accent */
+  --danger: #c1453c;
+
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  /* A border + soft glow in the accent color, used on hover/focus/active —
+     reads as "this control is live" without relying on a lighter surface. */
+  --shadow-active: 0 0 0 1px var(--accent), 0 0 16px rgba(79, 157, 92, 0.35);
+
+  --radius-sm: 4px; /* small controls, form fields */
+  --radius-md: 6px; /* search bar, buttons, panel */
+}
+
+/*
+ * Cesium draws map graphics with WebGL, not CSS, so anything rendered into
+ * the scene (drawn shapes, measurement labels) has to be given a
+ * `Cesium.Color` in JavaScript and can't read a CSS variable. The few
+ * values that have to exist on both sides are mirrored in
+ * `src/features/drawing/useDrawingTools.ts` — if you change --accent or
+ * --surface here, change them there too.
+ */

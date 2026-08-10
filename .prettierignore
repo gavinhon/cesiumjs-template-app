@@ -1,0 +1,8 @@
+dist
+node_modules
+package-lock.json
+
+# Static assets served as-is: Cesium's runtime files (copied in by
+# vite-plugin-cesium) and any 3D Tiles / GIS datasets dropped in here.
+# These are data, not source — reformatting them would be churn at best.
+public

@@ -1,39 +1,8 @@
-/*
- * Design tokens, shared by every component's stylesheet.
- *
- * A dark, ops/C2-dashboard look: near-black glass panels, hairline borders,
- * one muted tactical-green accent for anything active or primary, and
- * sharp (not pill-shaped) corners — the opposite instinct from a consumer
- * map app's soft rounded UI. Every floating control (search bar, toolbar
- * button, panel, form fields) is built from these same few values instead
- * of each picking its own colors, so the whole UI reads as one system.
- */
-:root {
-  --font: Roboto, Arial, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-
-  --surface: rgba(13, 16, 14, 0.92); /* every floating card's background */
-  --surface-variant: rgba(255, 255, 255, 0.05); /* subtle fill for things *inside* a card */
-  --ink: #dbe4dc; /* primary text — off-white with a faint green cast */
-  --muted: #7c8a7c; /* secondary text */
-  --border: rgba(150, 170, 140, 0.16);
-  --accent: #4f9d5c; /* the one primary/active color */
-  --accent-ink: #06110a; /* text on top of --accent */
-  --danger: #c1453c;
-
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-  /* A border + soft glow in the accent color, used on hover/focus/active —
-     reads as "this control is live" without relying on a lighter surface. */
-  --shadow-active:
-    0 0 0 1px var(--accent),
-    0 0 16px rgba(79, 157, 92, 0.35);
-
-  --radius-sm: 4px; /* small controls, form fields */
-  --radius-md: 6px; /* search bar, buttons, panel */
-}
+@import './tokens.css';
 
 /*
- * Global reset for a full-screen map app.
+ * Global reset for a full-screen map app, plus the `.control` primitives
+ * every floating widget is built from. Loaded once, from `src/main.tsx`.
  *
  * Cesium wants to own the entire viewport: its canvas draws the globe and
  * needs to know its own pixel size to size the WebGL render buffer and
@@ -66,6 +35,15 @@ body {
   box-sizing: border-box;
 }
 
+/* The app root. Every piece of UI (the map canvas, the toolbars, the
+   panels) is absolutely positioned against this, so it must be a
+   positioned, full-size ancestor. */
+.app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 /* Form controls (checkboxes, radios, range sliders) are drawn by the OS/
    browser, not by our CSS — `accent-color` is the one hook we get to make
    them use the same tactical green as the rest of the UI. */
@@ -75,11 +53,10 @@ select {
 }
 
 /*
- * Shared look for every floating control (search bar, toolbar button,
- * panel, form inputs): dark glass with a hairline border. Components add a
- * second class for their own sizing/shape — see Toolbar.css and
- * Sidebar.css for how these get composed, e.g.
- * className="control control-button toolbar__button".
+ * Shared look for every floating control (search bar, toolbar buttons,
+ * panel form inputs): dark glass with a hairline border. Components add a
+ * second class for their own sizing/shape, composing like
+ * `className="control control-button toolbar__button"`.
  */
 .control {
   background: var(--surface);
