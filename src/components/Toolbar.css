@@ -1,5 +1,6 @@
-/* Same monotone glass look as the sidebar (see Sidebar.css / index.css
-   tokens) — pinned to the top-left corner, above the map and the panel. */
+/* Pinned to the top-left corner, above the map and the panel. Shared "dark
+   glass" look comes from the .control classes in index.css — this file
+   only adds this toolbar's own sizing and layout. */
 .toolbar {
   position: absolute;
   top: 16px;
@@ -11,57 +12,20 @@
 }
 
 .toolbar__search {
-  width: 200px;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel-strong);
-  color: var(--ink);
-  font-size: 13px;
-  outline: none;
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  width: 280px;
+  height: 44px;
+  border-radius: var(--radius-md);
 }
 
-.toolbar__search::placeholder {
-  color: var(--muted);
-}
-
-.toolbar__search:focus {
-  border-color: rgba(236, 236, 234, 0.5);
-  box-shadow: 0 0 0 3px rgba(236, 236, 234, 0.12);
-}
-
+/* The "OGC Layers" feature button — same height as the search bar, so the
+   two form one visually aligned row. */
 .toolbar__button {
-  padding: 9px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel-strong);
-  color: var(--ink);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow);
-  transition:
-    background 0.15s ease,
-    transform 0.15s ease;
+  height: 44px;
+  border-radius: var(--radius-md);
 }
 
-.toolbar__button:hover {
-  transform: translateY(-1px);
-}
-
-/* Pressed state while the layers panel is open — same "invert to accent"
-   treatment as the primary "Add layer" button, for one consistent way of
-   showing "this is the active/on control" across the app. */
+/* Pressed state while the layers panel is open: filled with the accent
+   color instead of just glowing on hover, so "on" reads unambiguously. */
 .toolbar__button--active {
   background: var(--accent);
   color: var(--accent-ink);

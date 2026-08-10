@@ -15,12 +15,19 @@ export function Toolbar({ layersPanelOpen, onToggleLayersPanel }: ToolbarProps) 
     <div className="toolbar">
       {/* Not wired up to anything yet — a placeholder for wherever you plug
           in a location search (e.g. Cesium's Geocoder, or your own API). */}
-      <input type="search" className="toolbar__search" placeholder="Search" aria-label="Search" />
+      <input
+        type="search"
+        className="control control-input toolbar__search"
+        placeholder="Search"
+        aria-label="Search"
+      />
 
       <button
         type="button"
         className={
-          layersPanelOpen ? 'toolbar__button toolbar__button--active' : 'toolbar__button'
+          layersPanelOpen
+            ? 'control control-button toolbar__button toolbar__button--active'
+            : 'control control-button toolbar__button'
         }
         onClick={onToggleLayersPanel}
         aria-pressed={layersPanelOpen}

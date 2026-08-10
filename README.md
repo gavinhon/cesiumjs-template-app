@@ -6,9 +6,12 @@ CesiumJS, wired up **without** a Cesium ion account.
 - Full-screen 3D globe, camera pre-aimed at Singapore.
 - No Cesium ion dependency: base imagery is plain OpenStreetMap tiles, terrain
   is the default WGS84 ellipsoid.
-- No default Cesium widgets (toolbar, timeline, search box, ...) — the map is
-  the whole UI.
-- A left sidebar for connecting to WMS, WMTS, or generic XYZ tile services.
+- No default Cesium widgets (toolbar, timeline, search box, ...) — a small
+  custom toolbar (search box + "OGC Layers" button) is the app's only chrome.
+- A panel, opened from the toolbar, for connecting to WMS, WMTS, or generic
+  XYZ tile services.
+- UI styled after Google Maps' own web UI (Roboto, white cards, Google's
+  elevation shadow) — measured by inspecting maps.google.com directly.
 
 Source files are commented to explain *why*, not just *what* — read through
 [src/cesium/CesiumMap.tsx](src/cesium/CesiumMap.tsx) and
@@ -31,8 +34,8 @@ Open the printed local URL; you should see the globe centered on Singapore.
   a layer config into a Cesium `ImageryProvider` (`createImageryProvider.ts`),
   and the hook that keeps React state and the Cesium viewer's imagery layers
   in sync (`useOgcLayers.ts`).
-- `src/components/` — the sidebar UI (`Sidebar.tsx`, `AddLayerForm.tsx`,
-  `LayerList.tsx`).
+- `src/components/` — the toolbar (`Toolbar.tsx`) and the layers panel it
+  opens (`Sidebar.tsx`, `AddLayerForm.tsx`, `LayerList.tsx`).
 
 ## Branching into your own app
 

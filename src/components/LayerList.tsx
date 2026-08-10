@@ -5,6 +5,7 @@ interface LayerListProps {
   onRemove: (id: string) => void;
   onToggleVisibility: (id: string) => void;
   onAlphaChange: (id: string, alpha: number) => void;
+  onZoomToLayer: (id: string) => void;
 }
 
 /** Renders the layers currently added to the map, with per-layer controls. */
@@ -13,6 +14,7 @@ export function LayerList({
   onRemove,
   onToggleVisibility,
   onAlphaChange,
+  onZoomToLayer,
 }: LayerListProps) {
   if (layers.length === 0) {
     return <p className="layer-list__empty">No layers added yet.</p>;
@@ -23,14 +25,24 @@ export function LayerList({
       {layers.map(({ config, visible, alpha }) => (
         <li key={config.id} className="layer-list__item">
           <div className="layer-list__row">
-            <label className="layer-list__name">
+            <span className="layer-list__name">
               <input
                 type="checkbox"
                 checked={visible}
                 onChange={() => onToggleVisibility(config.id)}
+                aria-label={`Show ${config.name}`}
               />
-              {config.name}
-            </label>
+              {/* A separate element (not the checkbox's own <label>) so a
+                  double-click here doesn't also fire two toggle clicks on
+                  the checkbox via label-forwarding. */}
+              <span
+                className="layer-list__name-text"
+                onDoubleClick={() => onZoomToLayer(config.id)}
+                title="Double-click to zoom to this layer"
+              >
+                {config.name}
+              </span>
+            </span>
             <button
               type="button"
               className="layer-list__remove"

@@ -24,7 +24,7 @@ interface SidebarProps {
  * surprising way to lose work.
  */
 export function Sidebar({ viewer, open }: SidebarProps) {
-  const { layers, addLayer, removeLayer, toggleVisibility, setAlpha } =
+  const { layers, addLayer, removeLayer, toggleVisibility, setAlpha, zoomToLayer } =
     useOgcLayers(viewer);
 
   return (
@@ -45,6 +45,7 @@ export function Sidebar({ viewer, open }: SidebarProps) {
         onRemove={removeLayer}
         onToggleVisibility={toggleVisibility}
         onAlphaChange={setAlpha}
+        onZoomToLayer={zoomToLayer}
       />
     </aside>
   );

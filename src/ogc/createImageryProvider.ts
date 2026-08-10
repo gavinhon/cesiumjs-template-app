@@ -15,10 +15,8 @@ export function createImageryProvider(
   config: OgcLayerConfig,
 ): Cesium.ImageryProvider {
   switch (config.type) {
-    case 'wms':
-      // WebMapServiceImageryProvider builds standard WMS GetMap requests
-      // (SERVICE=WMS&REQUEST=GetMap&BBOX=...&LAYERS=...) under the hood,
-      // re-issuing one per visible tile.
+    case 'wms': {
+      const { boundingBox } = config;
       return new Cesium.WebMapServiceImageryProvider({
         url: config.url,
         layers: config.layers,
@@ -28,7 +26,20 @@ export function createImageryProvider(
           transparent: true,
           format: 'image/png',
         },
+        // If we looked this layer up via GetCapabilities, we know exactly
+        // where it is — passing it in makes `provider.rectangle` accurate,
+        // which is what "zoom to layer" (see useOgcLayers.ts) flies to.
+        // Without it, Cesium defaults to a whole-globe rectangle.
+        ...(boundingBox && {
+          rectangle: Cesium.Rectangle.fromDegrees(
+            boundingBox.west,
+            boundingBox.south,
+            boundingBox.east,
+            boundingBox.north,
+          ),
+        }),
       });
+    }
 
     case 'wmts':
       // WebMapTileServiceImageryProvider requests pre-rendered tiles from

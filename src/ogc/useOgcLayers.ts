@@ -72,6 +72,23 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
     [viewer],
   );
 
+  // Explicitly requested by the user (double-clicking a layer's name), so
+  // unlike the auto-fly in `addLayer` above, this always flies — even to a
+  // whole-globe view for a layer whose real extent we don't know. That's
+  // an honest answer to "zoom to layer" rather than a silent no-op.
+  const zoomToLayer = useCallback(
+    (id: string) => {
+      if (!viewer) return;
+      const target = layers.find((l) => l.config.id === id);
+      if (!target) return;
+      viewer.flyTo(target.cesiumLayer).catch(() => {
+        // A rejected flyTo (e.g. the layer was removed mid-flight) isn't
+        // worth surfacing to the user.
+      });
+    },
+    [viewer, layers],
+  );
+
   const toggleVisibility = useCallback((id: string) => {
     setLayers((prev) =>
       prev.map((l) => {
@@ -93,5 +110,5 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
     );
   }, []);
 
-  return { layers, addLayer, removeLayer, toggleVisibility, setAlpha };
+  return { layers, addLayer, removeLayer, toggleVisibility, setAlpha, zoomToLayer };
 }

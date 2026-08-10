@@ -1,24 +1,35 @@
 /*
- * Monotone design tokens, shared by every component's stylesheet.
+ * Design tokens, shared by every component's stylesheet.
  *
- * "Monotone" here means literally hue-free: every color below is gray or
- * white at some opacity/lightness, so contrast comes from value (light vs.
- * dark) and transparency rather than color. The one deliberate exception is
- * `--danger`, kept as a genuine red — a "remove this layer" affordance is
- * worth the one spot of color for recognizability.
+ * A dark, ops/C2-dashboard look: near-black glass panels, hairline borders,
+ * one muted tactical-green accent for anything active or primary, and
+ * sharp (not pill-shaped) corners — the opposite instinct from a consumer
+ * map app's soft rounded UI. Every floating control (search bar, toolbar
+ * button, panel, form fields) is built from these same few values instead
+ * of each picking its own colors, so the whole UI reads as one system.
  */
 :root {
-  --ink: #ececea; /* primary text, near-white */
-  --muted: #97968f; /* secondary text */
-  --panel: rgba(17, 17, 16, 0.88); /* translucent panel background */
-  --panel-strong: rgba(10, 10, 9, 0.95); /* less translucent, for pill controls */
-  --panel-soft: rgba(255, 255, 255, 0.04); /* subtle fill for nested rows/inputs */
-  --border: rgba(236, 236, 234, 0.14);
-  --border-soft: rgba(236, 236, 234, 0.08);
-  --accent: #ececea; /* "primary action" color — white, not a hue */
-  --accent-ink: #111110; /* text color on top of --accent */
-  --danger: #c9635f;
-  --shadow: 0 22px 48px rgba(0, 0, 0, 0.4);
+  --font: Roboto, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --surface: rgba(13, 16, 14, 0.92); /* every floating card's background */
+  --surface-variant: rgba(255, 255, 255, 0.05); /* subtle fill for things *inside* a card */
+  --ink: #dbe4dc; /* primary text — off-white with a faint green cast */
+  --muted: #7c8a7c; /* secondary text */
+  --border: rgba(150, 170, 140, 0.16);
+  --accent: #4f9d5c; /* the one primary/active color */
+  --accent-ink: #06110a; /* text on top of --accent */
+  --danger: #c1453c;
+
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  /* A border + soft glow in the accent color, used on hover/focus/active —
+     reads as "this control is live" without relying on a lighter surface. */
+  --shadow-active:
+    0 0 0 1px var(--accent),
+    0 0 16px rgba(79, 157, 92, 0.35);
+
+  --radius-sm: 4px; /* small controls, form fields */
+  --radius-md: 6px; /* search bar, buttons, panel */
 }
 
 /*
@@ -42,18 +53,12 @@ body,
 }
 
 body {
-  font:
-    14px/1.4 'IBM Plex Sans',
-    system-ui,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  /* The app commits to one dark, monotone look rather than adapting to the
-     OS light/dark preference, so this isn't `light dark` — this also fills
-     in a matching near-black background for the instant before Cesium's
-     canvas has mounted, instead of a white flash. */
+  font: 400 14px/1.4 var(--font);
+  /* The app commits to one dark look rather than adapting to the OS light/
+     dark preference. This also fills in a near-black background for the
+     instant before Cesium's canvas has mounted, instead of a white flash. */
   color-scheme: dark;
-  background: #0a0a09;
+  background: #08090a;
   color: var(--ink);
 }
 
@@ -62,30 +67,64 @@ body {
 }
 
 /* Form controls (checkboxes, radios, range sliders) are drawn by the OS/
-   browser, not by our CSS — `accent-color` is the one hook we get to keep
-   them grayscale instead of the default system blue. */
+   browser, not by our CSS — `accent-color` is the one hook we get to make
+   them use the same tactical green as the rest of the UI. */
 input,
 select {
-  accent-color: var(--ink);
+  accent-color: var(--accent);
 }
 
-/* A thin, grayscale scrollbar for panels that need to scroll internally
-   (see .sidebar) — Firefox's standard property plus the WebKit equivalent. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(236, 236, 234, 0.35) rgba(255, 255, 255, 0.05);
+/*
+ * Shared look for every floating control (search bar, toolbar button,
+ * panel, form inputs): dark glass with a hairline border. Components add a
+ * second class for their own sizing/shape — see Toolbar.css and
+ * Sidebar.css for how these get composed, e.g.
+ * className="control control-button toolbar__button".
+ */
+.control {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  font: 400 14px/1.4 var(--font);
 }
 
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+.control-input {
+  padding: 0 14px;
+  outline: none;
+  transition: box-shadow 0.15s ease;
 }
 
-*::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+.control-input::placeholder {
+  color: var(--muted);
 }
 
-*::-webkit-scrollbar-thumb {
-  background: rgba(236, 236, 234, 0.3);
-  border-radius: 999px;
+.control-input:focus {
+  box-shadow: var(--shadow-active);
+}
+
+.control-button {
+  padding: 0 18px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition:
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.control-button:hover {
+  box-shadow: var(--shadow-active);
+}
+
+.control-button:disabled {
+  cursor: not-allowed;
+  box-shadow: var(--shadow);
+  opacity: 0.5;
 }

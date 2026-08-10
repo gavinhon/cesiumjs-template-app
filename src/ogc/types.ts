@@ -37,6 +37,13 @@ export interface WmsLayerConfig extends BaseLayerConfig {
   type: 'wms';
   /** Comma-separated WMS layer name(s), e.g. "topp:states" */
   layers: string;
+  /**
+   * Where this layer actually is, if known from looking up the server's
+   * capabilities (see src/ogc/wmsCapabilities.ts). Lets the map fly
+   * straight to the real location — for a manually-typed layer name, this
+   * is undefined and "zoom to layer" falls back to a whole-globe view.
+   */
+  boundingBox?: { west: number; south: number; east: number; north: number };
 }
 
 export interface WmtsLayerConfig extends BaseLayerConfig {
