@@ -6,6 +6,28 @@ export type DrawingTool = 'none' | 'point' | 'line' | 'polygon' | 'measure' | 'l
 
 const DRAW_COLOR = Cesium.Color.fromCssColorString('#4f9d5c'); // matches --accent
 const MEASURE_COLOR = Cesium.Color.fromCssColorString('#d4a017'); // amber, so measurements read as distinct from drawn shapes
+const LABEL_BACKGROUND = Cesium.Color.fromCssColorString('rgba(13, 16, 14, 0.85)'); // matches --surface
+
+/**
+ * Shared styling for every text label (the "Add label" tool and the
+ * measure distance readout). A solid background instead of an outline:
+ * Cesium renders label text via a signed-distance-field texture, and a
+ * thick `outlineWidth` relative to a small font size makes that SDF stroke
+ * come out as a blurry, blocky halo instead of a clean outline — at a
+ * glance it just looks like broken/muddy rendering. A flat background box
+ * sidesteps the SDF-outline artifact entirely and doubles as a legibility
+ * aid over busy map imagery, which is why real map UIs (Google Maps
+ * included) label this way rather than with outlined text.
+ */
+const LABEL_STYLE = {
+  fillColor: Cesium.Color.WHITE,
+  style: Cesium.LabelStyle.FILL,
+  showBackground: true,
+  backgroundColor: LABEL_BACKGROUND,
+  backgroundPadding: new Cesium.Cartesian2(6, 4),
+  verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+};
 
 function formatDistance(meters: number): string {
   return meters >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${meters.toFixed(0)} m`;
@@ -107,15 +129,10 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
+          ...LABEL_STYLE,
           text,
           font: '14px Roboto, sans-serif',
-          fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 3,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -10),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
       allEntitiesRef.current.add(entity);
@@ -174,15 +191,10 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         const label = cesiumViewer.entities.add({
           position: positionsRef.current[0],
           label: {
+            ...LABEL_STYLE,
             text: formatDistance(0),
             font: '13px "IBM Plex Mono", monospace',
-            fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 3,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             pixelOffset: new Cesium.Cartesian2(0, -12),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },
         });
         measureLabelRef.current = label;
