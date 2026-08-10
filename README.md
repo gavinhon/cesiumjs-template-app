@@ -9,9 +9,14 @@ CesiumJS, wired up **without** a Cesium ion account.
 - No default Cesium widgets (toolbar, timeline, search box, ...) — a small
   custom toolbar (search box + "OGC Layers" button) is the app's only chrome.
 - A panel, opened from the toolbar, for connecting to WMS, WMTS, or generic
-  XYZ tile services.
-- UI styled after Google Maps' own web UI (Roboto, white cards, Google's
-  elevation shadow) — measured by inspecting maps.google.com directly.
+  XYZ tile services — including looking up a WMS server's real layer names
+  and extents from its capabilities document.
+- A drawing/measurement toolbar on the right: place points, draw lines and
+  polygons, measure point-to-point distance, and drop text labels — plus a
+  2D/3D toggle, since the drawing tools work in both. Nothing here is saved;
+  reloading the page clears it, by design.
+- Dark "ops dashboard" UI (near-black glass panels, one tactical-green
+  accent, monospace labels) built from a small set of shared design tokens.
 
 Source files are commented to explain *why*, not just *what* — read through
 [src/cesium/CesiumMap.tsx](src/cesium/CesiumMap.tsx) and
@@ -28,14 +33,18 @@ Open the printed local URL; you should see the globe centered on Singapore.
 
 ## Project structure
 
-- `src/cesium/` — the Cesium `Viewer` setup (`CesiumMap.tsx`) and the
-  Singapore camera constants.
+- `src/cesium/` — the Cesium `Viewer` setup (`CesiumMap.tsx`), the Singapore
+  camera constants, and the 2D/3D toggle (`useSceneMode.ts`).
 - `src/ogc/` — the OGC layer data model (`types.ts`), the factory that turns
   a layer config into a Cesium `ImageryProvider` (`createImageryProvider.ts`),
-  and the hook that keeps React state and the Cesium viewer's imagery layers
-  in sync (`useOgcLayers.ts`).
+  the hook that keeps React state and the Cesium viewer's imagery layers in
+  sync (`useOgcLayers.ts`), and the WMS GetCapabilities lookup
+  (`wmsCapabilities.ts`).
+- `src/drawing/` — `useDrawingTools.ts`, the hook driving point/line/polygon/
+  measure/label drawing via Cesium's `Entity` API.
 - `src/components/` — the toolbar (`Toolbar.tsx`) and the layers panel it
-  opens (`Sidebar.tsx`, `AddLayerForm.tsx`, `LayerList.tsx`).
+  opens (`Sidebar.tsx`, `AddLayerForm.tsx`, `LayerList.tsx`), plus the
+  drawing toolbar (`DrawingToolbar.tsx`).
 
 ## Branching into your own app
 
