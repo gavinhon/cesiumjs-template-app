@@ -140,7 +140,7 @@ export function DrawingToolbar({
             type="button"
             className={
               activeTool === tool
-                ? 'control control-button drawing-toolbar__button drawing-toolbar__button--active'
+                ? 'control control-button drawing-toolbar__button control-button--active'
                 : 'control control-button drawing-toolbar__button'
             }
             onClick={() => onSelectTool(activeTool === tool ? 'none' : tool)}

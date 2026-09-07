@@ -10,15 +10,26 @@ CesiumJS, wired up **without** a Cesium ion account.
   itself is the UI.
 - **No Cesium ion dependency.** Base imagery is plain OpenStreetMap tiles;
   terrain is the default WGS84 ellipsoid. No token, no account, no signup.
-- **An OGC layers panel** for connecting to WMS, WMTS, or generic XYZ tile
-  services — including looking up a WMS server's real layer names and
-  extents from its capabilities document.
+- **An OGC layers panel** for connecting to WMS, WMTS and XYZ raster
+  services, plus WFS vector features — including looking up a server's real
+  layer names, feature types and extents from its capabilities document.
+- **A layer manager** listing everything currently on the map (the base map
+  included), with visibility toggles, double-click-to-zoom, and draw-order
+  controls that reorder Cesium's real imagery stack so you can uncover a
+  layer hidden underneath another.
 - **A 3D Tiles panel** for loading tilesets (buildings, point clouds,
   photogrammetry) from a `tileset.json` URL: a remote service, an
   S3/CloudFront bucket, or a dataset dropped under this app's `public/`.
 - **Drawing and measurement tools**: place points, draw lines and polygons,
   measure point-to-point distance, drop text labels — plus a 2D/3D toggle,
-  since the tools work in both. Nothing is persisted; a reload clears it.
+  since the tools work in both. Live previews throughout: a marker showing
+  where the next click lands, rubber-band edges to the cursor, a dot on each
+  placed vertex, Backspace to undo one, Esc to abandon. Nothing is
+  persisted; a reload clears it.
+- **Editable drawings.** Click a shape to select it, then name it, record
+  free-form key/value attributes against it, choose which one its on-map
+  label shows, and drag its vertices to reshape it — all from the Drawings
+  panel.
 - **A coherent dark "ops dashboard" UI** built from a small set of shared
   design tokens and shared components, so new features look like the
   existing ones without extra effort.
@@ -56,16 +67,21 @@ src/
 ├── cesium/               the Cesium Viewer itself, and scene-wide concerns
 │   ├── CesiumMap.tsx       creates/destroys the Viewer; the React↔Cesium bridge
 │   ├── initialView.ts      where the camera starts — usually your first edit
+│   ├── theme.ts            the few design tokens mirrored as Cesium.Color
+│   ├── mapLabels.ts        HTML labels anchored to world positions
+│   ├── cancelCameraInertia.ts  stops the globe gliding after a custom drag
 │   └── useSceneMode.ts     the 2D/3D toggle
 ├── features/             one folder per feature; each owns its own state + UI
-│   ├── ogc-layers/         WMS / WMTS / XYZ imagery layers
+│   ├── ogc-layers/         WMS / WMTS / XYZ imagery, and WFS vector features
 │   ├── tiles-3d/           3D Tiles datasets
+│   ├── layer-manager/      one list of everything on the map, with draw order
 │   └── drawing/            point/line/polygon/measure/label tools
 ├── ui/                   shared, feature-agnostic building blocks
 │   ├── Panel.tsx           the floating side-panel shell every feature uses
 │   ├── Field.tsx           labeled input/select rows
 │   ├── ResourceList.tsx    the "things added to the map" list
-│   └── Toolbar.tsx         top-left toolbar + the panel registry
+│   ├── Toolbar.tsx         top-left toolbar + its panel registry
+│   └── panels.ts           PanelId — every panel the app can open
 ├── lib/                  small shared helpers with no UI or Cesium ties
 └── styles/               design tokens + the global reset
 ```
@@ -102,8 +118,9 @@ This is a starting point, not a framework. Common first moves:
 - Delete a feature folder you don't need, plus its entry in the `PANELS`
   registry in [src/ui/Toolbar.tsx](src/ui/Toolbar.tsx) and its element in
   `App.tsx`. Nothing else references it.
-- Retheme by editing [src/styles/tokens.css](src/styles/tokens.css) (and
-  the mirrored colours in `src/features/drawing/useDrawingTools.ts`).
+- Retheme by editing [src/styles/tokens.css](src/styles/tokens.css), the
+  values mirrored for Cesium in [src/cesium/theme.ts](src/cesium/theme.ts),
+  and the font `<link>` in `index.html`.
 - Wire in Cesium ion (`Cesium.Ion.defaultAccessToken = "..."`) if you decide
   you want ion-hosted terrain, imagery, or 3D Tiles after all.
 

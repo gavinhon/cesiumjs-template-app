@@ -76,7 +76,7 @@ export function TilesetForm({ onAdd, disabled }: TilesetFormProps) {
 
       <button
         type="submit"
-        className="control control-button panel-form__submit"
+        className="control control-button control-button--primary panel-form__submit"
         disabled={disabled || status.state === 'loading'}
       >
         {status.state === 'loading'

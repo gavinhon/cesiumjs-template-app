@@ -94,6 +94,14 @@ Plain CSS, no preprocessor, no CSS-in-JS.
   in a component stylesheet are a bug. Need a colour that isn't there? Add a
   token.
 - **BEM-ish naming**: `.block`, `.block__element`, `.block--modifier`.
+- **Size controls from the tokens, never per-component.** Every button,
+  input and select is `var(--control-height)`; compact grid rows use
+  `--control-height-sm`. Five near-identical heights scattered across
+  stylesheets (44/40/38/36/32) is what this replaced, and it read as
+  accidental rather than designed. The font scale is likewise a fixed
+  ladder — 15/13/12/11/10px, with 15 reserved for panel titles and 10 for
+  badges and code. If a new size feels necessary, it's usually the layout
+  that needs changing, not the ladder.
 - **Compose the `.control` primitives** for anything that floats over the
   map: `className="control control-button toolbar__button"`. You get the
   glass background, border, shadow, and hover state for free.
@@ -108,16 +116,18 @@ Plain CSS, no preprocessor, no CSS-in-JS.
   order in `src/main.tsx`.
 
   This has bitten us once already: importing `App` before `global.css`
-  inverted the order, `.control-button { padding: 0 18px }` beat
-  `.drawing-toolbar__button { padding: 0 }`, and the icon buttons' 40px
-  content box collapsed to 2px — the SVG icons vanished. The submit buttons
+  inverted the order, so `.control-button`'s horizontal padding beat
+  `.drawing-toolbar__button { padding: 0 }` and the icon buttons' content
+  box collapsed to 2px — the SVG icons vanished. The submit buttons
   silently lost their accent fill at the same time. If a component's
   override of padding, background, or border-radius mysteriously does
   nothing, check stylesheet order before anything else.
 
-- Cesium draws with WebGL and can't read CSS variables. The few colours that
-  must exist on both sides are mirrored in `useDrawingTools.ts` — change
-  both together.
+- Cesium draws with WebGL and can't read CSS variables. The colours that
+  must exist on both sides are mirrored in exactly one file,
+  `src/cesium/theme.ts` — change both together, and don't add a second
+  mirror. Fonts aren't mirrored at all: map text is an HTML overlay
+  (`src/cesium/mapLabels.ts`), so it uses these tokens directly.
 
 ## Comments
 

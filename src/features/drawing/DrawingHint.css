@@ -1,0 +1,48 @@
+/* A caption pinned to the bottom-centre of the map while a tool is armed.
+   Bottom-centre keeps it near the cursor without covering it, and clear of
+   both toolbars and the credit line in the bottom-left corner. */
+.drawing-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  /* It sits directly over the area being drawn on, so it must never
+     swallow a click meant for the map. */
+  pointer-events: none;
+}
+
+/* The keyboard conventions, set in the mono face the rest of the UI uses
+   for anything the user types or presses. */
+.drawing-hint__keys {
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+/* Stack the two halves once the caption stops fitting on one line. The
+   breakpoint is set by this text's own length rather than a device size:
+   below it both halves wrap independently and the result reads as a
+   paragraph, which is worse than two deliberate lines. */
+@media (max-width: 820px) {
+  .drawing-hint {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .drawing-hint__keys {
+    padding-left: 0;
+    border-left: none;
+  }
+}

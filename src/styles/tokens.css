@@ -1,45 +1,90 @@
 /*
  * Design tokens — the single source of truth for the app's look.
  *
- * A dark, ops/C2-dashboard aesthetic: near-black glass panels, hairline
- * borders, one muted tactical-green accent for anything active or primary,
- * and sharp (not pill-shaped) corners — the opposite instinct from a
- * consumer map app's soft rounded UI.
+ * A dark, ops/C2-dashboard aesthetic: near-black neutral greys, hairline
+ * borders, one warm orange accent for anything active or primary, and
+ * sharp (not pill-shaped) corners — the opposite instinct from a consumer
+ * map app's soft rounded UI.
+ *
+ * The greys are very slightly warm (a touch more red than blue) so they sit
+ * *with* the orange rather than fighting it. A truly neutral grey next to a
+ * saturated orange reads faintly blue by contrast, which makes the whole UI
+ * look like two themes stacked.
  *
  * Rule of thumb when adding UI: reach for a token, never a raw hex value.
  * Every floating control in the app is built from these same few values,
  * which is what makes the whole thing read as one system. If you need a
  * colour that isn't here, add a token rather than a one-off literal — and
- * if you're retheming the app, this file plus `index.html`'s font links are
- * the only places you should have to touch.
+ * if you're retheming, this file, `src/cesium/theme.ts`, and the font
+ * `<link>` in index.html are the only places you should have to touch.
  */
 :root {
-  --font: Roboto, Arial, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /*
+   * Inter for anything read as prose; JetBrains Mono — uppercase and
+   * letter-spaced — for labels, badges and numeric readouts. That split is
+   * what gives a dark dashboard its "instrument panel" feel: the mono face
+   * signals *data*, the sans signals *content*.
+   */
+  --font: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
-  --surface: rgba(13, 16, 14, 0.92); /* every floating card's background */
-  --surface-variant: rgba(255, 255, 255, 0.05); /* subtle fill for things *inside* a card */
-  --ink: #dbe4dc; /* primary text — off-white with a faint green cast */
-  --muted: #7c8a7c; /* secondary text */
-  --border: rgba(150, 170, 140, 0.16);
-  --accent: #4f9d5c; /* the one primary/active color */
-  --accent-ink: #06110a; /* text on top of --accent */
-  --danger: #c1453c;
+  /* --- Greys ---------------------------------------------------------- */
+  --bg: #0a0a0b; /* the page behind Cesium's canvas */
+  --surface: rgba(24, 24, 26, 0.92); /* every floating card's background */
+  --surface-solid: #18181a; /* opaque --surface, for OS-drawn popups that can't blend */
+  --surface-variant: rgba(255, 255, 255, 0.055); /* subtle fill for things *inside* a card */
+  --ink: #ebe8e4; /* primary text — warm off-white */
+  --muted: #8d8983; /* secondary text, labels, inactive icons */
+  --border: rgba(255, 255, 255, 0.11); /* hairline separators */
 
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  /* --- Accent --------------------------------------------------------- */
+  --accent: #ff8a3d; /* the one primary/active color */
+  --accent-ink: #1c0e04; /* text on top of --accent */
+  --accent-hover: #ffa062; /* lifted accent, for hovering a filled primary button */
+  --accent-soft: rgba(255, 138, 61, 0.13); /* tinted fill for active rows/hovers */
+
+  /*
+   * Slightly pink rather than a true red, so "destructive" stays legible
+   * next to the orange accent instead of blending into it.
+   */
+  --danger: #f2555f;
+
+  /* --- Colours Cesium also needs (mirrored in src/cesium/theme.ts) ----- */
+  --measure: #f5f1ea; /* near-white — measurements, so they read as not-a-drawing */
+  --vector: #5b9dff; /* blue — WFS features, complementary to the accent */
+
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
   /* A border + soft glow in the accent color, used on hover/focus/active —
      reads as "this control is live" without relying on a lighter surface. */
-  --shadow-active: 0 0 0 1px var(--accent), 0 0 16px rgba(79, 157, 92, 0.35);
+  --shadow-active: 0 0 0 1px var(--accent), 0 0 18px rgba(255, 138, 61, 0.28);
 
   --radius-sm: 4px; /* small controls, form fields */
   --radius-md: 6px; /* search bar, buttons, panel */
+
+  /* --- Control sizing --------------------------------------------------
+   * One height for every interactive control — inputs, selects, buttons,
+   * and the square icon buttons in the rails. A dashboard reads as
+   * deliberate when its controls line up on a single rhythm; five
+   * near-identical heights (44/40/38/36/32) read as accidental.
+   *
+   * 34px is the dense-but-comfortable range most desktop tools settle on
+   * around 12-13px text. Don't go below ~30px: these are mouse targets,
+   * and the shrinking stops being density and starts being a nuisance.
+   *
+   * The toolbar and rail offsets in Panel.css are derived from this, so
+   * changing it moves the panels to match instead of leaving them
+   * overlapping. */
+  --control-height: 34px;
+  --control-height-sm: 30px; /* compact grid rows, e.g. attribute key/value */
 }
 
 /*
- * Cesium draws map graphics with WebGL, not CSS, so anything rendered into
- * the scene (drawn shapes, measurement labels) has to be given a
- * `Cesium.Color` in JavaScript and can't read a CSS variable. The few
- * values that have to exist on both sides are mirrored in
- * `src/features/drawing/useDrawingTools.ts` — if you change --accent or
- * --surface here, change them there too.
+ * Cesium draws map graphics with WebGL, not CSS, so shapes rendered into the
+ * scene (drawings, WFS features) have to be given a `Cesium.Color` in
+ * JavaScript and can't read a CSS variable. Those few colours are mirrored
+ * in exactly one place — `src/cesium/theme.ts`. Change a value here, change
+ * it there.
+ *
+ * Text on the map is not part of that: map labels are HTML overlays (see
+ * `src/cesium/mapLabels.ts`), so they use these tokens directly.
  */

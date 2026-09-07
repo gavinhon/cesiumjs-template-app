@@ -9,14 +9,14 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.045em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .field input,
 .field select {
-  height: 38px;
+  height: var(--control-height);
   padding: 0 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -38,9 +38,11 @@
 
 /* A <select>'s dropdown list is drawn by the OS, which does not inherit the
    panel's background — without this the options render as dark text on a
-   default light popup. */
+   default light popup. It also can't use --surface: that's semi-transparent
+   for the glass effect, and an OS popup has nothing behind it to blend with,
+   so it needs the opaque equivalent. */
 .field select option {
-  background: #0d100e;
+  background: var(--surface-solid);
   color: var(--ink);
 }
 

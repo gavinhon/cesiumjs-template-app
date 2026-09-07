@@ -12,23 +12,17 @@
   gap: 8px;
 }
 
+/* Wide enough for a place name, but no wider: this bar sits over the map,
+   and every pixel of chrome is a pixel of map you can't see. */
 .toolbar__search {
-  width: 280px;
-  height: 44px;
+  width: 220px;
+  height: var(--control-height);
   border-radius: var(--radius-md);
 }
 
 /* A panel button — same height as the search bar, so the two form one
    visually aligned row. */
 .toolbar__button {
-  height: 44px;
+  height: var(--control-height);
   border-radius: var(--radius-md);
-}
-
-/* Pressed state while that button's panel is open: filled with the accent
-   color instead of just glowing on hover, so "on" reads unambiguously. */
-.toolbar__button--active {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
 }

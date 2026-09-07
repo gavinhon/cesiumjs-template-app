@@ -1,46 +1,49 @@
-import type * as Cesium from 'cesium';
 import { Panel } from '@/ui/Panel';
-import { useOgcLayers } from './useOgcLayers';
 import { AddLayerForm } from './AddLayerForm';
 import { LayerList } from './LayerList';
+import type { useOgcLayers } from './useOgcLayers';
 
 interface OgcLayerPanelProps {
-  viewer: Cesium.Viewer | null;
+  /**
+   * The feature's state, from `useOgcLayers`.
+   *
+   * The hook is called in `App` rather than here because the layer manager
+   * needs the same layers — two `useOgcLayers()` calls would be two
+   * independent states fighting over one Cesium collection. When a feature's
+   * state is needed in more than one place, it moves up to the composition
+   * root; see docs/architecture.md.
+   */
+  layers: ReturnType<typeof useOgcLayers>;
+  /** True while the Cesium viewer hasn't finished initializing yet. */
+  disabled: boolean;
   /** Whether the panel is open. Controlled by the "OGC Layers" toolbar button. */
   open: boolean;
 }
 
 /**
- * The panel for connecting to OGC map services (WMS, WMTS, or a generic
- * XYZ tile template) and managing the imagery layers that come from them —
- * no Cesium ion account required.
+ * The panel for connecting to OGC map services — WMS, WMTS and XYZ raster
+ * imagery, plus WFS vector features — with no Cesium ion account required.
  *
- * This is the feature's entry point, and the shape every feature panel in
- * this app follows: call the feature's state hook, then hand its state and
- * actions to a form (add something) and a list (manage what's been added).
- * See `docs/adding-a-feature.md`.
- *
- * The viewer is created asynchronously by <CesiumMap>, so this component
- * has to tolerate `viewer` being `null` on the very first render(s).
+ * This is the shape every feature panel in this app follows: take the
+ * feature's state, then hand it to a form (add something) and a list
+ * (manage what's been added). See `docs/adding-a-feature.md`.
  */
-export function OgcLayerPanel({ viewer, open }: OgcLayerPanelProps) {
-  const { layers, addLayer, removeLayer, toggleVisibility, setAlpha, zoomToLayer } =
-    useOgcLayers(viewer);
-
+export function OgcLayerPanel({ layers, disabled, open }: OgcLayerPanelProps) {
   return (
     <Panel
       id="ogc-layers-panel"
       title="OGC Layers"
-      subtitle="Connect to WMS, WMTS, or XYZ tile services."
+      subtitle="Connect to WMS, WMTS, WFS, or XYZ tile services."
       open={open}
     >
-      <AddLayerForm onAdd={addLayer} disabled={!viewer} />
+      <AddLayerForm onAdd={layers.addLayer} disabled={disabled} />
       <LayerList
-        layers={layers}
-        onRemove={removeLayer}
-        onToggleVisibility={toggleVisibility}
-        onAlphaChange={setAlpha}
-        onZoomToLayer={zoomToLayer}
+        imagery={layers.imagery}
+        vectors={layers.vectors}
+        onRemove={layers.removeLayer}
+        onToggleVisibility={layers.toggleVisibility}
+        onAlphaChange={layers.setAlpha}
+        onZoomToLayer={layers.zoomToLayer}
       />
     </Panel>
   );

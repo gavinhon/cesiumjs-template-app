@@ -1,18 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type * as Cesium from 'cesium';
 import { CesiumMap } from '@/cesium/CesiumMap';
 import { useSceneMode } from '@/cesium/useSceneMode';
 import { useDrawingTools } from '@/features/drawing/useDrawingTools';
 import { DrawingToolbar } from '@/features/drawing/DrawingToolbar';
+import { DrawingHint } from '@/features/drawing/DrawingHint';
+import { DrawingPanel } from '@/features/drawing/DrawingPanel';
+import { LayerManagerButton } from '@/features/layer-manager/LayerManagerButton';
+import { LayerManagerPanel } from '@/features/layer-manager/LayerManagerPanel';
+import type { LayerEntry } from '@/features/layer-manager/types';
 import { OgcLayerPanel } from '@/features/ogc-layers/OgcLayerPanel';
+import { useOgcLayers } from '@/features/ogc-layers/useOgcLayers';
 import { TilesetPanel } from '@/features/tiles-3d/TilesetPanel';
-import { Toolbar, type PanelId } from '@/ui/Toolbar';
+import { useTilesets } from '@/features/tiles-3d/useTilesets';
+import { Toolbar } from '@/ui/Toolbar';
+import type { PanelId } from '@/ui/panels';
 
 /**
- * The app shell: it owns the Cesium viewer and decides which panel is
- * open, then hands the viewer to each feature. It contains no map logic of
- * its own — that lives in `src/features/*` — so adding a feature means
- * adding a hook call or a component here, not editing anything existing.
+ * The app shell. It owns the Cesium viewer, decides which panel is open,
+ * and holds the feature hooks whose state more than one panel needs.
+ *
+ * It contains no map logic of its own — that lives in `src/features/*`.
  */
 function App() {
   // The Cesium Viewer instance is created imperatively inside <CesiumMap>
@@ -22,30 +30,101 @@ function App() {
   // which is why every feature hook takes `Viewer | null`.
   const [viewer, setViewer] = useState<Cesium.Viewer | null>(null);
 
-  // Which side panel (if any) is open. Lives here, not inside a panel,
-  // because the buttons that toggle them live in the sibling <Toolbar>,
-  // and only one panel should be open at a time.
+  // Which side panel (if any) is open. Lives here because the buttons that
+  // toggle them live in sibling components, and only one should be open.
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null);
   const togglePanel = (panel: PanelId) => {
     setOpenPanel((current) => (current === panel ? null : panel));
   };
 
-  const { activeTool, setActiveTool, clearAll } = useDrawingTools(viewer);
+  // These two hooks live here rather than inside their own panels because
+  // the layer manager shows the same layers those panels manage. A hook
+  // called in two components would be two independent copies of the state,
+  // both mutating one Cesium collection — so shared feature state moves up
+  // to the composition root.
+  const ogcLayers = useOgcLayers(viewer);
+  const tilesets = useTilesets(viewer);
+
+  const drawing = useDrawingTools(viewer);
+  const { activeTool, setActiveTool, clearAll } = drawing;
   const { is2D, toggle: toggleSceneMode } = useSceneMode(viewer);
+
+  // Clicking a shape on the globe should show you its attributes, not just
+  // highlight it — otherwise selection looks like it did nothing whenever
+  // the panel happens to be closed.
+  const selectedDrawingId = drawing.selectedId;
+  useEffect(() => {
+    if (selectedDrawingId) setOpenPanel('drawings');
+  }, [selectedDrawingId]);
+
+  // Adapt each feature's own entries into the neutral shape the layer
+  // manager renders. Doing it here is what keeps that feature from
+  // importing the others — see src/features/layer-manager/types.ts.
+  const imageryEntries = useMemo<LayerEntry[]>(
+    () =>
+      ogcLayers.imagery.map((layer) => ({
+        id: layer.id,
+        name: layer.name,
+        kind: layer.kind,
+        visible: layer.visible,
+        onToggleVisibility: () => ogcLayers.toggleVisibility(layer.id),
+        onZoomTo: () => ogcLayers.zoomToLayer(layer.id),
+        onMove: (direction: 'up' | 'down') => ogcLayers.moveImagery(layer.id, direction),
+      })),
+    [ogcLayers],
+  );
+
+  // 3D Tiles and WFS vectors share a section: neither is part of the
+  // imagery draw order, so neither gets reorder controls (no `onMove`).
+  const sceneEntries = useMemo<LayerEntry[]>(
+    () => [
+      ...tilesets.tilesets.map((entry) => ({
+        id: entry.config.id,
+        name: entry.config.name,
+        kind: '3D TILES',
+        visible: entry.visible,
+        onToggleVisibility: () => tilesets.toggleVisibility(entry.config.id),
+        onZoomTo: () => tilesets.zoomToTileset(entry.config.id),
+      })),
+      ...ogcLayers.vectors.map((layer) => ({
+        id: layer.id,
+        name: layer.name,
+        kind: layer.kind,
+        visible: layer.visible,
+        onToggleVisibility: () => ogcLayers.toggleVisibility(layer.id),
+        onZoomTo: () => ogcLayers.zoomToLayer(layer.id),
+      })),
+    ],
+    [tilesets, ogcLayers],
+  );
 
   return (
     <div className="app">
       <CesiumMap onViewerReady={setViewer} />
+
       <Toolbar openPanel={openPanel} onTogglePanel={togglePanel} />
-      <OgcLayerPanel viewer={viewer} open={openPanel === 'ogc-layers'} />
-      <TilesetPanel viewer={viewer} open={openPanel === 'tiles-3d'} />
-      <DrawingToolbar
-        activeTool={activeTool}
-        onSelectTool={setActiveTool}
-        onClear={clearAll}
-        is2D={is2D}
-        onToggleSceneMode={toggleSceneMode}
+
+      <OgcLayerPanel layers={ogcLayers} disabled={!viewer} open={openPanel === 'ogc-layers'} />
+      <TilesetPanel tilesets={tilesets} disabled={!viewer} open={openPanel === 'tiles-3d'} />
+      <LayerManagerPanel
+        open={openPanel === 'layers'}
+        imagery={imageryEntries}
+        sceneData={sceneEntries}
       />
+      <DrawingPanel drawing={drawing} open={openPanel === 'drawings'} />
+
+      <DrawingHint activeTool={activeTool} />
+
+      <div className="app__right-rail">
+        <LayerManagerButton active={openPanel === 'layers'} onClick={() => togglePanel('layers')} />
+        <DrawingToolbar
+          activeTool={activeTool}
+          onSelectTool={setActiveTool}
+          onClear={clearAll}
+          is2D={is2D}
+          onToggleSceneMode={toggleSceneMode}
+        />
+      </div>
     </div>
   );
 }

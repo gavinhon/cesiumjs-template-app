@@ -1,10 +1,8 @@
-/* A vertical strip on the right edge, mirroring the left toolbar's corner
-   position — the drawing tools' entire UI footprint. */
+/* The drawing tools' entire UI footprint. Positioning is not set here: this
+   is a child of `.app__right-rail` (see src/styles/global.css), which owns
+   where the rail sits so the layer manager button can stack above these
+   without either component knowing the other's dimensions. */
 .drawing-toolbar {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -27,8 +25,8 @@
    (auto width, horizontal padding), so this resets that for a fixed-size
    icon tile instead. */
 .drawing-toolbar__button {
-  width: 40px;
-  height: 40px;
+  width: var(--control-height);
+  height: var(--control-height);
   padding: 0;
   display: flex;
   align-items: center;
@@ -40,10 +38,4 @@
    reads as a view setting rather than one of the drawing tools. */
 .drawing-toolbar__mode {
   border-radius: var(--radius-md);
-}
-
-.drawing-toolbar__button--active {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
 }

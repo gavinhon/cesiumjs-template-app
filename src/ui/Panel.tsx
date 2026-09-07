@@ -14,6 +14,12 @@ interface PanelProps {
   subtitle: string;
   /** Whether the panel is open. Controlled by its toolbar button. */
   open: boolean;
+  /**
+   * Which edge the panel docks to, matching the button that opens it.
+   * Defaults to `'left'` (the panels opened from the top-left toolbar); the
+   * layer manager uses `'right'` because its button lives in the right rail.
+   */
+  side?: 'left' | 'right';
   children: ReactNode;
 }
 
@@ -34,9 +40,13 @@ interface PanelProps {
  *    to lose work. That means your feature's state hook keeps running
  *    while the panel is hidden; that is intentional.
  */
-export function Panel({ id, title, subtitle, open, children }: PanelProps) {
+export function Panel({ id, title, subtitle, open, side = 'left', children }: PanelProps) {
+  const className = ['panel', `panel--${side}`, open ? null : 'panel--collapsed']
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <aside id={id} className={open ? 'panel' : 'panel panel--collapsed'} aria-hidden={!open}>
+    <aside id={id} className={className} aria-hidden={!open}>
       <header className="panel__header">
         <h1>{title}</h1>
         <p>{subtitle}</p>

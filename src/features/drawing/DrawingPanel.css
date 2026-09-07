@@ -1,0 +1,86 @@
+/* The measured length, shown beside the type badge in the list so a
+   measurement's value is readable without selecting it first. */
+.drawing-panel__measurement {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--measure);
+}
+
+/* The editor for the selected shape, below the list. Separated by a rule
+   rather than floated into its own panel: it is about the row you just
+   clicked, and should read as attached to it. */
+.feature-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.feature-editor__heading {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.feature-editor__attributes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feature-editor__empty {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.feature-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Key, value, remove. The key column is narrower because keys are short
+   labels while values carry the content. */
+.feature-editor__attribute {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.feature-editor__attribute input {
+  min-width: 0;
+  height: var(--control-height-sm);
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-variant);
+  color: var(--ink);
+  font: 400 12px/1.4 var(--font);
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.feature-editor__key {
+  font-family: var(--font-mono);
+}
+
+.feature-editor__attribute input::placeholder {
+  color: var(--muted);
+}
+
+.feature-editor__attribute input:focus {
+  box-shadow: var(--shadow-active);
+}

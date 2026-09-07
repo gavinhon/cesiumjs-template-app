@@ -1,0 +1,55 @@
+/* Square icon button in the right rail, matching the drawing tools' sizing
+   so the whole rail reads as one strip of controls. */
+.layer-manager__button {
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+}
+
+.layer-manager__section + .layer-manager__section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.layer-manager__heading {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.layer-manager__note {
+  margin: 0 0 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Reorder arrows. Deliberately small and quiet — they sit on every row, so
+   at the remove button's weight they'd shout over the layer names. */
+.layer-manager__move {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.layer-manager__move:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.layer-manager__move:disabled {
+  opacity: 0.25;
+  cursor: default;
+}

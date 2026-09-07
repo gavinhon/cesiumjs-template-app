@@ -27,12 +27,28 @@ body {
      dark preference. This also fills in a near-black background for the
      instant before Cesium's canvas has mounted, instead of a white flash. */
   color-scheme: dark;
-  background: #08090a;
+  background: var(--bg);
   color: var(--ink);
+  /* Inter ships proper optical sizing and needs antialiasing hints to avoid
+     looking heavy on a dark background, where light-on-dark text naturally
+     blooms. Without these the whole UI reads a weight bolder than it is. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Inter's contextual alternates fix the spacing of sequences the UI is
+     full of, e.g. the "3D" in the scene-mode toggle. */
+  font-feature-settings: 'cv05' 1;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* The browser default selection blue is the one colour in the app nobody
+   chose. Tint it to the accent so highlighting a URL doesn't drop a stripe
+   of unrelated hue into the panel. */
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* The app root. Every piece of UI (the map canvas, the toolbars, the
@@ -44,9 +60,24 @@ body {
   height: 100%;
 }
 
+/* The right-hand rail of icon buttons: the layer manager button, then the
+   drawing tools. Features contribute buttons to it without positioning
+   themselves, which is what lets them stack without hard-coded offsets.
+   Mirrors the top-left toolbar's 16px corner inset. */
+.app__right-rail {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 20; /* above .panel, so the rail stays clickable while one is open */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Form controls (checkboxes, radios, range sliders) are drawn by the OS/
    browser, not by our CSS — `accent-color` is the one hook we get to make
-   them use the same tactical green as the rest of the UI. */
+   them use the same accent orange as the rest of the UI. */
 input,
 select {
   accent-color: var(--accent);
@@ -65,7 +96,9 @@ select {
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   backdrop-filter: blur(12px);
-  font: 400 14px/1.4 var(--font);
+  /* 13px, matching the inputs inside the panels. The 14px body size is for
+     prose; a control's label is not prose. */
+  font: 400 13px/1.4 var(--font);
 }
 
 .control-input {
@@ -83,21 +116,58 @@ select {
 }
 
 .control-button {
-  padding: 0 18px;
+  /* Enough to keep an uppercase mono label off the border without the
+     button becoming mostly empty space. */
+  padding: 0 14px;
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  /* JetBrains Mono is already a wide face, so it needs less tracking than
+     Plex Mono did to read as a spaced-out technical label. */
+  letter-spacing: 0.045em;
   text-transform: uppercase;
   white-space: nowrap;
   transition:
     box-shadow 0.15s ease,
-    background 0.15s ease;
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
-.control-button:hover {
+/* Hover warms the label and tints the fill as well as lighting the border —
+   the glow alone is easy to miss against a busy map. */
+.control-button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
   box-shadow: var(--shadow-active);
+}
+
+/*
+ * The solid accent fill, in two flavours: `--active` for a toggle that is
+ * currently on (toolbar panels, drawing tools, layer manager) and
+ * `--primary` for the one committing action in a form.
+ *
+ * Shared rather than redefined per component — the toggles used to carry
+ * three byte-identical copies of this rule, and the submit buttons a
+ * fourth. Both restate themselves for :hover, because the generic hover
+ * rule above is a three-class selector that would otherwise out-specify
+ * them and wash the fill out the moment you moused over.
+ */
+.control-button--active,
+.control-button--primary,
+.control-button--active:hover:not(:disabled),
+.control-button--primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-active);
+}
+
+/* A primary action brightens on hover; an active toggle doesn't, because
+   it isn't inviting another click — it's reporting a state. */
+.control-button--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .control-button:disabled {

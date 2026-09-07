@@ -75,6 +75,34 @@ globe disagree, and that class of bug is miserable to track down. Look at
 `removeLayer` in [`useOgcLayers.ts`](../src/features/ogc-layers/useOgcLayers.ts):
 it removes from `viewer.imageryLayers` and filters the state array together.
 
+#### The exception: non-idempotent Cesium calls
+
+Several actions here run their Cesium call _inside_ the `setState` updater,
+which is convenient because the updater already has the current array. That
+is only safe because those calls are idempotent — assigning `show = true`
+twice, or removing an already-removed layer, changes nothing the second
+time.
+
+React StrictMode deliberately **double-invokes state updater functions** in
+development to flush out impure ones. So an updater containing
+`imageryLayers.raise(layer)` would move the layer _two_ positions while the
+array recorded one, silently desynchronising them. `moveImagery` therefore
+computes from the current state and calls Cesium outside the updater.
+
+The rule: **side effects in an updater must be idempotent, or they belong
+outside it.**
+
+#### When two components need the same feature state
+
+A feature hook must be called in exactly one place. Two `useOgcLayers()`
+calls means two independent React states mutating one Cesium collection,
+and neither would see the other's changes.
+
+The layer manager needs the same layers the OGC panel manages, so
+`useOgcLayers` and `useTilesets` are called in `App.tsx` and their state is
+passed down. A feature only used by its own panel keeps its hook inside
+that panel — don't lift pre-emptively.
+
 ### 3. Per-frame data lives in refs, not state
 
 `useDrawingTools` keeps in-progress vertices, the cursor position, and the
@@ -107,17 +135,36 @@ resources.
 
 ## State ownership, in one table
 
-| State                        | Lives in               | Why there                                              |
-| ---------------------------- | ---------------------- | ------------------------------------------------------ |
-| The `Viewer` instance        | `App.tsx` (`useState`) | Every feature needs it; created by a child             |
-| Which panel is open          | `App.tsx` (`useState`) | Toolbar toggles it, panels read it; only one at a time |
-| A feature's added resources  | that feature's hook    | Nothing outside the feature needs them                 |
-| In-progress drawing vertices | `useDrawingTools` refs | Read per frame by Cesium, never rendered by React      |
-| Form input                   | that form's component  | Local until submitted                                  |
+| State                        | Lives in                    | Why there                                              |
+| ---------------------------- | --------------------------- | ------------------------------------------------------ |
+| The `Viewer` instance        | `App.tsx` (`useState`)      | Every feature needs it; created by a child             |
+| Which panel is open          | `App.tsx` (`useState`)      | Toolbar toggles it, panels read it; only one at a time |
+| OGC layers, 3D tilesets      | `App.tsx` (feature hooks)   | The layer manager shows them too, so one owner only    |
+| Drawing tools                | `useDrawingTools`, in `App` | Only the drawing toolbar uses it                       |
+| In-progress drawing vertices | `useDrawingTools` refs      | Read per frame by Cesium, never rendered by React      |
+| Form input                   | that form's component       | Local until submitted                                  |
 
 There is no global store, no context, and no router. If you find yourself
 wanting one, that's a real signal — but reach for it deliberately, and
 write down why.
+
+## Imagery has a draw order; the rest of the scene doesn't
+
+`viewer.imageryLayers` is an ordered collection painted onto the globe
+surface in sequence, so "above" and "below" are literal: index 0 is drawn
+first and everything after covers it. Raising a layer is genuinely how you
+uncover one that's hidden, which is what the layer manager's reorder
+controls do (`imageryLayers.raise`/`lower`).
+
+3D Tiles and vector data are different in kind. They're geometry positioned
+in space and rasterised through the depth buffer — what ends up in front is
+decided by where the camera is, not by position in a list. `scene.primitives`
+and `viewer.dataSources` have an order, but changing it doesn't reliably
+change what you see.
+
+So the layer manager offers reordering for imagery only, and says why in
+its own UI. Don't add up/down arrows to the scene-data section: they'd be
+controls that visibly do nothing.
 
 ## Why no Cesium ion
 

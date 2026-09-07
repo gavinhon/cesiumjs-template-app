@@ -86,6 +86,15 @@ export function CesiumMap({ onViewerReady }: CesiumMapProps) {
       shouldAnimate: false, // no clock ticking; we show no time-dynamic data
     });
 
+    // Cesium's Viewer binds double-click to "track the entity under the
+    // cursor", panning the camera to it and locking on. That's dead weight
+    // here — there is no infoBox, no selection indicator, and nothing in
+    // this app tracks entities — and it actively fights the drawing tools,
+    // which finish a line or polygon on double-click *and* put a vertex
+    // marker exactly where that double-click lands. Left in, finishing a
+    // shape locks the camera onto that marker and dives it to ground level.
+    viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
     // Point the camera at the starting view, looking straight down.
     // `Cartesian3.fromDegrees(lon, lat, height)` converts a geographic
     // coordinate into the 3D Cartesian point Cesium's camera actually uses.

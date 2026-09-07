@@ -28,10 +28,26 @@ interface ResourceRowProps {
   name: string;
   visible: boolean;
   onToggleVisibility: () => void;
-  onRemove: () => void;
+  /**
+   * Omit to hide the remove button — for resources the user didn't add and
+   * so shouldn't be able to delete, like the app's base map.
+   */
+  onRemove?: () => void;
   onZoomTo: () => void;
   /** Tooltip for the name, e.g. "Double-click to zoom to this layer". */
   zoomHint: string;
+  /**
+   * Marks this row as the current selection. Supply `onSelect` too — a row
+   * that can look selected but can't be selected is a dead control.
+   */
+  selected?: boolean;
+  /** Single-click on the name. Omit for lists where rows aren't selectable. */
+  onSelect?: () => void;
+  /**
+   * Extra controls on the first row, before the remove button — used by the
+   * layer manager for its reorder buttons.
+   */
+  actions?: ReactNode;
   /**
    * Optional second row of per-resource controls (e.g. a type badge and an
    * opacity slider). Rendered only when provided.
@@ -41,8 +57,9 @@ interface ResourceRowProps {
 
 /**
  * One resource in a `<ResourceList>`: a visibility checkbox, a name you can
- * double-click to fly the camera to it, and a remove button — plus an
- * optional second row for controls specific to the kind of resource.
+ * double-click to fly the camera to it, and a remove button — plus optional
+ * extra actions, and an optional second row for controls specific to the
+ * kind of resource.
  */
 export function ResourceRow({
   name,
@@ -51,10 +68,17 @@ export function ResourceRow({
   onRemove,
   onZoomTo,
   zoomHint,
+  selected = false,
+  onSelect,
+  actions,
   children,
 }: ResourceRowProps) {
   return (
-    <li className="resource-list__item">
+    <li
+      className={
+        selected ? 'resource-list__item resource-list__item--selected' : 'resource-list__item'
+      }
+    >
       <div className="resource-list__row">
         <span className="resource-list__name">
           <input
@@ -66,18 +90,28 @@ export function ResourceRow({
           {/* A separate element, not the checkbox's own <label>: a
               double-click on a label forwards two clicks to its input, which
               would toggle visibility twice while trying to zoom. */}
-          <span className="resource-list__name-text" onDoubleClick={onZoomTo} title={zoomHint}>
+          <span
+            className="resource-list__name-text"
+            onClick={onSelect}
+            onDoubleClick={onZoomTo}
+            title={zoomHint}
+          >
             {name}
           </span>
         </span>
-        <button
-          type="button"
-          className="resource-list__remove"
-          onClick={onRemove}
-          aria-label={`Remove ${name}`}
-        >
-          ×
-        </button>
+        <span className="resource-list__actions">
+          {actions}
+          {onRemove && (
+            <button
+              type="button"
+              className="resource-list__remove"
+              onClick={onRemove}
+              aria-label={`Remove ${name}`}
+            >
+              ×
+            </button>
+          )}
+        </span>
       </div>
       {children && <div className="resource-list__row">{children}</div>}
     </li>

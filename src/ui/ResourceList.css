@@ -14,10 +14,19 @@
 }
 
 .resource-list__item {
-  padding: 10px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface-variant);
+}
+
+/* The current selection. An accent-tinted fill plus a left edge, rather
+   than a border all round, so the row doesn't jump by a pixel as selection
+   moves down the list. */
+.resource-list__item--selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .resource-list__row {
@@ -36,10 +45,16 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
+  /* Let a long layer name ellipsize instead of pushing the row's buttons
+     out of the panel. */
+  min-width: 0;
 }
 
 .resource-list__name-text {
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .resource-list__name-text:hover {
@@ -48,27 +63,48 @@
   text-underline-offset: 2px;
 }
 
+/* Trailing controls on the first row: any per-feature actions, then remove. */
+.resource-list__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 .resource-list__remove {
   border: none;
   background: none;
   color: var(--muted);
-  font-size: 16px;
+  /* Was the largest glyph in the panel at 16px, which made "remove" the
+     loudest thing in a list of layer names. Sized to the row's text, with
+     padding carrying the hit area instead. */
+  font-size: 14px;
   line-height: 1;
+  padding: 2px 4px;
   cursor: pointer;
 }
 
-/* The one deliberate spot of a second hue in an otherwise green-on-black
-   UI: a "remove this" action reads faster with a hint of red on hover —
-   the same "green = go, red = stop" logic a tactical display uses. */
+/* The one deliberate spot of a third hue in an otherwise grey-and-orange
+   UI: a "remove this" action reads faster with a hint of red on hover. The
+   red is pushed toward pink precisely so it can't be mistaken for the
+   orange accent at a glance. */
 .resource-list__remove:hover {
   color: var(--danger);
 }
 
-/* A short monospace tag on the second row, e.g. the layer's service type. */
+/* A short monospace tag on the second row, e.g. the layer's service type.
+   Boxed rather than bare text: at 10px a loose word reads as a stray label,
+   while a chip reads as metadata attached to the row above it. */
 .resource-list__badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-variant);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  letter-spacing: 0.045em;
   color: var(--muted);
 }
 

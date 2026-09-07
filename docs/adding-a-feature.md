@@ -114,6 +114,9 @@ Checklist for this file:
 
 - [ ] Bails out early when `viewer` is `null`.
 - [ ] Every action touches Cesium **and** React state in the same function.
+- [ ] Any Cesium call inside a `setState` updater is idempotent. If it isn't
+      (reordering, appending, incrementing), compute from current state and
+      call Cesium outside the updater — StrictMode runs updaters twice.
 - [ ] Cleanup destroys Cesium resources (`remove(x, true)` where the API
       offers it) rather than just dropping the reference.
 - [ ] `useCallback` with the right deps, so the panel doesn't re-render
@@ -170,13 +173,17 @@ as a second row.
 
 Two small edits, both mechanical.
 
-In [`src/ui/Toolbar.tsx`](../src/ui/Toolbar.tsx), add the id to `PanelId`
-and an entry to `PANELS`. The `controls` value must match the `id` you gave
-`<Panel>`:
+Add the id to `PanelId` in [`src/ui/panels.ts`](../src/ui/panels.ts):
 
 ```ts
-export type PanelId = 'ogc-layers' | 'tiles-3d' | 'geojson';
+export type PanelId = 'ogc-layers' | 'tiles-3d' | 'layers' | 'geojson';
+```
 
+Then add an entry to `PANELS` in
+[`src/ui/Toolbar.tsx`](../src/ui/Toolbar.tsx). The `controls` value must
+match the `id` you gave `<Panel>`:
+
+```ts
 const PANELS: { id: PanelId; label: string; controls: string }[] = [
   { id: 'ogc-layers', label: 'OGC Layers', controls: 'ogc-layers-panel' },
   { id: 'tiles-3d', label: '3D Tiles', controls: 'tiles-3d-panel' },
@@ -190,9 +197,22 @@ In [`src/App.tsx`](../src/App.tsx), render it:
 <GeoJsonPanel viewer={viewer} open={openPanel === 'geojson'} />
 ```
 
-That's the whole integration. Note that you _added_ to both files and
+That's the whole integration. Note that you _added_ to each file and
 changed nothing existing — that's the property the structure is designed
 for.
+
+### If another component needs your feature's state
+
+Call your hook in `App.tsx` instead of inside your panel, and pass the
+result down — the way `useOgcLayers` and `useTilesets` are, because the
+layer manager lists what they own. Calling the same hook in two components
+creates two React states fighting over one Cesium collection. Don't lift
+until something actually needs it.
+
+To appear in the layer manager, map your entries to `LayerEntry` in
+`App.tsx` (see `src/features/layer-manager/types.ts`). Supply `onMove` only
+if your layers live in `viewer.imageryLayers` and therefore have a real
+draw order.
 
 ## 6. Verify
 

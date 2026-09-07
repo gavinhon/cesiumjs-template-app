@@ -1,8 +1,13 @@
 import * as Cesium from 'cesium';
-import type { OgcLayerConfig } from './types';
+import type { OgcImageryConfig } from './types';
 
 /**
- * Turns one of our layer configs into a Cesium `ImageryProvider`.
+ * Turns one of our raster layer configs into a Cesium `ImageryProvider`.
+ *
+ * Takes `OgcImageryConfig`, not `OgcLayerConfig`: WFS returns vector
+ * features rather than pixels and has no imagery provider to build, so it
+ * is excluded from this union by construction rather than by a runtime
+ * check. See `createWfsDataSource` for that path.
  *
  * An `ImageryProvider` doesn't fetch anything by itself — it's a strategy
  * object that knows how to *compute a tile URL* for a given (x, y, level).
@@ -11,7 +16,7 @@ import type { OgcLayerConfig } from './types';
  * Bing Maps, OpenStreetMap, etc, so any OGC server that speaks WMS/WMTS
  * slots in exactly the same way as a "big name" basemap would.
  */
-export function createImageryProvider(config: OgcLayerConfig): Cesium.ImageryProvider {
+export function createImageryProvider(config: OgcImageryConfig): Cesium.ImageryProvider {
   switch (config.type) {
     case 'wms': {
       const { boundingBox } = config;
