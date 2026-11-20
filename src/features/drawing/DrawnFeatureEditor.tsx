@@ -1,9 +1,9 @@
 import { useId } from 'react';
 import { Field, SelectField } from '@/ui/Field';
-import type { DrawnFeature, FeatureAttribute, LabelSource } from './types';
-import { FIXED_LABEL_SOURCES } from './types';
+import type { DrawnFeature, FeatureAttribute, LabelSource } from './drawingTypes';
+import { FIXED_LABEL_SOURCES } from './drawingTypes';
 
-interface FeatureEditorProps {
+interface DrawnFeatureEditorProps {
   feature: DrawnFeature;
   onRename: (name: string) => void;
   onSetLabelSource: (source: LabelSource) => void;
@@ -22,18 +22,18 @@ interface FeatureEditorProps {
  * vertex handles that appear on the map when a shape is selected, which is
  * where the shape actually is.
  */
-export function FeatureEditor({
+export function DrawnFeatureEditor({
   feature,
   onRename,
   onSetLabelSource,
   onAddAttribute,
   onUpdateAttribute,
   onRemoveAttribute,
-}: FeatureEditorProps) {
+}: DrawnFeatureEditorProps) {
   const formId = useId();
 
   return (
-    <div className="feature-editor">
+    <div className="drawn-feature-editor">
       <Field
         formId={formId}
         fieldId="name"
@@ -56,9 +56,9 @@ export function FeatureEditor({
             {source.label}
           </option>
         ))}
-        {/* Only measurements have one, so offering it elsewhere would be a
+        {/* Only measured and analysed shapes have one, so offering it elsewhere would be a
             choice that silently does nothing. */}
-        {feature.measurement !== null && <option value="measurement">Measured distance</option>}
+        {feature.measurement !== null && <option value="measurement">Measurement</option>}
         {feature.attributes.map((attribute) => (
           <option key={attribute.id} value={attribute.id}>
             {attribute.key.trim() || 'Unnamed attribute'}
@@ -66,26 +66,26 @@ export function FeatureEditor({
         ))}
       </SelectField>
 
-      <div className="feature-editor__attributes">
-        <h3 className="feature-editor__heading">Attributes</h3>
+      <div className="drawn-feature-editor__attributes">
+        <h3 className="drawn-feature-editor__heading">Attributes</h3>
 
         {feature.attributes.length === 0 ? (
-          <p className="feature-editor__empty">
+          <p className="drawn-feature-editor__empty">
             No attributes yet. Add one to record something about this shape.
           </p>
         ) : (
-          <ul className="feature-editor__list">
+          <ul className="drawn-feature-editor__list">
             {feature.attributes.map((attribute) => (
-              <li key={attribute.id} className="feature-editor__attribute">
+              <li key={attribute.id} className="drawn-feature-editor__attribute">
                 <input
-                  className="feature-editor__key"
+                  className="drawn-feature-editor__key"
                   value={attribute.key}
                   onChange={(e) => onUpdateAttribute(attribute.id, { key: e.target.value })}
                   placeholder="Key"
                   aria-label="Attribute key"
                 />
                 <input
-                  className="feature-editor__value"
+                  className="drawn-feature-editor__value"
                   value={attribute.value}
                   onChange={(e) => onUpdateAttribute(attribute.id, { value: e.target.value })}
                   placeholder="Value"

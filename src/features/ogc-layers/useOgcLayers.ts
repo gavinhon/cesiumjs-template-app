@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import * as Cesium from 'cesium';
 import { createImageryProvider } from './createImageryProvider';
 import { createWfsDataSource } from './createWfsDataSource';
+import { loadVectorDataSource } from './loadVectorDataSource';
 import type {
   ManagedImageryLayer,
   ManagedVectorLayer,
   OgcImageryConfig,
   OgcLayerConfig,
-} from './types';
+} from './ogcLayerTypes';
 
 /** Stable id for the base map, so re-seeding can recognise it. */
 const BASE_LAYER_ID = 'base-imagery';
@@ -25,6 +26,7 @@ const KIND_LABEL: Record<OgcLayerConfig['type'], string> = {
   wmts: 'WMTS',
   xyz: 'XYZ',
   wfs: 'WFS',
+  geojson: 'GEOJSON',
 };
 
 /**
@@ -32,12 +34,13 @@ const KIND_LABEL: Record<OgcLayerConfig['type'], string> = {
  * with Cesium.
  *
  * Two collections, because OGC services come in two flavours (see
- * `./types.ts`):
+ * `./ogcLayerTypes.ts`):
  *
  *  - `imagery` mirrors `viewer.imageryLayers` — raster layers draped on the
  *    globe, in draw order, **index 0 = bottom**.
  *  - `vectors` mirrors the `viewer.dataSources` this feature added — WFS
- *    features, which are entities in 3D space rather than a texture.
+ *    features and GeoJSON files, which are entities in 3D space rather
+ *    than a texture.
  *
  * The imagery list deliberately includes the base map that `CesiumMap`
  * created, even though the user didn't add it. The layer manager has to be
@@ -145,7 +148,7 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
   /**
    * Adds a layer of any supported type.
    *
-   * Async because WFS actually fetches and parses features before we know
+   * Async because WFS and GeoJSON actually fetch and parse features before we know
    * whether it worked — the form awaits this so it can show a loading state
    * and surface a failure, rather than adding a layer that silently isn't
    * there.
@@ -154,15 +157,18 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
     async (config: OgcLayerConfig) => {
       if (!viewer) return;
 
-      if (config.type === 'wfs') {
-        const dataSource = await createWfsDataSource(config);
+      if (config.type === 'wfs' || config.type === 'geojson') {
+        const dataSource =
+          config.type === 'wfs'
+            ? await createWfsDataSource(config)
+            : await loadVectorDataSource(config.url, config.name);
         await viewer.dataSources.add(dataSource);
         setVectors((prev) => [
           ...prev,
           {
             id: config.id,
             name: config.name,
-            kind: KIND_LABEL.wfs,
+            kind: KIND_LABEL[config.type],
             dataSource,
             visible: true,
           },

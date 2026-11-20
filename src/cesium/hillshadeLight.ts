@@ -1,0 +1,95 @@
+import * as Cesium from 'cesium';
+
+/**
+ * Where the light comes from, as a cartographer would set a hillshade:
+ * from the north-west (315°), 45° above the horizon.
+ *
+ * North-west isn't physically meaningful — the sun is never there in the
+ * northern hemisphere's afternoon — but it's the convention every printed
+ * relief map follows, because light from the upper left is what the eye
+ * reads as "raised". Light from the lower right makes valleys look like
+ * ridges.
+ */
+const AZIMUTH = Cesium.Math.toRadians(315);
+const ALTITUDE = Cesium.Math.toRadians(45);
+
+/** Towards the light, in a local east-north-up frame. */
+const TOWARD_LIGHT_ENU = new Cesium.Cartesian3(
+  Math.sin(AZIMUTH) * Math.cos(ALTITUDE),
+  Math.cos(AZIMUTH) * Math.cos(ALTITUDE),
+  Math.sin(ALTITUDE),
+);
+
+const enuScratch = new Cesium.Matrix4();
+const directionScratch = new Cesium.Cartesian3();
+const positionScratch = new Cesium.Cartesian3();
+
+/**
+ * Shades the terrain by slope, so relief is visible from above.
+ *
+ * Terrain on its own changes the *shape* of the globe but not its colour:
+ * the draped imagery looks identical whether the ground under it is flat
+ * or a 160 m hill, so from overhead you can't see the terrain at all. Lit
+ * terrain fixes that — slopes facing the light brighten, slopes facing away
+ * darken — using the per-vertex normals the terrain tiles carry (see
+ * `requestVertexNormals` in `useTerrain`).
+ *
+ * Cesium's default light is the sun at the clock's current time, which is
+ * wrong for a map: half the time it's night where you're looking, and the
+ * globe goes dark. Instead this pins a directional light to a fixed
+ * hillshade angle *relative to wherever the camera is*, re-aimed every
+ * frame, so the shading looks the same anywhere on the globe at any hour.
+ *
+ * Returns a function that restores the scene's previous lighting.
+ */
+export function enableHillshade(scene: Cesium.Scene): () => void {
+  const previousLight = scene.light;
+  const previousLighting = scene.globe.enableLighting;
+  const previousAtmosphereFromSun = scene.globe.dynamicAtmosphereLightingFromSun;
+
+  const light = new Cesium.DirectionalLight({
+    direction: Cesium.Cartesian3.negate(Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3()),
+  });
+  scene.light = light;
+  scene.globe.enableLighting = true;
+  // Otherwise the atmosphere still tracks the real sun, and tints the
+  // ground with dusk colours whenever it happens to be evening there.
+  scene.globe.dynamicAtmosphereLightingFromSun = false;
+
+  const aim = () => {
+    // From the camera's *geographic* position, not `camera.positionWC`. In
+    // 3D the two agree, but in 2D and Columbus view `positionWC` is in the
+    // flattened map's own coordinates rather than Earth-centred ones —
+    // building an east-north-up frame from it aims the light at a
+    // meaningless angle, and the whole 2D map renders dim, as if lit from
+    // below the horizon. `positionCartographic` is correct in every mode.
+    const below = Cesium.Cartographic.toCartesian(
+      scene.camera.positionCartographic,
+      scene.globe.ellipsoid,
+      positionScratch,
+    );
+    const transform = Cesium.Transforms.eastNorthUpToFixedFrame(
+      below,
+      scene.globe.ellipsoid,
+      enuScratch,
+    );
+    const towardLight = Cesium.Matrix4.multiplyByPointAsVector(
+      transform,
+      TOWARD_LIGHT_ENU,
+      directionScratch,
+    );
+    // A directional light's `direction` is the way the light *travels*, so
+    // it points away from the light, not toward it.
+    Cesium.Cartesian3.negate(towardLight, light.direction);
+    Cesium.Cartesian3.normalize(light.direction, light.direction);
+  };
+  aim();
+  const removeListener = scene.preRender.addEventListener(aim);
+
+  return () => {
+    removeListener();
+    scene.light = previousLight;
+    scene.globe.enableLighting = previousLighting;
+    scene.globe.dynamicAtmosphereLightingFromSun = previousAtmosphereFromSun;
+  };
+}

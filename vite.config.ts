@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import cesium from 'vite-plugin-cesium';
+import { publicDatasetCatalog } from './vite-plugins/publicDatasetCatalog';
 
 // https://vite.dev/config/
 //
@@ -16,8 +17,13 @@ import cesium from 'vite-plugin-cesium';
 //      folders into `public`/`dist` so they're served as static files.
 //   2. Defines the global `CESIUM_BASE_URL` that Cesium's source code reads
 //      at startup to know where to fetch those files from (default: "/cesium").
+//
+// `publicDatasetCatalog` is this app's own plugin: it scans `public/` for
+// 3D Tiles, terrain, tile pyramids and GeoJSON, so the panels can offer
+// whatever datasets you've dropped in there. See the plugin file for why
+// that has to happen at build time rather than in the browser.
 export default defineConfig({
-  plugins: [react(), cesium()],
+  plugins: [react(), cesium(), publicDatasetCatalog()],
   resolve: {
     alias: {
       // Mirror of the `paths` mapping in tsconfig.app.json. TypeScript's

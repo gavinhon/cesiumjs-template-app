@@ -8,24 +8,27 @@ feature will look and behave like the existing ones for free.
 Read [architecture.md](architecture.md) first if you haven't — particularly
 the rule that a feature's hook must update React state and Cesium together.
 
-We'll use a hypothetical **GeoJSON** feature as the running example.
+We'll use a hypothetical **GeoJSON** feature as the running example. (The
+real app already loads `.geojson` files found in `public/`, through the OGC
+feature — the example stays because it's the simplest possible "add a
+thing by URL" feature, not because GeoJSON is missing.)
 
 ## 1. Create the folder
 
 ```
 src/features/geojson/
-├── types.ts          the data model
-├── useGeoJson.ts     state + Cesium sync (the heart of the feature)
-├── GeoJsonPanel.tsx  entry point: hook + form + list
-├── GeoJsonForm.tsx   add a new one
-└── GeoJsonList.tsx   manage the added ones
+├── geoJsonTypes.ts     the data model — named for the feature, never `types.ts`
+├── useGeoJson.ts       state + Cesium sync (the heart of the feature)
+├── GeoJsonPanel.tsx    entry point: hook + form + list
+├── AddGeoJsonForm.tsx  add a new one
+└── GeoJsonList.tsx     manage the added ones
 ```
 
 Everything the feature needs lives here. A feature never imports from
 another feature — if two need the same thing, it moves to `src/ui/` or
 `src/lib/`.
 
-## 2. Define the data model (`types.ts`)
+## 2. Define the data model (`geoJsonTypes.ts`)
 
 Describe what the _user_ configured, not what Cesium produced. Configs
 should be plain, serialisable objects — that's what makes saving a workspace
@@ -56,7 +59,7 @@ one function per user action.
 ```ts
 import { useCallback, useState } from 'react';
 import * as Cesium from 'cesium';
-import type { GeoJsonConfig } from './types';
+import type { GeoJsonConfig } from './geoJsonTypes';
 
 interface ManagedGeoJson {
   config: GeoJsonConfig;
@@ -158,7 +161,7 @@ export function GeoJsonPanel({ viewer, open }: GeoJsonPanelProps) {
 }
 ```
 
-`GeoJsonForm.tsx` — use `<Field>` / `<SelectField>` from `@/ui/Field`, wrap
+`AddGeoJsonForm.tsx` — use `<Field>` / `<SelectField>` from `@/ui/Field`, wrap
 in `<form className="panel-form">`, and give the submit button
 `className="control control-button panel-form__submit"`. If adding is async
 and can fail (like loading a tileset), hold a
@@ -173,14 +176,14 @@ as a second row.
 
 Two small edits, both mechanical.
 
-Add the id to `PanelId` in [`src/ui/panels.ts`](../src/ui/panels.ts):
+Add the id to `PanelId` in [`src/ui/panelIds.ts`](../src/ui/panelIds.ts):
 
 ```ts
 export type PanelId = 'ogc-layers' | 'tiles-3d' | 'layers' | 'geojson';
 ```
 
 Then add an entry to `PANELS` in
-[`src/ui/Toolbar.tsx`](../src/ui/Toolbar.tsx). The `controls` value must
+[`src/ui/AppToolbar.tsx`](../src/ui/AppToolbar.tsx). The `controls` value must
 match the `id` you gave `<Panel>`:
 
 ```ts
@@ -210,7 +213,7 @@ creates two React states fighting over one Cesium collection. Don't lift
 until something actually needs it.
 
 To appear in the layer manager, map your entries to `LayerEntry` in
-`App.tsx` (see `src/features/layer-manager/types.ts`). Supply `onMove` only
+`App.tsx` (see `src/features/layer-manager/layerManagerTypes.ts`). Supply `onMove` only
 if your layers live in `viewer.imageryLayers` and therefore have a real
 draw order.
 
@@ -228,10 +231,29 @@ If a layer or dataset silently doesn't appear, check the network tab for
 CORS errors before assuming your code is wrong — see the end of
 [architecture.md](architecture.md).
 
+## Offering datasets from `public/`
+
+If your feature loads something that could sit in `public/`, let the
+build-time scan find it rather than asking the user to type its URL:
+
+1. Add a member to `PublicDataset` in `src/lib/publicDatasetTypes.ts`, with
+   a new `kind`.
+2. Teach `vite-plugins/publicDatasetCatalog.ts` to recognise it — a check in
+   `classifyFolder` for a folder-shaped dataset, or the file loop in `scan`
+   for a single file.
+3. In your panel, render
+   `<PublicDatasetList datasets={publicDatasetsOfKind('your-kind')} … />`
+   above the form, adding each dataset through the same `add…` function the
+   form uses, with the dataset's `id` as the config id. That id is how the
+   list knows a dataset is already on the map.
+
+`TilesetPanel.tsx` is the shortest example to copy.
+
 ## Features that aren't panels
 
 Not everything fits the panel shape. The drawing tools are a hook plus a
-floating toolbar, with no form and no list. That's fine — the parts that
+floating toolbar, with no form and no list; terrain is a hook whose only UI
+is a picker in the layer manager. That's fine — the parts that
 still apply are: **one folder under `src/features/`, one hook that owns all
 the Cesium interaction, and shared `.control` classes for the buttons.**
 Skip the rest.

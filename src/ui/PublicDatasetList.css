@@ -1,0 +1,80 @@
+/* The "datasets already in public/" shortcut list — see PublicDatasetList.tsx.
+   Sits above a panel's form, separated from it the same way the form is
+   separated from the list below it. */
+.public-dataset-list {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.public-dataset-list__heading {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.public-dataset-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-dataset-list__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-variant);
+}
+
+.public-dataset-list__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Lets long names and paths ellipsize instead of pushing the button out. */
+  min-width: 0;
+  flex: 1;
+}
+
+.public-dataset-list__name {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-dataset-list__path {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-dataset-list__error {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--danger);
+}
+
+/* The compact control height: these sit in list rows, where a full-height
+   button would make each row taller than its two lines of text need. */
+.public-dataset-list__add {
+  flex-shrink: 0;
+  height: var(--control-height-sm);
+  padding: 0 12px;
+  box-shadow: none;
+}

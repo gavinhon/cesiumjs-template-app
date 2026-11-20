@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import * as Cesium from 'cesium';
-import type { TilesetConfig } from './types';
+import type { TilesetConfig } from './tilesetTypes';
 
 interface ManagedTileset {
   config: TilesetConfig;

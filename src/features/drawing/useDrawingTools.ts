@@ -1,20 +1,47 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
-import { MAP_COLORS } from '@/cesium/theme';
+import { MAP_COLORS } from '@/cesium/mapColors';
 import { createMapLabelLayer, type MapLabelLayer } from '@/cesium/mapLabels';
 import { cancelCameraInertia } from '@/cesium/cancelCameraInertia';
-import { createId } from '@/lib/ids';
+import { pickSurface } from '@/cesium/pickSurface';
+import { createId } from '@/lib/createId';
 import {
+  ANALYSIS_KINDS,
   applyGeometry,
+  casedDashMaterial,
+  casedLineMaterial,
   colorFor,
+  hiddenLineMaterial,
   labelAnchorFor,
   labelTextFor,
+  recolorPart,
   styleFeature,
-} from './featurePresentation';
-import type { DrawnFeature, DrawnFeatureKind, FeatureAttribute, LabelSource } from './types';
+  partOf,
+  tagPart,
+  type EntityPart,
+} from './drawnFeaturePresentation';
+import type { DrawnFeature, DrawnFeatureKind, FeatureAttribute, LabelSource } from './drawingTypes';
+import { computeLineOfSight, EYE_HEIGHT, raise } from './lineOfSight';
+import {
+  describeElevation,
+  describeHeight,
+  describePath,
+  formatDistance,
+  heightTriangleCorner,
+} from './measurement';
+import { computeViewshed, describeViewshed, rimPositions } from './viewshed';
 
-/** Which drawing/measurement mode is currently active, if any. */
-export type DrawingTool = 'none' | 'point' | 'line' | 'polygon' | 'measure' | 'label';
+/** Which drawing/measurement/analysis mode is currently active, if any. */
+export type DrawingTool =
+  | 'none'
+  | 'point'
+  | 'line'
+  | 'polygon'
+  | 'label'
+  | 'measure'
+  | 'height'
+  | 'line-of-sight'
+  | 'viewshed';
 
 /** The tools that build a multi-vertex path, rather than placing one thing per click. */
 export type PathTool = Extract<DrawingTool, 'line' | 'polygon' | 'measure'>;
@@ -23,11 +50,50 @@ export function isPathTool(tool: DrawingTool): tool is PathTool {
   return tool === 'line' || tool === 'polygon' || tool === 'measure';
 }
 
+/**
+ * The tools defined by exactly two clicks — a start and an end — which
+ * finish on the second click instead of waiting for a double-click: there
+ * is nothing a third point could mean.
+ */
+export type TwoPointTool = Extract<DrawingTool, 'height' | 'line-of-sight' | 'viewshed'>;
+
+export function isTwoPointTool(tool: DrawingTool): tool is TwoPointTool {
+  return tool === 'height' || tool === 'line-of-sight' || tool === 'viewshed';
+}
+
+/** Whatever tool owns the shape currently being drawn. */
+type InProgressTool = PathTool | TwoPointTool;
+
 // Cesium draws into WebGL, not the DOM, so it can't read the CSS custom
-// properties in src/styles/tokens.css. The mirrored values live in
-// src/cesium/theme.ts — don't reintroduce local copies here.
+// properties in src/styles/designTokens.css. The mirrored values live in
+// src/cesium/mapColors.ts — don't reintroduce local copies here.
 const DRAW_COLOR = MAP_COLORS.accent;
 const MEASURE_COLOR = MAP_COLORS.measure;
+const SIGHT_COLOR = MAP_COLORS.sight;
+
+/** Drawings in the accent, measurements near-white, analyses in the sight colour. */
+function toolColor(tool: DrawingTool): Cesium.Color {
+  if (tool === 'measure' || tool === 'height') return MEASURE_COLOR;
+  if (tool === 'line-of-sight' || tool === 'viewshed') return SIGHT_COLOR;
+  return DRAW_COLOR;
+}
+
+/**
+ * Two clicks closer than this are a slip, not a measurement: a viewshed
+ * with no radius, or a sight line to the observer's own feet.
+ */
+const MIN_TWO_POINT_DISTANCE = 0.5;
+
+/** Shown while a line-of-sight or viewshed analysis is running. */
+const ANALYSING = 'Analysing…';
+
+/** Kinds whose label is a number by default, drawn in the readout style. */
+const READOUT_KINDS: ReadonlySet<DrawnFeatureKind> = new Set([
+  'measure',
+  'height',
+  'line-of-sight',
+  'viewshed',
+]);
 
 /**
  * Translucent tool colours for the marker that follows the cursor.
@@ -39,6 +105,13 @@ const MEASURE_COLOR = MAP_COLORS.measure;
  */
 const GHOST_DRAW_COLOR = DRAW_COLOR.withAlpha(0.45);
 const GHOST_MEASURE_COLOR = MEASURE_COLOR.withAlpha(0.45);
+const GHOST_SIGHT_COLOR = SIGHT_COLOR.withAlpha(0.45);
+/** The dashed construction lines previewing a two-point tool. */
+const DASHED_SIGHT = new Cesium.PolylineDashMaterialProperty({
+  color: SIGHT_COLOR,
+  dashLength: 10,
+});
+const DASHED_MEASURE = casedDashMaterial(MEASURE_COLOR);
 const GHOST_OUTLINE_COLOR = Cesium.Color.WHITE.withAlpha(0.85);
 
 /**
@@ -60,33 +133,43 @@ const DEFAULT_NAME: Record<DrawnFeatureKind, string> = {
   point: 'Point',
   line: 'Line',
   polygon: 'Polygon',
-  measure: 'Measurement',
   label: 'Label',
+  measure: 'Measurement',
+  height: 'Height',
+  'line-of-sight': 'Line of sight',
+  viewshed: 'Viewshed',
 };
 
 /** Fewest vertices that make a real shape — below this there's nothing to keep. */
-function minimumVertices(tool: PathTool): number {
+function minimumVertices(tool: InProgressTool): number {
   return tool === 'polygon' ? 3 : 2;
 }
 
-function formatDistance(meters: number): string {
-  return meters >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${meters.toFixed(0)} m`;
-}
-
-/** Sum of the geodesic (great-circle) distance between consecutive points. */
-function totalDistance(positions: Cesium.Cartesian3[]): number {
-  let total = 0;
-  for (let i = 1; i < positions.length; i++) {
-    const a = Cesium.Cartographic.fromCartesian(positions[i - 1]);
-    const b = Cesium.Cartographic.fromCartesian(positions[i]);
-    total += new Cesium.EllipsoidGeodesic(a, b).surfaceDistance;
+/**
+ * The readout a feature carries, for the kinds whose readout is pure
+ * geometry. Analyses return `undefined`: theirs needs the terrain, so it's
+ * computed asynchronously by `runAnalysis` instead.
+ */
+function measurementFor(kind: DrawnFeatureKind, positions: Cesium.Cartesian3[]) {
+  switch (kind) {
+    case 'point':
+      return describeElevation(positions[0]);
+    case 'measure':
+      return describePath(positions);
+    case 'height':
+      return describeHeight(positions[0], positions[positions.length - 1]);
+    case 'line-of-sight':
+    case 'viewshed':
+      return undefined;
+    default:
+      return null;
   }
-  return total;
 }
 
 /**
  * Lets the user draw points, lines, and polygons on the map, measure
- * point-to-point distance, and drop text labels — all via Cesium's
+ * distances and heights in 3D, analyse line of sight and viewsheds, and
+ * drop text labels — all via Cesium's
  * `Entity` API (`viewer.entities`). That choice is what makes "works in
  * both 2D and 3D" close to free: entities are scene-mode-aware by design,
  * unlike lower-level `Primitive`s, which would need separate handling per
@@ -98,7 +181,7 @@ function totalDistance(positions: Cesium.Cartesian3[]): number {
  * each vertex placed so far. Previews are tracked by their own refs and
  * torn down when the shape completes.
  *
- * A finished shape becomes a `DrawnFeature` (see ./types.ts) — a record
+ * A finished shape becomes a `DrawnFeature` (see ./drawingTypes.ts) — a record
  * that can be selected, named, given attributes, labelled and reshaped
  * afterwards, rather than an anonymous entity on the globe. That list is
  * React state; only the in-progress preview lives in refs.
@@ -116,6 +199,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
   const outlineEntityRef = useRef<Cesium.Entity | null>(null);
   const ghostEntityRef = useRef<Cesium.Entity | null>(null);
   const vertexEntitiesRef = useRef<Cesium.Entity[]>([]);
+  // The construction lines a two-point tool previews with — a height
+  // triangle's legs, a viewshed's rim. Torn down when the second click lands.
+  const previewExtrasRef = useRef<Cesium.Entity[]>([]);
   const labelLayerRef = useRef<MapLabelLayer | null>(null);
   // The in-progress measurement readout. Finished features get their labels
   // from the sync effect further down instead.
@@ -146,10 +232,23 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     positions: Cesium.Cartesian3[];
   } | null>(null);
   const cancelInProgressRef = useRef<() => void>(() => {});
+  // Re-runs an analysis after its vertices are dragged. Lives in the input
+  // effect, which owns the label layer and entity bookkeeping it needs.
+  const runAnalysisRef = useRef<
+    (
+      featureId: string,
+      kind: DrawnFeatureKind,
+      positions: Cesium.Cartesian3[],
+      entities: Cesium.Entity[],
+    ) => Promise<void>
+  >(async () => {});
   const commitInProgressRef = useRef<() => void>(() => {});
-  // Which tool owns the path being drawn. Needed because committing happens
+  // Which tool owns the shape being drawn. Needed because committing happens
   // *after* `activeTool` has already changed to the tool being switched to.
-  const pathToolRef = useRef<PathTool | null>(null);
+  const inProgressToolRef = useRef<InProgressTool | null>(null);
+  // The latest analysis run per feature. A drag can start a new analysis
+  // before the last one finishes; only the newest may write its result.
+  const analysisRunsRef = useRef<Map<string, number>>(new Map());
   const lastClickRef = useRef<{ time: number; position: Cesium.Cartesian2 } | null>(null);
 
   const setActiveTool = useCallback((tool: DrawingTool) => {
@@ -170,16 +269,13 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     const labelLayer = createMapLabelLayer(cesiumViewer);
     labelLayerRef.current = labelLayer;
 
-    // The map has no real terrain (see CesiumMap.tsx), so picking against
-    // the bare ellipsoid is the reliable way to turn a screen position into
-    // a world position — and, unlike terrain/primitive picking, it works
-    // the same way in both 2D and 3D. Returns null when the pointer isn't
-    // over the globe at all (over space, or past the horizon).
+    // Turns a screen position into the point under it — on the terrain, or
+    // on a 3D Tiles building standing on it. That's what makes every tool
+    // here 3D: a vertex lands on the rooftop or hillside you clicked, so
+    // distances and heights between vertices are real 3D measurements. See
+    // `pickSurface` for how terrain and buildings are told apart.
     function pickGlobe(screenPosition: Cesium.Cartesian2): Cesium.Cartesian3 | null {
-      return (
-        cesiumViewer.camera.pickEllipsoid(screenPosition, cesiumViewer.scene.globe.ellipsoid) ??
-        null
-      );
+      return pickSurface(cesiumViewer, screenPosition);
     }
 
     // The vertices placed so far, plus — while the next click hasn't
@@ -246,9 +342,13 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           ref.current = null;
         }
       }
+      for (const extra of previewExtrasRef.current) {
+        cesiumViewer.entities.remove(extra);
+      }
+      previewExtrasRef.current = [];
       clearVertexMarkers();
       positionsRef.current = [];
-      pathToolRef.current = null;
+      inProgressToolRef.current = null;
       lastClickRef.current = null;
       // `previewMousePosRef` deliberately survives: it records where the
       // cursor is, which is input state rather than part of the shape.
@@ -274,7 +374,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       name?: string;
       labelSource?: LabelSource;
       measurement?: string | null;
-    }) {
+    }): string {
       const id = createId();
       setFeatures((prev) => {
         const ordinal = prev.filter((feature) => feature.kind === input.kind).length + 1;
@@ -293,6 +393,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           },
         ];
       });
+      return id;
     }
 
     function addPointMarker(position: Cesium.Cartesian3) {
@@ -306,7 +407,12 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
-      addFeature({ kind: 'point', positions: [position], entities: [entity] });
+      addFeature({
+        kind: 'point',
+        positions: [position],
+        entities: [entity],
+        measurement: measurementFor('point', [position]),
+      });
     }
 
     // The anchor dot stays a Cesium entity — it's a mark on the globe and
@@ -332,8 +438,34 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       });
     }
 
-    // Keeps the running-total distance readout in sync with the current
-    // vertices.
+    /**
+     * What the live readout says while a tool is mid-shape, given the
+     * vertices so far plus the cursor. Analyses can't be computed live —
+     * they query the terrain — so theirs describe the geometry instead.
+     */
+    function liveReadout(tool: InProgressTool, positions: Cesium.Cartesian3[]): string {
+      const first = positions[0];
+      const last = positions[positions.length - 1];
+      switch (tool) {
+        case 'measure':
+          return describePath(positions);
+        case 'height':
+          return describeHeight(first, last);
+        case 'line-of-sight':
+          return `→ ${formatDistance(Cesium.Cartesian3.distance(first, last))}`;
+        case 'viewshed':
+          return `r ${formatDistance(Cesium.Cartesian3.distance(first, last))}`;
+        case 'line':
+        case 'polygon':
+          return '';
+        default: {
+          const exhaustive: never = tool;
+          throw new Error(`Unhandled tool: ${String(exhaustive)}`);
+        }
+      }
+    }
+
+    // Keeps the running readout in sync with the current vertices.
     //
     // This used to carry a long warning about never driving a Cesium
     // `Label` from a `CallbackProperty`: doing so re-rasterises the glyph
@@ -342,12 +474,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     // straightforward update, called from the same input events as before.
     function updateMeasureLabel(positions: Cesium.Cartesian3[]) {
       const id = measureLabelIdRef.current;
-      if (!id || positions.length === 0) return;
-      labelLayer.update(
-        id,
-        positions[positions.length - 1],
-        formatDistance(totalDistance(positions)),
-      );
+      const tool = inProgressToolRef.current;
+      if (!id || !tool || positions.length === 0) return;
+      labelLayer.update(id, positions[positions.length - 1], liveReadout(tool, positions));
     }
 
     // First click of a line/polygon/measurement: create the entity that
@@ -356,8 +485,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     // label doesn't) so it redraws every frame without us manually pushing
     // updates to it on mouse move — we just keep the refs it reads from current.
     function startPath(tool: PathTool) {
-      pathToolRef.current = tool;
-      const color = tool === 'measure' ? MEASURE_COLOR : DRAW_COLOR;
+      inProgressToolRef.current = tool;
+      const color = toolColor(tool);
 
       if (tool === 'polygon') {
         // Two entities, not one, for two separate reasons.
@@ -382,21 +511,26 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             outline: false,
           },
         });
-        const outline = cesiumViewer.entities.add({
-          polyline: {
-            positions: new Cesium.CallbackProperty(livePolygonOutline, false),
-            width: 2,
-            material: color,
-          },
-        });
+        const outline = tagPart(
+          cesiumViewer.entities.add({
+            polyline: {
+              positions: new Cesium.CallbackProperty(livePolygonOutline, false),
+              width: 2,
+              material: color,
+              depthFailMaterial: hiddenLineMaterial(color),
+            },
+          }),
+          'outline',
+        );
         previewEntityRef.current = fill;
         outlineEntityRef.current = outline;
       } else {
         const line = cesiumViewer.entities.add({
           polyline: {
             positions: new Cesium.CallbackProperty(livePositions, false),
-            width: 3,
-            material: color,
+            width: tool === 'measure' ? 5 : 3,
+            material: tool === 'measure' ? casedLineMaterial(color) : color,
+            depthFailMaterial: hiddenLineMaterial(color),
           },
         });
         previewEntityRef.current = line;
@@ -405,7 +539,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       if (tool === 'measure') {
         measureLabelIdRef.current = labelLayer.add(
           positionsRef.current[0],
-          formatDistance(0),
+          describePath(positionsRef.current),
           'readout',
         );
       }
@@ -466,13 +600,13 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         positions: finalPositions,
         entities,
         labelSource: tool === 'measure' ? 'measurement' : 'none',
-        measurement: tool === 'measure' ? formatDistance(totalDistance(finalPositions)) : null,
+        measurement: measurementFor(tool, finalPositions) ?? null,
       });
 
       previewEntityRef.current = null;
       outlineEntityRef.current = null;
       positionsRef.current = [];
-      pathToolRef.current = null;
+      inProgressToolRef.current = null;
       lastClickRef.current = null;
     }
 
@@ -486,15 +620,286 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
      * the discard button.
      */
     function commitInProgress() {
-      const tool = pathToolRef.current;
-      if (tool && positionsRef.current.length >= minimumVertices(tool)) {
+      const tool = inProgressToolRef.current;
+      if (tool && isPathTool(tool) && positionsRef.current.length >= minimumVertices(tool)) {
         finishPath(tool);
       } else {
-        // One stray vertex isn't a line or a polygon; there's nothing to keep.
+        // One stray vertex isn't a shape — and a two-point tool with only
+        // its first point placed has nothing to measure yet.
         cancelInProgress();
       }
     }
     commitInProgressRef.current = commitInProgress;
+
+    /** The second point of a two-point tool: wherever the cursor is, until it's clicked. */
+    function liveEnd(): Cesium.Cartesian3 {
+      return previewMousePosRef.current ?? positionsRef.current[0];
+    }
+
+    /** Adds a construction line that follows the cursor until the shape finishes. */
+    function addPreviewLine(
+      positions: () => Cesium.Cartesian3[],
+      material: Cesium.MaterialProperty,
+      width: number,
+    ) {
+      const entity = cesiumViewer.entities.add({
+        polyline: {
+          positions: new Cesium.CallbackProperty(positions, false),
+          width,
+          material,
+          // A preview that vanishes behind the building you're measuring
+          // up to is no preview at all — see `hiddenLineMaterial`.
+          depthFailMaterial: material,
+        },
+      });
+      previewExtrasRef.current.push(entity);
+    }
+
+    /**
+     * First click of a two-point tool: show what the second click will
+     * produce, live, so the user aims the second point rather than guessing.
+     */
+    function startTwoPoint(tool: TwoPointTool) {
+      inProgressToolRef.current = tool;
+      const start = () => positionsRef.current[0];
+
+      switch (tool) {
+        case 'height':
+          addPreviewLine(() => [start(), liveEnd()], casedLineMaterial(MEASURE_COLOR), 5);
+          addPreviewLine(
+            () => [start(), heightTriangleCorner(start(), liveEnd())],
+            DASHED_MEASURE,
+            1.5,
+          );
+          addPreviewLine(
+            () => [heightTriangleCorner(start(), liveEnd()), liveEnd()],
+            DASHED_MEASURE,
+            1.5,
+          );
+          break;
+        case 'line-of-sight':
+          addPreviewLine(() => [raise(start(), EYE_HEIGHT), liveEnd()], DASHED_SIGHT, 2);
+          break;
+        case 'viewshed':
+          addPreviewLine(
+            () => rimPositions(start(), Cesium.Cartesian3.distance(start(), liveEnd())),
+            new Cesium.ColorMaterialProperty(SIGHT_COLOR),
+            2,
+          );
+          addPreviewLine(() => [start(), liveEnd()], DASHED_SIGHT, 1.5);
+          break;
+        default: {
+          const exhaustive: never = tool;
+          throw new Error(`Unhandled tool: ${String(exhaustive)}`);
+        }
+      }
+
+      measureLabelIdRef.current = labelLayer.add(
+        start(),
+        liveReadout(tool, [start(), liveEnd()]),
+        'readout',
+      );
+    }
+
+    /**
+     * Second click of a two-point tool: swap the preview for the finished
+     * feature. Height is pure geometry and is done here; line of sight and
+     * viewshed need the terrain, so they start out as "Analysing" and
+     * `runAnalysis` fills them in.
+     */
+    function finishTwoPoint(tool: TwoPointTool, end: Cesium.Cartesian3) {
+      const start = positionsRef.current[0];
+      if (Cesium.Cartesian3.distance(start, end) < MIN_TWO_POINT_DISTANCE) return;
+      cancelInProgress();
+      const positions = [start, end];
+      const add = (options: Cesium.Entity.ConstructorOptions) => cesiumViewer.entities.add(options);
+      const pointStyle = {
+        pixelSize: 10,
+        color: toolColor(tool),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      };
+
+      let entities: Cesium.Entity[];
+      switch (tool) {
+        case 'height': {
+          const corner = heightTriangleCorner(start, end);
+          entities = [
+            tagPart(add({ polyline: { positions } }), 'shape'),
+            tagPart(add({ polyline: { positions: [start, corner] } }), 'vertical', {
+              dashed: true,
+            }),
+            tagPart(add({ polyline: { positions: [corner, end] } }), 'horizontal', {
+              dashed: true,
+            }),
+          ];
+          break;
+        }
+        case 'line-of-sight': {
+          const eye = raise(start, EYE_HEIGHT);
+          entities = [
+            tagPart(add({ polyline: { positions: [eye, end] } }), 'clear'),
+            tagPart(add({ polyline: { positions: [] } }), 'blocked', {
+              color: MAP_COLORS.obstructed,
+            }),
+            tagPart(add({ point: { ...pointStyle } }), 'obstruction', {
+              color: MAP_COLORS.obstructed,
+            }),
+            tagPart(add({ position: eye, point: { ...pointStyle } }), 'eye'),
+            tagPart(add({ position: end, point: { ...pointStyle } }), 'target'),
+          ];
+          break;
+        }
+        case 'viewshed': {
+          entities = [
+            tagPart(
+              add({
+                polyline: {
+                  positions: rimPositions(start, Cesium.Cartesian3.distance(start, end)),
+                  // Draped, so the rim follows the hills instead of cutting
+                  // through them at the observer's height.
+                  clampToGround: true,
+                },
+              }),
+              'rim',
+            ),
+            tagPart(add({ position: raise(start, EYE_HEIGHT), point: { ...pointStyle } }), 'eye'),
+          ];
+          break;
+        }
+        default: {
+          const exhaustive: never = tool;
+          throw new Error(`Unhandled tool: ${String(exhaustive)}`);
+        }
+      }
+
+      const isAnalysis = ANALYSIS_KINDS.has(tool);
+      const id = addFeature({
+        kind: tool,
+        positions,
+        entities,
+        labelSource: 'measurement',
+        measurement: isAnalysis ? ANALYSING : (measurementFor(tool, positions) ?? null),
+      });
+      if (isAnalysis) void runAnalysis(id, tool, positions, entities);
+    }
+
+    /**
+     * Computes a line-of-sight or viewshed result and writes it into the
+     * feature's entities and readout.
+     *
+     * Async, so the feature may have changed by the time it finishes: it
+     * may have been deleted, or dragged again and re-analysed. Each run
+     * takes a number, and only the latest run for a feature may apply.
+     */
+    async function runAnalysis(
+      featureId: string,
+      kind: DrawnFeatureKind,
+      positions: Cesium.Cartesian3[],
+      entities: Cesium.Entity[],
+    ) {
+      const run = (analysisRunsRef.current.get(featureId) ?? 0) + 1;
+      analysisRunsRef.current.set(featureId, run);
+      const isCurrent = () =>
+        analysisRunsRef.current.get(featureId) === run && !cesiumViewer.isDestroyed();
+      const start = positions[0];
+      const end = positions[positions.length - 1];
+      const part = (name: EntityPart) => entities.find((entity) => partOf(entity) === name);
+
+      let measurement: string;
+      let overlay: Cesium.Entity | null = null;
+      try {
+        if (kind === 'line-of-sight') {
+          const { eye, target, obstruction } = await computeLineOfSight(
+            cesiumViewer,
+            start,
+            end,
+            cesiumViewer.entities.values,
+          );
+          if (!isCurrent()) return;
+          const clear = part('clear');
+          const blocked = part('blocked');
+          const marker = part('obstruction');
+          const targetMarker = part('target');
+          if (clear?.polyline) {
+            clear.polyline.positions = new Cesium.ConstantProperty([eye, obstruction ?? target]);
+          }
+          if (blocked?.polyline) {
+            blocked.polyline.positions = new Cesium.ConstantProperty(
+              obstruction ? [obstruction, target] : [],
+            );
+          }
+          if (marker) {
+            marker.position = obstruction
+              ? new Cesium.ConstantPositionProperty(obstruction)
+              : undefined;
+          }
+          if (targetMarker) {
+            recolorPart(targetMarker, obstruction ? MAP_COLORS.obstructed : SIGHT_COLOR);
+          }
+          const total = formatDistance(Cesium.Cartesian3.distance(eye, target));
+          measurement = obstruction
+            ? `Blocked at ${formatDistance(Cesium.Cartesian3.distance(eye, obstruction))} of ${total}`
+            : `Visible · ${total}`;
+        } else {
+          const radius = Cesium.Cartesian3.distance(start, end);
+          const result = await computeViewshed(cesiumViewer.terrainProvider, start, radius);
+          if (!isCurrent()) return;
+          overlay = tagPart(
+            cesiumViewer.entities.add({
+              rectangle: {
+                coordinates: result.rectangle,
+                material: new Cesium.ImageMaterialProperty({
+                  image: result.image,
+                  transparent: true,
+                }),
+              },
+            }),
+            'overlay',
+          );
+          measurement = describeViewshed(result, radius);
+        }
+      } catch (error) {
+        if (!isCurrent()) return;
+        measurement = `Analysis failed: ${error instanceof Error ? error.message : String(error)}`;
+      }
+
+      // The feature may have been deleted while the analysis ran. Its
+      // entities are already gone; don't leave a new overlay orphaned.
+      const current = featuresRef.current.find((feature) => feature.id === featureId);
+      if (!current) {
+        if (overlay) cesiumViewer.entities.remove(overlay);
+        return;
+      }
+
+      // A re-run replaces the previous overlay rather than stacking a
+      // second image on top of it. Removed here, outside the state updater,
+      // because StrictMode runs updaters twice and `remove` isn't idempotent
+      // in effect — the second run would find nothing, but the first must
+      // not be repeated against a list that already lacks the entity.
+      const stale = overlay
+        ? current.entities.filter((entity) => partOf(entity) === 'overlay')
+        : [];
+      for (const entity of stale) cesiumViewer.entities.remove(entity);
+      const added = overlay;
+
+      setFeatures((prev) =>
+        prev.map((feature) =>
+          feature.id === featureId
+            ? {
+                ...feature,
+                measurement,
+                entities: [
+                  ...feature.entities.filter((entity) => !stale.includes(entity)),
+                  ...(added ? [added] : []),
+                ],
+              }
+            : feature,
+        ),
+      );
+    }
+    runAnalysisRef.current = runAnalysis;
 
     /**
      * Steps back one vertex, so a single misplaced click doesn't mean
@@ -509,7 +914,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
       if (positionsRef.current.length === 0) {
         cancelInProgress();
-      } else if (activeToolRef.current === 'measure') {
+      } else if (measureLabelIdRef.current) {
         updateMeasureLabel(livePositions());
       }
     }
@@ -530,10 +935,12 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       ),
       point: {
         pixelSize: 13,
-        color: new Cesium.CallbackProperty(
-          () => (activeToolRef.current === 'measure' ? GHOST_MEASURE_COLOR : GHOST_DRAW_COLOR),
-          false,
-        ),
+        color: new Cesium.CallbackProperty(() => {
+          const color = toolColor(activeToolRef.current);
+          if (color === MEASURE_COLOR) return GHOST_MEASURE_COLOR;
+          if (color === SIGHT_COLOR) return GHOST_SIGHT_COLOR;
+          return GHOST_DRAW_COLOR;
+        }, false),
         outlineColor: GHOST_OUTLINE_COLOR,
         outlineWidth: 2,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
@@ -569,10 +976,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       const moved: DrawnFeature = {
         ...feature,
         positions,
-        measurement:
-          feature.kind === 'measure'
-            ? formatDistance(totalDistance(positions))
-            : feature.measurement,
+        // Geometry readouts follow the drag; an analysis keeps its old
+        // result until the drag ends and it's recomputed.
+        measurement: measurementFor(feature.kind, positions) ?? feature.measurement,
       };
       const text = labelTextFor(moved);
       if (text !== null) labelLayer.update(labelId, labelAnchorFor(moved), text);
@@ -609,6 +1015,20 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         return;
       }
 
+      // Height, line of sight, viewshed: the first click sets the start,
+      // the second finishes. No double-click needed — a third point would
+      // mean nothing.
+      if (isTwoPointTool(tool)) {
+        if (positionsRef.current.length === 0) {
+          positionsRef.current = [point];
+          addVertexMarker(point, toolColor(tool));
+          startTwoPoint(tool);
+        } else {
+          finishTwoPoint(tool, point);
+        }
+        return;
+      }
+
       // line / polygon / measure: accumulate vertices.
       const positions = positionsRef.current;
 
@@ -635,10 +1055,10 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
       const isFirstPoint = positions.length === 0;
       positionsRef.current = [...positions, point];
-      addVertexMarker(point, tool === 'measure' ? MEASURE_COLOR : DRAW_COLOR);
+      addVertexMarker(point, toolColor(tool));
       if (isFirstPoint) {
         startPath(tool);
-      } else if (tool === 'measure') {
+      } else {
         updateMeasureLabel(livePositions());
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -675,20 +1095,26 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
       // The drag moved the entities directly; this is where the change
       // reaches React state, once, rather than on every mouse move.
+      const dragged = featuresRef.current.find((feature) => feature.id === drag.featureId);
+      const isAnalysis = dragged !== undefined && ANALYSIS_KINDS.has(dragged.kind);
       setFeatures((prev) =>
         prev.map((feature) =>
           feature.id === drag.featureId
             ? {
                 ...feature,
                 positions: drag.positions,
-                measurement:
-                  feature.kind === 'measure'
-                    ? formatDistance(totalDistance(drag.positions))
-                    : feature.measurement,
+                measurement: isAnalysis
+                  ? ANALYSING
+                  : (measurementFor(feature.kind, drag.positions) ?? feature.measurement),
               }
             : feature,
         ),
       );
+      // An analysis is only true for the points it was run from, so moving
+      // one means running it again.
+      if (dragged && isAnalysis) {
+        void runAnalysisRef.current(dragged.id, dragged.kind, drag.positions, dragged.entities);
+      }
     }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
     // Tracks the cursor for *every* armed tool, not only a path already in
@@ -713,8 +1139,10 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       const tool = activeToolRef.current;
       if (tool === 'none') return;
       previewMousePosRef.current = pickGlobe(event.endPosition);
-      if (tool === 'measure' && positionsRef.current.length > 0) {
-        updateMeasureLabel(livePositions());
+      if (positionsRef.current.length > 0) {
+        updateMeasureLabel(
+          isTwoPointTool(tool) ? [positionsRef.current[0], liveEnd()] : livePositions(),
+        );
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
@@ -725,8 +1153,17 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       // anywhere. The other two must never be taken from a panel the user
       // is typing in — Enter would submit the add-layer form and Backspace
       // would delete their text.
+      //
+      // With nothing in progress there's nothing to throw away, so Escape
+      // puts the tool down instead. Without that, the only way out of a
+      // tool was finding and clicking its button again — and pressing Esc
+      // and still having the crosshair feels like being stuck in the tool.
       if (event.key === 'Escape') {
-        cancelInProgress();
+        if (positionsRef.current.length > 0) {
+          cancelInProgress();
+        } else {
+          setActiveTool('none');
+        }
         return;
       }
 
@@ -775,7 +1212,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       labelLayerRef.current = null;
       featureLabelIdsRef.current.clear();
     };
-  }, [viewer]);
+    // `setActiveTool` is a stable callback; listing it doesn't re-run this.
+  }, [viewer, setActiveTool]);
 
   // Switching tools ends whatever was mid-drawing — it can't stay live once
   // no active tool controls it. It is *committed*, not discarded: reaching
@@ -827,7 +1265,10 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       } else {
         labelIds.set(
           feature.id,
-          labelLayer.add(anchor, text, feature.kind === 'measure' ? 'readout' : 'text'),
+          // Keyed off the kind, which never changes, rather than the label
+          // source: a label is created once, and its style can't follow a
+          // later switch between readout and name.
+          labelLayer.add(anchor, text, READOUT_KINDS.has(feature.kind) ? 'readout' : 'text'),
         );
       }
     }

@@ -1,17 +1,17 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Field, SelectField } from '@/ui/Field';
-import { createId } from '@/lib/ids';
+import { createId } from '@/lib/createId';
 import type {
   GeographicBoundingBox,
   OgcLayerConfig,
   OgcServiceType,
   ServiceLayerOption,
   WfsVersion,
-} from './types';
-import { fetchWmsLayers } from './wmsCapabilities';
-import { fetchWfsFeatureTypes } from './wfsCapabilities';
+} from './ogcLayerTypes';
+import { fetchWmsLayers } from './fetchWmsLayers';
+import { fetchWfsFeatureTypes } from './fetchWfsFeatureTypes';
 
-interface AddLayerFormProps {
+interface AddOgcLayerFormProps {
   onAdd: (config: OgcLayerConfig) => Promise<void>;
   /** True while the Cesium viewer hasn't finished initializing yet. */
   disabled: boolean;
@@ -54,7 +54,7 @@ const LOOKUP_SUPPORTED: OgcServiceType[] = ['wms', 'wfs'];
  * WMS and WFS additionally offer a capabilities lookup, so you can pick a
  * real identifier off the server instead of having to already know it.
  */
-export function AddLayerForm({ onAdd, disabled }: AddLayerFormProps) {
+export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
   const formId = useId();
   const [type, setType] = useState<OgcServiceType>('wms');
   const [name, setName] = useState('');

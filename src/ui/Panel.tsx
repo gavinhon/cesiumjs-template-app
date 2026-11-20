@@ -5,7 +5,7 @@ interface PanelProps {
   /**
    * DOM id, so the toolbar button that opens this panel can point at it
    * with `aria-controls`. Must match the `controls` value in the `PANELS`
-   * registry in `src/ui/Toolbar.tsx`.
+   * registry in `src/ui/AppToolbar.tsx`.
    */
   id: string;
   /** Panel title, rendered in the monospace "technical label" style. */

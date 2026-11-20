@@ -11,7 +11,7 @@ interface DrawingToolbarProps {
 }
 
 // Small line-art icons, drawn by hand instead of pulling in an icon library
-// for six glyphs. `stroke="currentColor"` makes each one pick up whatever
+// for nine glyphs. `stroke="currentColor"` makes each one pick up whatever
 // color the surrounding button/CSS sets, so hover/active states apply for free.
 const icons: Record<Exclude<DrawingTool, 'none'> | 'clear', ReactNode> = {
   point: (
@@ -62,6 +62,55 @@ const icons: Record<Exclude<DrawingTool, 'none'> | 'clear', ReactNode> = {
       <line x1="15.5" y1="8.5" x2="17.5" y2="6.5" />
     </svg>
   ),
+  height: (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <line x1="5" y1="19" x2="19" y2="5" />
+      <line x1="19" y1="5" x2="19" y2="19" strokeDasharray="2 3" />
+      <line x1="5" y1="19" x2="19" y2="19" strokeDasharray="2 3" />
+    </svg>
+  ),
+  'line-of-sight': (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12c1.6-2.7 3.3-4 5-4s3.4 1.3 5 4c-1.6 2.7-3.3 4-5 4s-3.4-1.3-5-4z" />
+      <circle cx="7" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <line x1="14" y1="12" x2="19" y2="12" strokeDasharray="2 2.5" />
+      <circle cx="21" cy="12" r="1.8" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  viewshed: (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" strokeDasharray="2 3" />
+      <path d="M12 12 L18.4 5.6 A9 9 0 0 1 21 12 Z" fill="currentColor" stroke="none" />
+      <path d="M12 12 L5.6 18.4 A9 9 0 0 1 3 12 Z" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
+    </svg>
+  ),
   label: (
     <svg
       viewBox="0 0 24 24"
@@ -98,15 +147,44 @@ const icons: Record<Exclude<DrawingTool, 'none'> | 'clear', ReactNode> = {
   ),
 };
 
-const TOOLS: { tool: Exclude<DrawingTool, 'none'>; label: string }[] = [
-  { tool: 'point', label: 'Place a point' },
-  { tool: 'line', label: 'Draw a line' },
-  { tool: 'polygon', label: 'Draw a polygon' },
-  { tool: 'measure', label: 'Measure distance' },
-  { tool: 'label', label: 'Add a text label' },
+type ToolEntry = { tool: Exclude<DrawingTool, 'none'>; label: string };
+
+/**
+ * Two groups, because they answer different questions: the first puts
+ * something on the map, the second asks the map something. Grouped, an
+ * eight-button strip reads as two short lists instead of one long one.
+ */
+const TOOL_GROUPS: { name: string; tools: ToolEntry[] }[] = [
+  {
+    name: 'Draw',
+    tools: [
+      { tool: 'point', label: 'Place a point (shows its elevation)' },
+      { tool: 'line', label: 'Draw a line' },
+      { tool: 'polygon', label: 'Draw a polygon' },
+      { tool: 'label', label: 'Add a text label' },
+    ],
+  },
+  {
+    name: 'Measure and analyse',
+    tools: [
+      { tool: 'measure', label: 'Measure distance — 3D and over the ground' },
+      { tool: 'height', label: 'Measure height difference between two points' },
+      { tool: 'line-of-sight', label: 'Line of sight — can one point see another?' },
+      { tool: 'viewshed', label: 'Viewshed — what can be seen from a point' },
+    ],
+  },
 ];
 
 /**
+ * The drawing, measurement and analysis tools, as buttons for the right
+ * rail.
+ *
+ * Returns a fragment rather than its own wrapper: the 2D/3D toggle, each
+ * tool group, and the discard button become separate items of
+ * `.app__right-rail`, which is what lets the rail wrap them into a second
+ * column on short screens. Inside a wrapper they'd be one tall item, and a
+ * flex item can't be split across columns.
+ *
  * A small vertical strip of icon buttons on the right edge of the screen —
  * the drawing/measurement equivalent of the OGC layers button on the left.
  *
@@ -123,7 +201,7 @@ export function DrawingToolbar({
   onToggleSceneMode,
 }: DrawingToolbarProps) {
   return (
-    <div className="drawing-toolbar">
+    <>
       <button
         type="button"
         className="control control-button drawing-toolbar__button drawing-toolbar__mode"
@@ -133,24 +211,32 @@ export function DrawingToolbar({
         {is2D ? '3D' : '2D'}
       </button>
 
-      <div className="drawing-toolbar__group">
-        {TOOLS.map(({ tool, label }) => (
-          <button
-            key={tool}
-            type="button"
-            className={
-              activeTool === tool
-                ? 'control control-button drawing-toolbar__button control-button--active'
-                : 'control control-button drawing-toolbar__button'
-            }
-            onClick={() => onSelectTool(activeTool === tool ? 'none' : tool)}
-            aria-pressed={activeTool === tool}
-            title={label}
-          >
-            {icons[tool]}
-          </button>
-        ))}
-      </div>
+      {TOOL_GROUPS.map((group) => (
+        <div
+          key={group.name}
+          className="drawing-toolbar__group"
+          role="group"
+          aria-label={group.name}
+        >
+          {group.tools.map(({ tool, label }) => (
+            <button
+              key={tool}
+              type="button"
+              className={
+                activeTool === tool
+                  ? 'control control-button drawing-toolbar__button control-button--active'
+                  : 'control control-button drawing-toolbar__button'
+              }
+              onClick={() => onSelectTool(activeTool === tool ? 'none' : tool)}
+              aria-pressed={activeTool === tool}
+              aria-label={label}
+              title={label}
+            >
+              {icons[tool]}
+            </button>
+          ))}
+        </div>
+      ))}
 
       <button
         type="button"
@@ -160,6 +246,6 @@ export function DrawingToolbar({
       >
         {icons.clear}
       </button>
-    </div>
+    </>
   );
 }

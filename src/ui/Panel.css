@@ -42,11 +42,17 @@
 }
 
 /* Clear of the right rail rather than on top of it: the rail's 16px inset,
-   its width (a square button plus the group's 6px padding and 1px border on
-   each side), then a 16px gap. */
+   its width, then a 16px gap.
+
+   The width is measured, not assumed — App publishes it as
+   `--right-rail-width` (see `useWidthAsCssVariable`) — because on a short
+   screen the rail wraps into two columns and roughly doubles. The fallback
+   is one column — a square button plus a group's 6px padding and 1px
+   border on each side — for the moment before anything has been measured. */
 .panel--right {
-  right: calc(var(--control-height) + 46px);
-  max-width: calc(100vw - var(--control-height) - 62px);
+  --rail: var(--right-rail-width, calc(var(--control-height) + 14px));
+  right: calc(var(--rail) + 32px);
+  max-width: calc(100vw - var(--rail) - 48px);
 }
 
 .panel--collapsed {

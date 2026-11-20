@@ -13,7 +13,19 @@ export interface FeatureAttribute {
   value: string;
 }
 
-export type DrawnFeatureKind = 'point' | 'line' | 'polygon' | 'measure' | 'label';
+export type DrawnFeatureKind =
+  | 'point'
+  | 'line'
+  | 'polygon'
+  | 'label'
+  /** Distance along a path, in 3D and over the ground. */
+  | 'measure'
+  /** Height difference between two points, with its horizontal and 3D distance. */
+  | 'height'
+  /** Whether one point can be seen from another. */
+  | 'line-of-sight'
+  /** Everything visible from one point, within a radius. */
+  | 'viewshed';
 
 /**
  * What a feature's on-map label shows.
@@ -45,9 +57,17 @@ export interface DrawnFeature {
   visible: boolean;
   /** Vertices in the order placed. A point or label has exactly one. */
   positions: Cesium.Cartesian3[];
-  /** The live entities drawing this feature — a polygon has two (fill + outline). */
+  /**
+   * The live entities drawing this feature — a polygon has two (fill +
+   * outline), a line of sight up to five. Each is tagged with the part it
+   * plays; see `EntityPart` in drawnFeaturePresentation.ts.
+   */
   entities: Cesium.Entity[];
-  /** Formatted geodesic length, for measurements. `null` for everything else. */
+  /**
+   * The feature's computed readout: a point's elevation, a measured
+   * distance or height, an analysis result. `null` for shapes with nothing
+   * to measure (lines, polygons, labels).
+   */
   measurement: string | null;
 }
 

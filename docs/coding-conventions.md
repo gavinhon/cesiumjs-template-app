@@ -1,4 +1,4 @@
-# Conventions
+# Coding conventions
 
 Prettier and Oxlint enforce the mechanical parts. This file covers the
 judgement calls they can't.
@@ -14,24 +14,150 @@ Prettier owns it. Don't argue with it, don't hand-format, don't add
 
 `npm run format` fixes everything.
 
-## Files and naming
+## File and folder naming
 
-| Thing                | Convention             | Example                   |
-| -------------------- | ---------------------- | ------------------------- |
-| Component file       | `PascalCase.tsx`       | `TilesetPanel.tsx`        |
-| Hook file            | `useThing.ts`          | `useOgcLayers.ts`         |
-| Other module         | `camelCase.ts`         | `wmsCapabilities.ts`      |
-| Feature folder       | `kebab-case`           | `features/tiles-3d/`      |
-| Component stylesheet | matches its component  | `Panel.tsx` / `Panel.css` |
-| Type / interface     | `PascalCase`           | `OgcLayerConfig`          |
-| Constant             | `SCREAMING_SNAKE_CASE` | `INITIAL_VIEW`            |
+A filename is the first piece of documentation anyone reads, and often the
+only one. These rules exist so a name identifies its file on its own — in an
+editor tab, a search result, a stack trace, or a review diff — without
+needing the directory it came from as context.
 
-One exported component per file, named the same as the file. Named exports
-everywhere except `App.tsx` (Vite's entry convention).
+Where a longer name is clearer than a shorter one, take the longer name.
+`drawnFeaturePresentation.ts` costs nothing to read and says exactly what is
+inside; `presentation.ts` makes you open the file to find out.
 
-Name things for what they _are_, not where they sit. `Sidebar.tsx` was
-renamed to `OgcLayerPanel.tsx` for exactly this reason: once a second panel
-existed, "sidebar" told you nothing.
+### The patterns
+
+| Kind of file                 | Pattern                     | Example                    |
+| ---------------------------- | --------------------------- | -------------------------- |
+| React component              | `PascalCase.tsx`            | `OgcLayerPanel.tsx`        |
+| Stylesheet for a component   | same name as the component  | `OgcLayerPanel.css`        |
+| React hook                   | `useSubject.ts`             | `useOgcLayers.ts`          |
+| Module with one main export  | named after that export     | `createImageryProvider.ts` |
+| Module grouping related code | named for the group         | `capabilitiesXml.ts`       |
+| Type-only module             | `<subject>Types.ts`         | `ogcLayerTypes.ts`         |
+| Feature folder               | `kebab-case`                | `src/features/ogc-layers/` |
+| Vite plugin                  | named after its export      | `publicDatasetCatalog.ts`  |
+| Python script                | `snake_case.py`, verb-first | `build_terrain_tiles.py`   |
+| Documentation                | `kebab-case.md`             | `docs/adding-a-feature.md` |
+
+Python follows Python's own convention rather than this repo's TypeScript
+one, because that's what anyone opening a `.py` file expects. Scripts are
+named for what running them does, verb first, so `scripts/` reads as a list
+of actions.
+
+Inside the files: `PascalCase` for types, interfaces and components,
+`camelCase` for functions and variables, `SCREAMING_SNAKE_CASE` for
+module-level constants (`INITIAL_VIEW`, `MAP_COLORS`, `PANELS`).
+
+### One exported component per file, named after the file
+
+`OgcLayerPanel.tsx` exports `OgcLayerPanel`, and its props interface is
+`OgcLayerPanelProps` declared directly above it. Named exports everywhere
+except `App.tsx`, which uses a default export because that is Vite's entry
+convention.
+
+Rename the file and the component together. A file called `FeatureEditor.tsx`
+that exports `DrawnFeatureEditor` is worse than either name on its own.
+
+### Name a module after its principal export
+
+When a module exists to provide one thing, the filename _is_ that thing:
+
+| File                       | Export                    |
+| -------------------------- | ------------------------- |
+| `createId.ts`              | `createId()`              |
+| `createImageryProvider.ts` | `createImageryProvider()` |
+| `createWfsDataSource.ts`   | `createWfsDataSource()`   |
+| `cancelCameraInertia.ts`   | `cancelCameraInertia()`   |
+| `fetchWmsLayers.ts`        | `fetchWmsLayers()`        |
+| `initialView.ts`           | `INITIAL_VIEW`            |
+
+You can then read an import list without opening anything, and "where is
+`fetchWmsLayers` defined?" has an answer you can guess instead of search for.
+That module used to be `wmsCapabilities.ts`, which named the _input_ rather
+than what you get out of it.
+
+Modules that genuinely group several related exports are named for the group
+instead — `capabilitiesXml.ts`, `drawnFeaturePresentation.ts`,
+`mapLabels.ts` — but the group name still has to be specific. `xml.ts` was
+one of these, and told you nothing about _which_ XML.
+
+### Every filename is unique across the repo
+
+A folder does not disambiguate a file once the file is open. Four modules
+called `types.ts` produce four identical editor tabs, four ambiguous search
+hits, and four `./types` imports that each mean something different.
+
+So a type module carries its subject:
+
+| Instead of                        | We use                                        |
+| --------------------------------- | --------------------------------------------- |
+| `features/drawing/types.ts`       | `features/drawing/drawingTypes.ts`            |
+| `features/ogc-layers/types.ts`    | `features/ogc-layers/ogcLayerTypes.ts`        |
+| `features/tiles-3d/types.ts`      | `features/tiles-3d/tilesetTypes.ts`           |
+| `features/layer-manager/types.ts` | `features/layer-manager/layerManagerTypes.ts` |
+
+The same rule caught `ui/Toolbar.tsx` sitting alongside
+`features/drawing/DrawingToolbar.tsx`: reading `<Toolbar>` in `App.tsx` right
+next to `<DrawingToolbar>` gave no clue which was which. It is now
+`ui/AppToolbar.tsx`, exporting `AppToolbar`.
+
+It also caught `ui/panels.ts` next to `ui/Panel.tsx` — two names differing
+only by capitalisation and a plural, which is a typo waiting to happen and,
+on a case-insensitive filesystem, a git collision waiting to confuse someone.
+It is now `ui/panelIds.ts`, named for the `PanelId` union it exports.
+
+### Name for the domain, not for the framework or the position
+
+Name things for what they _are_, not for where they sit. `Sidebar.tsx`
+became `OgcLayerPanel.tsx` for this reason: once a second panel existed,
+"sidebar" described a position two files shared and told you nothing about
+either.
+
+`features/drawing/FeatureEditor.tsx` had the opposite problem — it used
+"feature" in the GIS sense while every other occurrence of the word in this
+repo means "a folder under `src/features/`". It is now
+`DrawnFeatureEditor.tsx`, matching the `DrawnFeature` type it edits, and its
+presentation helpers live in `drawnFeaturePresentation.ts`.
+
+`cesium/theme.ts` overclaimed in the other direction: "theme" implies fonts,
+spacing and radii, when the module holds only the handful of colours Cesium
+needs as `Cesium.Color` values. It is now `cesium/mapColors.ts`, which is
+both what it is and all it should ever grow into.
+
+### Parallel features use parallel names
+
+Two features that do the same job should read the same way. The "add a
+thing, then manage the things you added" features share one set of roles:
+
+| Role                | OGC layers            | 3D Tiles             |
+| ------------------- | --------------------- | -------------------- |
+| Panel shell         | `OgcLayerPanel.tsx`   | `TilesetPanel.tsx`   |
+| Form to add one     | `AddOgcLayerForm.tsx` | `AddTilesetForm.tsx` |
+| List of added ones  | `OgcLayerList.tsx`    | `TilesetList.tsx`    |
+| State + Cesium sync | `useOgcLayers.ts`     | `useTilesets.ts`     |
+| Data model          | `ogcLayerTypes.ts`    | `tilesetTypes.ts`    |
+
+Before this pass those columns read `AddLayerForm` / `TilesetForm` and
+`LayerList` / `TilesetList` — same job, three different naming ideas.
+Copy the shape above for a new feature; [adding-a-feature.md](adding-a-feature.md)
+walks through it step by step.
+
+### Stylesheets
+
+A stylesheet is named after the component that imports it and sits beside it
+(`Panel.tsx` / `Panel.css`), and only that component imports it.
+
+There are two deliberate exceptions, both feature-internal.
+`layer-manager/LayerManager.css` holds a single `.layer-manager` block shared
+by `LayerManagerPanel` and `LayerManagerButton`, so it is named for the block
+rather than for either component. `DrawingPanel.css` also carries the
+`.drawn-feature-editor` block, because that editor only ever renders inside
+that panel.
+
+The BEM block name is the component name in kebab-case: `AppToolbar` →
+`.app-toolbar`, `DrawnFeatureEditor` → `.drawn-feature-editor`. Rename them
+together, or searching for a class stops leading you to the component.
 
 ## Imports
 
@@ -90,10 +216,11 @@ imported **before** `@/App` — see the CSS section below for why.
 
 Plain CSS, no preprocessor, no CSS-in-JS.
 
-- **Always use a design token** from `src/styles/tokens.css`. Raw hex values
+- **Always use a design token** from `src/styles/designTokens.css`. Raw hex values
   in a component stylesheet are a bug. Need a colour that isn't there? Add a
   token.
-- **BEM-ish naming**: `.block`, `.block__element`, `.block--modifier`.
+- **BEM-ish naming**: `.block`, `.block__element`, `.block--modifier`, where
+  the block is the owning component's name in kebab-case.
 - **Size controls from the tokens, never per-component.** Every button,
   input and select is `var(--control-height)`; compact grid rows use
   `--control-height-sm`. Five near-identical heights scattered across
@@ -103,11 +230,12 @@ Plain CSS, no preprocessor, no CSS-in-JS.
   badges and code. If a new size feels necessary, it's usually the layout
   that needs changing, not the ladder.
 - **Compose the `.control` primitives** for anything that floats over the
-  map: `className="control control-button toolbar__button"`. You get the
+  map: `className="control control-button app-toolbar__button"`. You get the
   glass background, border, shadow, and hover state for free.
-- **A stylesheet sits next to the component that imports it**, and only that
-  component's file imports it. Shared styling belongs to a shared component
-  in `src/ui/`.
+- **A stylesheet sits next to the component that imports it**, is named
+  after it, and is imported by nothing else — see
+  [Stylesheets](#stylesheets) under the naming rules. Shared styling belongs
+  to a shared component in `src/ui/`.
 - **The global stylesheet must load first.** `.control-button` and a
   component's `.foo__button` are both single-class selectors, so they have
   equal specificity and **source order decides the winner**. Component
@@ -125,7 +253,7 @@ Plain CSS, no preprocessor, no CSS-in-JS.
 
 - Cesium draws with WebGL and can't read CSS variables. The colours that
   must exist on both sides are mirrored in exactly one file,
-  `src/cesium/theme.ts` — change both together, and don't add a second
+  `src/cesium/mapColors.ts` — change both together, and don't add a second
   mirror. Fonts aren't mirrored at all: map text is an HTML overlay
   (`src/cesium/mapLabels.ts`), so it uses these tokens directly.
 

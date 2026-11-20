@@ -1,5 +1,5 @@
 import * as Cesium from 'cesium';
-import type { OgcImageryConfig } from './types';
+import type { OgcImageryConfig } from './ogcLayerTypes';
 
 /**
  * Turns one of our raster layer configs into a Cesium `ImageryProvider`.
@@ -64,6 +64,7 @@ export function createImageryProvider(config: OgcImageryConfig): Cesium.ImageryP
       // tile servers and WMTS "RESTful" endpoints that hand you a template.
       return new Cesium.UrlTemplateImageryProvider({
         url: config.urlTemplate,
+        ...(config.maximumLevel !== undefined && { maximumLevel: config.maximumLevel }),
       });
 
     default: {

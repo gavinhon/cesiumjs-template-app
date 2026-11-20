@@ -1,13 +1,8 @@
-/* The drawing tools' entire UI footprint. Positioning is not set here: this
-   is a child of `.app__right-rail` (see src/styles/global.css), which owns
-   where the rail sits so the layer manager button can stack above these
-   without either component knowing the other's dimensions. */
-.drawing-toolbar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
+/* The drawing tools' buttons and groups. Neither positioning nor spacing
+   is set here: they're direct children of `.app__right-rail` (see
+   src/styles/global.css), which owns where they sit, the gap between them,
+   and how they wrap on short screens — so the layer manager button can
+   stack above them without either component knowing the other's size. */
 
 .drawing-toolbar__group {
   display: flex;

@@ -101,6 +101,12 @@ export interface XyzLayerConfig extends BaseConfig {
   type: 'xyz';
   /** URL template containing {z}/{x}/{y} placeholders. */
   urlTemplate: string;
+  /**
+   * The deepest zoom level the source has. Known for a tile pyramid found
+   * in `public/`; past it Cesium stretches the deepest tiles instead of
+   * requesting ones that would 404.
+   */
+  maximumLevel?: number;
 }
 
 /**
@@ -124,11 +130,24 @@ export interface WfsLayerConfig extends BaseConfig {
   boundingBox?: GeographicBoundingBox;
 }
 
+/**
+ * A static GeoJSON file — not an OGC service, but loaded and drawn exactly
+ * like WFS output (WFS is asked for GeoJSON in the first place), so it
+ * lives in this feature rather than growing a near-copy of it. The add
+ * form doesn't offer it; it comes from the `public/` dataset scan.
+ */
+export interface GeoJsonFileConfig extends BaseConfig {
+  type: 'geojson';
+}
+
 /** The configs that produce a `Cesium.ImageryProvider`. */
 export type OgcImageryConfig = WmsLayerConfig | WmtsLayerConfig | XyzLayerConfig;
 
-/** Every config the add-layer form can produce. */
-export type OgcLayerConfig = OgcImageryConfig | WfsLayerConfig;
+/** The configs that produce a `Cesium.GeoJsonDataSource`. */
+export type OgcVectorConfig = WfsLayerConfig | GeoJsonFileConfig;
+
+/** Every config this feature can put on the map. */
+export type OgcLayerConfig = OgcImageryConfig | OgcVectorConfig;
 
 /**
  * An imagery layer currently on the globe: display metadata plus the live
@@ -154,11 +173,11 @@ export interface ManagedImageryLayer {
   removable: boolean;
 }
 
-/** A vector (WFS) layer currently on the globe. */
+/** A vector layer (WFS or GeoJSON) currently on the globe. */
 export interface ManagedVectorLayer {
   id: string;
   name: string;
-  /** Short badge text for the lists, e.g. "WFS". */
+  /** Short badge text for the lists, e.g. "WFS" or "GEOJSON". */
   kind: string;
   /** The live Cesium object this entry controls. */
   dataSource: Cesium.GeoJsonDataSource;

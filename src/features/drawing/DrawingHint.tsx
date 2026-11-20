@@ -1,4 +1,4 @@
-import { isPathTool, type DrawingTool } from './useDrawingTools';
+import { isPathTool, isTwoPointTool, type DrawingTool } from './useDrawingTools';
 import './DrawingHint.css';
 
 interface DrawingHintProps {
@@ -11,7 +11,10 @@ const ACTION_HINT: Record<Exclude<DrawingTool, 'none'>, string> = {
   label: 'Click to place a label',
   line: 'Click to add points',
   polygon: 'Click to add corners',
-  measure: 'Click to add points',
+  measure: 'Click to add points — distance is measured in 3D',
+  height: 'Click a start point, then an end point',
+  'line-of-sight': 'Click where the observer stands, then the target',
+  viewshed: 'Click where the observer stands, then the edge of the area',
 };
 
 /**
@@ -19,7 +22,8 @@ const ACTION_HINT: Record<Exclude<DrawingTool, 'none'>, string> = {
  * will do and which keys are live.
  *
  * Drawing has three conventions a first-time user cannot guess — double-click
- * ends a path, Backspace removes the last point, Escape abandons it — and an
+ * ends a path, Backspace removes the last point, Escape abandons it (and,
+ * pressed again, exits the tool) — and an
  * icon-only toolbar has nowhere to put that. Rather than leave them
  * undiscoverable, they're stated while they're relevant and gone the rest of
  * the time.
@@ -34,11 +38,13 @@ export function DrawingHint({ activeTool }: DrawingHintProps) {
   return (
     <div className="control drawing-hint" role="status">
       <span>{ACTION_HINT[activeTool]}</span>
-      {isPathTool(activeTool) && (
-        <span className="drawing-hint__keys">
-          Double-click or Enter to finish · Backspace to undo · Esc to discard
-        </span>
-      )}
+      <span className="drawing-hint__keys">
+        {isPathTool(activeTool) &&
+          'Double-click or Enter to finish · Backspace to undo · Esc to discard, again to exit'}
+        {isTwoPointTool(activeTool) &&
+          'Clicks land on terrain or buildings · Esc to cancel, again to exit'}
+        {!isPathTool(activeTool) && !isTwoPointTool(activeTool) && 'Esc to exit'}
+      </span>
     </div>
   );
 }

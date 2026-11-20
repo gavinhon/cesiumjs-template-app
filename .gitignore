@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Datasets dropped into public/ for the app to offer — 3D Tiles, terrain and
+# imagery tile pyramids, GeoJSON. They're data, often thousands of files and
+# tens of MB, and regenerable from their sources, so they stay out of git.
+# Every dataset folder is ignored; loose top-level files (a favicon,
+# robots.txt) are not, so ordinary static assets can still live here.
+public/*/
+public/**/*.geojson
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

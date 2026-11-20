@@ -1,6 +1,6 @@
-import * as Cesium from 'cesium';
-import { MAP_COLORS } from '@/cesium/theme';
-import type { WfsLayerConfig } from './types';
+import type * as Cesium from 'cesium';
+import { loadVectorDataSource } from './loadVectorDataSource';
+import type { WfsLayerConfig } from './ogcLayerTypes';
 
 /**
  * Builds the GetFeature URL for a WFS request.
@@ -43,26 +43,13 @@ function buildGetFeatureUrl(config: WfsLayerConfig): string {
 }
 
 /**
- * Loads a WFS feature type as a Cesium data source.
- *
- * Unlike the raster services, WFS returns geometry rather than pixels, so
- * this produces a `GeoJsonDataSource` (a collection of entities) for
- * `viewer.dataSources` instead of an `ImageryProvider` for
- * `viewer.imageryLayers`.
- *
- * `clampToGround` is what stops flat polygons from being buried inside the
- * ellipsoid: WFS geometry is 2D, so without it every feature sits at
- * height 0 and z-fights with the globe surface.
+ * Loads a WFS feature type as a Cesium data source, styled like every other
+ * vector layer — see `loadVectorDataSource`.
  */
 export async function createWfsDataSource(
   config: WfsLayerConfig,
 ): Promise<Cesium.GeoJsonDataSource> {
-  const dataSource = await Cesium.GeoJsonDataSource.load(buildGetFeatureUrl(config), {
-    clampToGround: true,
-    stroke: MAP_COLORS.vector,
-    fill: MAP_COLORS.vector.withAlpha(0.25),
-    markerColor: MAP_COLORS.vector,
-  });
+  const dataSource = await loadVectorDataSource(buildGetFeatureUrl(config), config.name);
 
   // A server that can't do JSON output usually answers with an XML
   // exception report and HTTP 200. Cesium parses that as "valid, but no
@@ -73,7 +60,5 @@ export async function createWfsDataSource(
         'or the feature type may be empty.',
     );
   }
-
-  dataSource.name = config.name;
   return dataSource;
 }

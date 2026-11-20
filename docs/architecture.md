@@ -140,6 +140,8 @@ resources.
 | The `Viewer` instance        | `App.tsx` (`useState`)      | Every feature needs it; created by a child             |
 | Which panel is open          | `App.tsx` (`useState`)      | Toolbar toggles it, panels read it; only one at a time |
 | OGC layers, 3D tilesets      | `App.tsx` (feature hooks)   | The layer manager shows them too, so one owner only    |
+| Selected terrain             | `useTerrain`, in `App`      | One slot, not a list; the layer manager picks it       |
+| Datasets found in `public/`  | `PUBLIC_DATASETS` constant  | Baked in at build time; can't change without a reload  |
 | Drawing tools                | `useDrawingTools`, in `App` | Only the drawing toolbar uses it                       |
 | In-progress drawing vertices | `useDrawingTools` refs      | Read per frame by Cesium, never rendered by React      |
 | Form input                   | that form's component       | Local until submitted                                  |
@@ -166,6 +168,110 @@ So the layer manager offers reordering for imagery only, and says why in
 its own UI. Don't add up/down arrows to the scene-data section: they'd be
 controls that visibly do nothing.
 
+## Datasets in `public/`: discovered at build time
+
+A browser can't list a folder on a web server — HTTP has no "what's under
+/tilesets/?" request — so the app can't discover datasets by itself.
+Something that can read the disk has to look ahead of time.
+
+That something is `vite-plugins/publicDatasetCatalog.ts`. Vite already
+reads `public/` to serve and copy it, so the plugin scans it at the same
+moment — when the dev server starts, and on every build — and exposes the
+result as a generated module, `virtual:public-datasets`. The app reads it
+through `src/lib/publicDatasets.ts` as an ordinary constant:
+
+```
+public/  ──scan──▶  vite-plugins/publicDatasetCatalog.ts
+                           │  (build time, Node)
+                           ▼
+                   virtual:public-datasets      plain JSON, baked into the bundle
+                           │
+                           ▼
+                   src/lib/publicDatasets.ts    PUBLIC_DATASETS, publicDatasetsOfKind()
+                           │
+          ┌────────────────┼──────────────────┐
+          ▼                ▼                  ▼
+   3D Tiles panel     OGC panel         useTerrain
+   ('3d-tiles')       ('xyz','geojson') ('terrain')
+```
+
+Each panel filters by kind and passes the result to the shared
+`<PublicDatasetList>`, which adds a dataset through the feature's existing
+`add…` function. Nothing about loading is new: a scanned 3D Tiles folder is
+added exactly as if you'd typed its URL into the form. The only difference
+is the id — a scanned dataset is added under its catalog id (`public:<path>`)
+rather than a fresh one, which is how the list knows it's already on the map.
+
+Because the catalog is data baked into the bundle, it's a constant rather
+than state. In dev, the plugin watches `public/` and reloads the page when a
+dataset appears or disappears, so the constant is never stale for long.
+
+## Terrain is one slot, not a layer
+
+The globe has exactly one surface, so the terrain provider is a single
+value — there's no stack to add to and nothing to reorder. `useTerrain`
+therefore holds a _selection_, and the layer manager shows a picker rather
+than rows with checkboxes. "None" means `EllipsoidTerrainProvider`: the
+smooth WGS84 ellipsoid the app uses when there's no elevation data.
+
+It's applied the way Cesium currently recommends — `scene.setTerrain(new
+Cesium.Terrain(CesiumTerrainProvider.fromUrl(url, { requestVertexNormals:
+true })))` — rather than awaiting a provider and assigning it.
+`setTerrain` cancels a still-loading terrain when another is chosen, so a
+slow first choice can't land after a fast second one. The vertex normals
+feed a fixed hillshade light (`src/cesium/hillshadeLight.ts`) that's on
+whenever real terrain is: without it, terrain changes the globe's shape but
+not its colour, and from overhead you can't see it at all.
+
+Terrain changes things that sit on it:
+
+- **Drawing picks the rendered surface**, not the ellipsoid, so vertices
+  land on the hillside — or the rooftop — under the cursor. Picking the
+  ellipsoid would put them tens of metres underground, which looks right
+  from directly above and slides away from the click as soon as the camera
+  tilts. `src/cesium/pickSurface.ts` combines `globe.pick` (exact, terrain
+  only) with `scene.pickPosition` (sees buildings, depth-buffer precision);
+  read its comment before changing how clicks become positions.
+- **Vector data is clamped** (`clampToGround`), so GeoJSON and WFS drape
+  over the terrain instead of floating at height zero inside it.
+- **3D Tiles keep their own heights.** A tileset is positioned by its
+  creator, and terrain doesn't move it. A model built for flat ground at
+  the ellipsoid — like the 1965 city models in `public/tilesets/` — sits
+  below real terrain, so the imagery draped on the terrain no longer lines
+  up with the model's footprints at an oblique angle. Cesium draws 3D Tiles
+  over terrain by default (`depthTestAgainstTerrain` is off), so nothing
+  disappears; it's a registration offset, and the fix is in the tileset's
+  georeferencing, not here.
+
+## Measurement and analysis are drawings too
+
+The measure, height, line-of-sight and viewshed tools produce
+`DrawnFeature`s like any other shape, so they get everything drawings get
+for free: they're listed in the Drawings panel, can be named, attributed,
+selected and reshaped by dragging their vertices, and the discard button
+clears them. Their computed result is the feature's `measurement`, which is
+what the map label shows by default.
+
+**CesiumJS has no line-of-sight or viewshed API.** It has the pieces —
+terrain sampling (`sampleTerrainMostDetailed`), scene sampling
+(`scene.sampleHeightMostDetailed`) — and `lineOfSight.ts` and `viewshed.ts`
+build the analyses from them, using public APIs only so they survive Cesium
+upgrades. The trade-off worth knowing:
+
+|                               | Line of sight              | Viewshed                         |
+| ----------------------------- | -------------------------- | -------------------------------- |
+| Blocked by terrain            | yes                        | yes                              |
+| Blocked by 3D Tiles buildings | yes (scene height samples) | no — terrain only                |
+| Cost                          | a few hundred samples      | ~100,000 samples, about a second |
+
+A building-aware viewshed needs GPU shadow mapping, which in CesiumJS means
+private `ShadowMap` internals and a custom shader. That's a reasonable
+extension, but it breaks across Cesium releases, so it's not in a template.
+
+Analyses are async. A feature shows "Analysing…" until its result arrives,
+and dragging one of its vertices re-runs it; each run is numbered so only
+the newest result for a feature is ever applied.
+
 ## Why no Cesium ion
 
 Cesium's convenience APIs (`createWorldImagery`, world terrain, the
@@ -178,6 +284,11 @@ token.
 
 If you want ion, set the token in `CesiumMap.tsx` and the convenience APIs
 become available — nothing else in the codebase assumes its absence.
+
+Terrain doesn't need ion either. `CesiumTerrainProvider` — despite the name
+— reads any static folder with a `layer.json`; ion is just one server that
+speaks that format. `scripts/build_terrain_tiles.py` writes one from a
+GeoTIFF, and the app loads it from `public/`.
 
 ## CORS, the thing that will actually bite you
 

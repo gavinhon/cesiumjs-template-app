@@ -1,4 +1,4 @@
-@import './tokens.css';
+@import './designTokens.css';
 
 /*
  * Global reset for a full-screen map app, plus the `.control` primitives
@@ -73,6 +73,24 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  /*
+   * On a screen too short for one column, wrap into another instead of
+   * running off the bottom — where the last tools, and the discard button,
+   * would be unreachable. The rail is about 470px tall, so this kicks in on
+   * short laptop windows and landscape tablets.
+   *
+   * `wrap-reverse` keeps the first column pinned to the screen edge and adds
+   * the overflow column to its *left*, so the tools that were already in
+   * view don't move. The wrap happens between whole button groups, never
+   * inside one, because each group is a single flex item.
+   *
+   * The right-hand panel steps aside for however wide this ends up — see
+   * `--right-rail-width` in Panel.css.
+   */
+  flex-wrap: wrap-reverse;
+  max-height: calc(100vh - 32px);
+  /* The dynamic unit excludes mobile browser chrome that `vh` counts. */
+  max-height: calc(100dvh - 32px);
 }
 
 /* Form controls (checkboxes, radios, range sliders) are drawn by the OS/

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type * as Cesium from 'cesium';
 import { CesiumMap } from '@/cesium/CesiumMap';
 import { useSceneMode } from '@/cesium/useSceneMode';
@@ -8,13 +8,15 @@ import { DrawingHint } from '@/features/drawing/DrawingHint';
 import { DrawingPanel } from '@/features/drawing/DrawingPanel';
 import { LayerManagerButton } from '@/features/layer-manager/LayerManagerButton';
 import { LayerManagerPanel } from '@/features/layer-manager/LayerManagerPanel';
-import type { LayerEntry } from '@/features/layer-manager/types';
+import type { LayerEntry, TerrainChoice } from '@/features/layer-manager/layerManagerTypes';
 import { OgcLayerPanel } from '@/features/ogc-layers/OgcLayerPanel';
 import { useOgcLayers } from '@/features/ogc-layers/useOgcLayers';
 import { TilesetPanel } from '@/features/tiles-3d/TilesetPanel';
 import { useTilesets } from '@/features/tiles-3d/useTilesets';
-import { Toolbar } from '@/ui/Toolbar';
-import type { PanelId } from '@/ui/panels';
+import { useTerrain } from '@/features/terrain/useTerrain';
+import { AppToolbar } from '@/ui/AppToolbar';
+import type { PanelId } from '@/ui/panelIds';
+import { useWidthAsCssVariable } from '@/ui/useWidthAsCssVariable';
 
 /**
  * The app shell. It owns the Cesium viewer, decides which panel is open,
@@ -44,6 +46,12 @@ function App() {
   // to the composition root.
   const ogcLayers = useOgcLayers(viewer);
   const tilesets = useTilesets(viewer);
+  const terrain = useTerrain(viewer);
+
+  // The right rail wraps into extra columns on short screens; the right
+  // panel reads its measured width to stay clear of it. See Panel.css.
+  const rightRailRef = useRef<HTMLDivElement>(null);
+  useWidthAsCssVariable(rightRailRef, '--right-rail-width');
 
   const drawing = useDrawingTools(viewer);
   const { activeTool, setActiveTool, clearAll } = drawing;
@@ -59,7 +67,7 @@ function App() {
 
   // Adapt each feature's own entries into the neutral shape the layer
   // manager renders. Doing it here is what keeps that feature from
-  // importing the others — see src/features/layer-manager/types.ts.
+  // importing the others — see src/features/layer-manager/layerManagerTypes.ts.
   const imageryEntries = useMemo<LayerEntry[]>(
     () =>
       ogcLayers.imagery.map((layer) => ({
@@ -98,11 +106,23 @@ function App() {
     [tilesets, ogcLayers],
   );
 
+  const terrainChoice = useMemo<TerrainChoice>(
+    () => ({
+      options: terrain.options.map(({ id, name, attribution }) => ({ id, name, attribution })),
+      selectedId: terrain.selectedId,
+      loading: terrain.loading,
+      error: terrain.error,
+      onSelect: (id) => void terrain.selectTerrain(id),
+      onZoomTo: terrain.zoomToSelected,
+    }),
+    [terrain],
+  );
+
   return (
     <div className="app">
       <CesiumMap onViewerReady={setViewer} />
 
-      <Toolbar openPanel={openPanel} onTogglePanel={togglePanel} />
+      <AppToolbar openPanel={openPanel} onTogglePanel={togglePanel} />
 
       <OgcLayerPanel layers={ogcLayers} disabled={!viewer} open={openPanel === 'ogc-layers'} />
       <TilesetPanel tilesets={tilesets} disabled={!viewer} open={openPanel === 'tiles-3d'} />
@@ -110,12 +130,13 @@ function App() {
         open={openPanel === 'layers'}
         imagery={imageryEntries}
         sceneData={sceneEntries}
+        terrain={terrainChoice}
       />
       <DrawingPanel drawing={drawing} open={openPanel === 'drawings'} />
 
       <DrawingHint activeTool={activeTool} />
 
-      <div className="app__right-rail">
+      <div ref={rightRailRef} className="app__right-rail">
         <LayerManagerButton active={openPanel === 'layers'} onClick={() => togglePanel('layers')} />
         <DrawingToolbar
           activeTool={activeTool}

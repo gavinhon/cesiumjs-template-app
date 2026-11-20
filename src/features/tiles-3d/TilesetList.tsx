@@ -1,5 +1,5 @@
 import { ResourceList, ResourceRow } from '@/ui/ResourceList';
-import type { TilesetConfig } from './types';
+import type { TilesetConfig } from './tilesetTypes';
 
 interface ActiveTilesetView {
   config: TilesetConfig;

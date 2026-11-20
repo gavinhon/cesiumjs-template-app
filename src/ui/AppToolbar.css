@@ -2,7 +2,7 @@
    "dark glass" look comes from the .control classes in
    src/styles/global.css — this file only adds this toolbar's own sizing
    and layout. */
-.toolbar {
+.app-toolbar {
   position: absolute;
   top: 16px;
   left: 16px;
@@ -14,7 +14,7 @@
 
 /* Wide enough for a place name, but no wider: this bar sits over the map,
    and every pixel of chrome is a pixel of map you can't see. */
-.toolbar__search {
+.app-toolbar__search {
   width: 220px;
   height: var(--control-height);
   border-radius: var(--radius-md);
@@ -22,7 +22,7 @@
 
 /* A panel button — same height as the search bar, so the two form one
    visually aligned row. */
-.toolbar__button {
+.app-toolbar__button {
   height: var(--control-height);
   border-radius: var(--radius-md);
 }

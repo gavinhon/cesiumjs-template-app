@@ -1,7 +1,44 @@
+import { publicDatasetsOfKind } from '@/lib/publicDatasets';
+import type { PublicGeoJsonDataset, PublicTilePyramidDataset } from '@/lib/publicDatasetTypes';
 import { Panel } from '@/ui/Panel';
-import { AddLayerForm } from './AddLayerForm';
-import { LayerList } from './LayerList';
+import { PublicDatasetList } from '@/ui/PublicDatasetList';
+import { AddOgcLayerForm } from './AddOgcLayerForm';
+import type { OgcLayerConfig } from './ogcLayerTypes';
+import { OgcLayerList } from './OgcLayerList';
 import type { useOgcLayers } from './useOgcLayers';
+
+type OgcPublicDataset = PublicTilePyramidDataset | PublicGeoJsonDataset;
+
+/** Tile pyramids and GeoJSON files found under `public/` at build time. */
+const PUBLIC_OGC_DATASETS: OgcPublicDataset[] = [
+  ...publicDatasetsOfKind('xyz'),
+  ...publicDatasetsOfKind('geojson'),
+];
+
+/**
+ * Translates a scanned dataset into the config this feature already knows
+ * how to load. Uses the dataset's catalog id as the layer id, which is how
+ * the list tells that it's already on the map.
+ */
+function configFor(dataset: OgcPublicDataset): OgcLayerConfig {
+  switch (dataset.kind) {
+    case 'xyz':
+      return {
+        type: 'xyz',
+        id: dataset.id,
+        name: dataset.name,
+        url: dataset.urlTemplate,
+        urlTemplate: dataset.urlTemplate,
+        maximumLevel: dataset.maximumLevel,
+      };
+    case 'geojson':
+      return { type: 'geojson', id: dataset.id, name: dataset.name, url: dataset.url };
+    default: {
+      const exhaustive: never = dataset;
+      throw new Error(`Unsupported dataset: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
 
 interface OgcLayerPanelProps {
   /**
@@ -36,8 +73,18 @@ export function OgcLayerPanel({ layers, disabled, open }: OgcLayerPanelProps) {
       subtitle="Connect to WMS, WMTS, WFS, or XYZ tile services."
       open={open}
     >
-      <AddLayerForm onAdd={layers.addLayer} disabled={disabled} />
-      <LayerList
+      <PublicDatasetList
+        datasets={PUBLIC_OGC_DATASETS}
+        badgeFor={(dataset) => (dataset.kind === 'xyz' ? 'XYZ' : 'GEOJSON')}
+        isAdded={(dataset) =>
+          layers.imagery.some((entry) => entry.id === dataset.id) ||
+          layers.vectors.some((entry) => entry.id === dataset.id)
+        }
+        onAdd={(dataset) => layers.addLayer(configFor(dataset))}
+        disabled={disabled}
+      />
+      <AddOgcLayerForm onAdd={layers.addLayer} disabled={disabled} />
+      <OgcLayerList
         imagery={layers.imagery}
         vectors={layers.vectors}
         onRemove={layers.removeLayer}

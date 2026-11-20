@@ -1,17 +1,17 @@
-import type { PanelId } from './panels';
-import './Toolbar.css';
+import type { PanelId } from './panelIds';
+import './AppToolbar.css';
 
 /**
  * The panels this toolbar can open, in display order.
  *
  * This is the registry adding a new feature panel goes through: add an
- * entry here, add its id to `PanelId` in ./panels.ts, and render your panel
+ * entry here, add its id to `PanelId` in ./panelIds.ts, and render your panel
  * in `App.tsx` with `open={openPanel === 'your-id'}`. `controls` must match
  * the `id` you pass to `<Panel>`, so `aria-controls` points at a real
  * element.
  *
  * Not every panel is listed here — the layer manager is opened from the
- * right rail instead. See ./panels.ts.
+ * right rail instead. See ./panelIds.ts.
  */
 const PANELS: { id: PanelId; label: string; controls: string }[] = [
   { id: 'ogc-layers', label: 'OGC Layers', controls: 'ogc-layers-panel' },
@@ -19,7 +19,7 @@ const PANELS: { id: PanelId; label: string; controls: string }[] = [
   { id: 'drawings', label: 'Drawings', controls: 'drawings-panel' },
 ];
 
-interface ToolbarProps {
+interface AppToolbarProps {
   openPanel: PanelId | null;
   onTogglePanel: (panel: PanelId) => void;
 }
@@ -33,14 +33,14 @@ interface ToolbarProps {
  * value, not one boolean per panel), so opening one closes the other
  * instead of the two stacking on top of each other in the same corner.
  */
-export function Toolbar({ openPanel, onTogglePanel }: ToolbarProps) {
+export function AppToolbar({ openPanel, onTogglePanel }: AppToolbarProps) {
   return (
-    <div className="toolbar">
+    <div className="app-toolbar">
       {/* Not wired up to anything yet — a placeholder for wherever you plug
           in a location search (e.g. Cesium's Geocoder, or your own API). */}
       <input
         type="search"
-        className="control control-input toolbar__search"
+        className="control control-input app-toolbar__search"
         placeholder="Search"
         aria-label="Search"
       />
@@ -51,8 +51,8 @@ export function Toolbar({ openPanel, onTogglePanel }: ToolbarProps) {
           type="button"
           className={
             openPanel === id
-              ? 'control control-button toolbar__button control-button--active'
-              : 'control control-button toolbar__button'
+              ? 'control control-button app-toolbar__button control-button--active'
+              : 'control control-button app-toolbar__button'
           }
           onClick={() => onTogglePanel(id)}
           aria-pressed={openPanel === id}

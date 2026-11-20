@@ -1,9 +1,9 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Field } from '@/ui/Field';
-import { createId } from '@/lib/ids';
-import type { TilesetConfig } from './types';
+import { createId } from '@/lib/createId';
+import type { TilesetConfig } from './tilesetTypes';
 
-interface TilesetFormProps {
+interface AddTilesetFormProps {
   onAdd: (config: TilesetConfig) => Promise<void>;
   /** True while the Cesium viewer hasn't finished initializing yet. */
   disabled: boolean;
@@ -19,7 +19,7 @@ type SubmitStatus = { state: 'idle' } | { state: 'loading' } | { state: 'error';
  * before we know it worked — so this form has its own loading/error state
  * around the `await onAdd(...)` call, rather than firing and forgetting.
  */
-export function TilesetForm({ onAdd, disabled }: TilesetFormProps) {
+export function AddTilesetForm({ onAdd, disabled }: AddTilesetFormProps) {
   const formId = useId();
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');

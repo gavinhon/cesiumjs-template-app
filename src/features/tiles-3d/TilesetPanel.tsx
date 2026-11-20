@@ -1,7 +1,12 @@
+import { publicDatasetsOfKind } from '@/lib/publicDatasets';
 import { Panel } from '@/ui/Panel';
-import { TilesetForm } from './TilesetForm';
+import { PublicDatasetList } from '@/ui/PublicDatasetList';
+import { AddTilesetForm } from './AddTilesetForm';
 import { TilesetList } from './TilesetList';
 import type { useTilesets } from './useTilesets';
+
+/** Tilesets found under `public/` at build time — fixed for the life of the page. */
+const PUBLIC_TILESETS = publicDatasetsOfKind('3d-tiles');
 
 interface TilesetPanelProps {
   /** The feature's state, from `useTilesets`. Called in `App` — see `OgcLayerPanel`. */
@@ -29,7 +34,18 @@ export function TilesetPanel({ tilesets, disabled, open }: TilesetPanelProps) {
       subtitle="Load a 3D Tiles dataset from a tileset.json URL."
       open={open}
     >
-      <TilesetForm onAdd={tilesets.addTileset} disabled={disabled} />
+      {/* A public dataset is added under its catalog id rather than a fresh
+          one, which is how the list knows it's already on the map. */}
+      <PublicDatasetList
+        datasets={PUBLIC_TILESETS}
+        badgeFor={() => '3D TILES'}
+        isAdded={(dataset) => tilesets.tilesets.some((entry) => entry.config.id === dataset.id)}
+        onAdd={(dataset) =>
+          tilesets.addTileset({ id: dataset.id, name: dataset.name, url: dataset.url })
+        }
+        disabled={disabled}
+      />
+      <AddTilesetForm onAdd={tilesets.addTileset} disabled={disabled} />
       <TilesetList
         tilesets={tilesets.tilesets}
         onRemove={tilesets.removeTileset}

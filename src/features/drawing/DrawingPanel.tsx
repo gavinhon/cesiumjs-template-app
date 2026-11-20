@@ -1,6 +1,6 @@
 import { Panel } from '@/ui/Panel';
 import { ResourceList, ResourceRow } from '@/ui/ResourceList';
-import { FeatureEditor } from './FeatureEditor';
+import { DrawnFeatureEditor } from './DrawnFeatureEditor';
 import type { useDrawingTools } from './useDrawingTools';
 import './DrawingPanel.css';
 
@@ -16,6 +16,9 @@ const KIND_LABEL = {
   line: 'LINE',
   polygon: 'POLYGON',
   measure: 'MEASURE',
+  height: 'HEIGHT',
+  'line-of-sight': 'SIGHT',
+  viewshed: 'VIEWSHED',
   label: 'LABEL',
 } as const;
 
@@ -60,7 +63,7 @@ export function DrawingPanel({ drawing, open }: DrawingPanelProps) {
       </ResourceList>
 
       {selectedFeature && (
-        <FeatureEditor
+        <DrawnFeatureEditor
           // Remounting per feature is deliberate: without it, switching
           // selection would leave the previous shape's text sitting in the
           // inputs until React reconciled each one.

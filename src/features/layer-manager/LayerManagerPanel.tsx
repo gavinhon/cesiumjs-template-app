@@ -1,6 +1,8 @@
+import { useId } from 'react';
+import { SelectField } from '@/ui/Field';
 import { Panel } from '@/ui/Panel';
 import { ResourceList, ResourceRow } from '@/ui/ResourceList';
-import type { LayerEntry } from './types';
+import type { LayerEntry, TerrainChoice } from './layerManagerTypes';
 import './LayerManager.css';
 
 interface LayerManagerPanelProps {
@@ -14,6 +16,63 @@ interface LayerManagerPanelProps {
   imagery: LayerEntry[];
   /** 3D Tiles and vector data — present in the scene, but not part of the imagery stack. */
   sceneData: LayerEntry[];
+  /** The globe surface everything else is draped on or sits above. */
+  terrain: TerrainChoice;
+}
+
+/** `<select>` values must be strings; this one stands for "no terrain". */
+const ELLIPSOID = '';
+
+/**
+ * The bottom of the stack: which surface the globe is drawn on.
+ *
+ * Listed last because the panel reads topmost-first and terrain is under
+ * everything — imagery is draped over it, and tilesets and drawings sit on
+ * it. Always shown, even with nothing to choose, so the hint can say where
+ * terrain would come from.
+ */
+function TerrainSection({ terrain }: { terrain: TerrainChoice }) {
+  const formId = useId();
+  const selected = terrain.options.find((option) => option.id === terrain.selectedId);
+
+  let hint: string;
+  if (terrain.error) hint = `Couldn't load terrain: ${terrain.error}`;
+  else if (terrain.loading) hint = 'Loading terrain…';
+  else if (terrain.options.length === 0)
+    hint = 'Add a terrain tileset under public/ — see scripts/build_terrain_tiles.py.';
+  else if (selected) hint = selected.attribution || 'Elevation from a local terrain tileset.';
+  else hint = 'Flat WGS84 ellipsoid — no elevation.';
+
+  return (
+    <section className="layer-manager__section">
+      <h2 className="layer-manager__heading">Terrain</h2>
+      <SelectField
+        formId={formId}
+        fieldId="terrain"
+        label="Surface"
+        value={terrain.selectedId ?? ELLIPSOID}
+        onChange={(event) => terrain.onSelect(event.target.value || null)}
+        disabled={terrain.options.length === 0}
+        hint={<span className={terrain.error ? 'layer-manager__error' : undefined}>{hint}</span>}
+      >
+        <option value={ELLIPSOID}>None (WGS84 ellipsoid)</option>
+        {terrain.options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </SelectField>
+      {selected && (
+        <button
+          type="button"
+          className="control control-button layer-manager__zoom"
+          onClick={terrain.onZoomTo}
+        >
+          Zoom to extent
+        </button>
+      )}
+    </section>
+  );
 }
 
 /** A reorder button. Disabled at the ends of the stack rather than hidden, so rows don't jump. */
@@ -57,7 +116,7 @@ function MoveButton({
  * up/down arrows on those would be a control that visibly does nothing, so
  * they're listed in their own section without them.
  */
-export function LayerManagerPanel({ open, imagery, sceneData }: LayerManagerPanelProps) {
+export function LayerManagerPanel({ open, imagery, sceneData, terrain }: LayerManagerPanelProps) {
   // Cesium's collection is bottom-first; a layer list reads top-down.
   const topDownImagery = [...imagery].reverse();
 
@@ -126,6 +185,8 @@ export function LayerManagerPanel({ open, imagery, sceneData }: LayerManagerPane
           ))}
         </ResourceList>
       </section>
+
+      <TerrainSection terrain={terrain} />
     </Panel>
   );
 }

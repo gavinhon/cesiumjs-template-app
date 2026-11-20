@@ -28,13 +28,20 @@ There is no test suite. Verify changes by running the app.
 ```
 src/
   main.tsx, App.tsx    entry + shell (App owns the Viewer and which panel is open)
-  cesium/              Viewer creation, initial camera, 2D/3D toggle, theme.ts mirror
-  features/<name>/     one folder per feature: types + hook + panel + form + list
-  ui/                  shared: Panel, Field, ResourceList, Toolbar, panels.ts (PanelId)
-  lib/                 shared helpers with no UI or Cesium ties
-  styles/              tokens.css (design tokens) + global.css (reset, .control)
-docs/                  architecture, adding-a-feature, conventions
+  cesium/              Viewer creation, initial camera, 2D/3D toggle, mapColors.ts mirror
+  features/<name>/     one per feature: <name>Types + use<Name> + Panel + Add…Form + List
+  ui/                  shared: Panel, Field, ResourceList, AppToolbar, panelIds.ts (PanelId)
+  lib/                 shared helpers with no UI or Cesium ties; publicDatasets.ts
+  styles/              designTokens.css (tokens) + global.css (reset, .control)
+vite-plugins/          publicDatasetCatalog.ts — scans public/ at build time
+scripts/               build_terrain_tiles.py — GeoTIFF → static Cesium terrain
+public/                static files + datasets the scan offers in the panels
+docs/                  README (index), architecture, adding-a-feature, coding-conventions
 ```
+
+Filenames are unique across the repo and describe their contents, so a name
+identifies its file without its directory. There is no `types.ts` or
+`utils.ts` anywhere — see "File naming" below.
 
 ## Before you write code
 
@@ -44,7 +51,7 @@ render loop, so React state and Cesium state are kept in deliberate sync
 rather than one deriving the other.
 
 For a new feature, follow [docs/adding-a-feature.md](docs/adding-a-feature.md)
-step by step. For style questions, [docs/conventions.md](docs/conventions.md).
+step by step. For style questions, [docs/coding-conventions.md](docs/coding-conventions.md).
 
 ## Invariants — breaking these causes real bugs
 
@@ -78,7 +85,8 @@ step by step. For style questions, [docs/conventions.md](docs/conventions.md).
 8. **Only the discard button removes finished drawings.** Switching tools
    _commits_ the shape in progress (if it has enough vertices to be one)
    rather than discarding it — reaching for another tool is not a request to
-   delete work. Escape is the one explicit "throw this away".
+   delete work. Escape is the one explicit "throw this away"; pressed with
+   nothing in progress, it exits the tool instead.
 9. **Only imagery has a draw order.** `viewer.imageryLayers` is a real
    painter's-algorithm stack, so raise/lower genuinely uncovers layers. 3D
    Tiles and vector data are depth-sorted geometry — reordering them changes
@@ -99,40 +107,86 @@ step by step. For style questions, [docs/conventions.md](docs/conventions.md).
   `<ResourceList>`/`<ResourceRow>`, and the `.control` CSS classes rather
   than re-creating their markup. If you're about to duplicate UI structure
   from another feature, extract it into `src/ui/` instead.
+- **File naming.** A module with one main export is named after it
+  (`createImageryProvider.ts`, `fetchWmsLayers.ts`, `cancelCameraInertia.ts`);
+  a module grouping several is named for the group, specifically enough to
+  be unique repo-wide (`ogcLayerTypes.ts`, `capabilitiesXml.ts`,
+  `drawnFeaturePresentation.ts`). Components are `PascalCase.tsx` exporting
+  the identically-named component, with `FooProps` above it and `Foo.css`
+  beside it whose BEM block is `.foo`. Parallel features use parallel names:
+  `<Subject>Panel` / `Add<Subject>Form` / `<Subject>List` / `use<Subjects>` /
+  `<subject>Types`. Never add a `types.ts`, `utils.ts`, `helpers.ts`, or
+  `index.ts` — they make every search result ambiguous. Full standard and
+  rationale: [docs/coding-conventions.md](docs/coding-conventions.md#file-and-folder-naming).
 - **Imports:** `@/` alias across directories, relative within a feature,
   `import type` for types, CSS import last — _except_ in `src/main.tsx`,
   where `@/styles/global.css` must come before `@/App` (see invariant 10).
-- **Colours come from `src/styles/tokens.css`.** Raw hex in a component
+- **Colours come from `src/styles/designTokens.css`.** Raw hex in a component
   stylesheet is a bug. The few colours Cesium needs as `Cesium.Color` are
-  mirrored in exactly one file, `src/cesium/theme.ts`. Change both together.
-  Fonts are _not_ mirrored: nothing draws text through Cesium.
+  mirrored in exactly one file, `src/cesium/mapColors.ts`. Change both together.
+  Fonts are _not_ mirrored: nothing draws text through Cesium. On the map,
+  colour says what a mark _is_: drawings `--accent` orange, measurements
+  `--measure` near-white with a dark `--bg` casing (so they read on light
+  streets), analyses `--sight` cyan, blocked sight lines `--danger`, WFS
+  data `--vector` blue.
 - **Every interactive control is `var(--control-height)` tall.** Inputs,
   selects, buttons and the square icon buttons in both rails all share one
   height so the UI reads on a single rhythm; `--control-height-sm` is the
   one exception, for compact grid rows. Don't reintroduce a per-component
-  height. The toolbar and rail offsets in `Panel.css` are `calc()`d from the
-  same token, so changing it moves the panels to match.
+  height. The toolbar offset in `Panel.css` is `calc()`d from the same
+  token, so changing it moves the panels to match.
+- **The right rail wraps; it never scrolls or overflows.** On a screen too
+  short for one column, `.app__right-rail` wraps into more columns
+  (`flex-wrap: wrap-reverse`, so the first column stays at the edge). Each
+  button group must therefore be a _direct_ child of the rail — that's why
+  `DrawingToolbar` returns a fragment — and the right panel's offset comes
+  from the rail's measured width (`--right-rail-width`, published by
+  `useWidthAsCssVariable` in `App.tsx`), never from a fixed number.
 - **Text on the map is HTML, not `Entity.label`.** Use
   `createMapLabelLayer` from `src/cesium/mapLabels.ts`.
 - **A finished drawing is a `DrawnFeature`**, not a loose entity — see
-  `src/features/drawing/types.ts`. It carries a name, free-form key/value
+  `src/features/drawing/drawingTypes.ts`. It carries a name, free-form key/value
   attributes, and a `labelSource` saying which of them the map label shows.
   Presentation (colour, selected look, label anchor/text, geometry rewrite)
-  lives in `featurePresentation.ts` as pure functions of that record.
+  lives in `drawnFeaturePresentation.ts` as pure functions of that record.
+  A feature made of several entities tags each with the part it plays
+  (`tagPart(entity, 'clear')`, `'vertical'`, `'overlay'`…) so styling and
+  vertex-dragging know which is which without relying on array order.
+  Measurements and analyses (height, line of sight, viewshed) are
+  `DrawnFeature`s too — their result is the `measurement` string.
+- **Clicks become positions through `pickSurface`** (`src/cesium/pickSurface.ts`),
+  never `pickEllipsoid` or `globe.pick` alone — it's what makes clicks land
+  on terrain _and_ 3D Tiles rooftops, which is what makes the measurements 3D.
 - **Arming a tool is the mode switch.** With a tool armed a map click draws;
   with none armed it selects, and the selected shape gets draggable vertex
   handles. That is what lets one click mean two things without a modifier.
 - **TypeScript is strict.** No `any`, avoid `!`, prefer discriminated
   unions, add `never` exhaustiveness checks on union switches.
-- **Registering a panel** means adding to `PanelId` in `src/ui/panels.ts`,
-  an entry in `PANELS` in `src/ui/Toolbar.tsx` (unless the button lives
+- **Registering a panel** means adding to `PanelId` in `src/ui/panelIds.ts`,
+  an entry in `PANELS` in `src/ui/AppToolbar.tsx` (unless the button lives
   elsewhere, as the layer manager's does), and one element in `App.tsx` —
   additive, never editing existing entries.
+- **Datasets in `public/` come from a build-time scan.** A browser can't
+  list a server folder, so `vite-plugins/publicDatasetCatalog.ts` scans
+  `public/` and exposes `virtual:public-datasets`; read it via
+  `PUBLIC_DATASETS` / `publicDatasetsOfKind()` from `src/lib/publicDatasets.ts`.
+  It's a constant, not state. A scanned dataset is added under its catalog
+  id (`public:<path>`) — that's how `<PublicDatasetList>` knows it's added.
+  `src/lib/publicDatasetTypes.ts` is shared with the Node-side plugin, so it
+  must stay types-only: no Cesium, DOM, or Node imports.
+- **Terrain is a single slot.** `useTerrain` holds a selection, not a list;
+  `null` means `EllipsoidTerrainProvider`. It's applied with
+  `scene.setTerrain(new Cesium.Terrain(...))` — Cesium's current API, which
+  cancels a superseded load — and turns on `enableHillshade` while real
+  terrain is loaded. The first terrain in `public/` loads at startup. Anything placed on the ground must pick or clamp to the
+  rendered surface (`globe.pick`, `clampToGround`), never the bare ellipsoid.
 - **OGC services split two ways.** WMS/WMTS/XYZ produce an
   `ImageryProvider` for `viewer.imageryLayers`; WFS returns vector features
-  and produces a `GeoJsonDataSource` for `viewer.dataSources`. The config
-  union is split accordingly (`OgcImageryConfig` vs `WfsLayerConfig`) so
-  `createImageryProvider` can't be handed something it can't render.
+  and produces a `GeoJsonDataSource` for `viewer.dataSources`, as do static
+  GeoJSON files (`GeoJsonFileConfig`, which only the `public/` scan creates).
+  The config union is split accordingly (`OgcImageryConfig` vs
+  `OgcVectorConfig`) so `createImageryProvider` can't be handed something it
+  can't render.
 
 ## Commenting
 
@@ -183,8 +237,41 @@ non-obvious prop.
   click unless you also stroke a polyline; `useDrawingTools` draws both. That
   polyline is also the finished outline, because `polygon.outline` ignores
   `outlineWidth` on platforms that cap hardware line width at 1px.
+- **Cesium can't read a GeoTIFF as terrain.** It streams terrain as a tile
+  pyramid (`layer.json` + `{z}/{x}/{y}.terrain`), the same way it streams
+  imagery. That's not an ion requirement — `CesiumTerrainProvider.fromUrl`
+  reads any static folder. `scripts/build_terrain_tiles.py` converts to
+  quantized-mesh with vertex normals, Cesium's recommended format. If you
+  touch its encoder: a broken tile doesn't error in the browser, it just
+  silently stops the terrain refining — which is why the script checks its
+  own index encoding at build time.
+- **A line drawn in 3D disappears behind whatever's in front of it.** A
+  measurement from a roof to the street runs through the building's walls;
+  a sight line runs through the hill blocking it. Give such polylines a
+  `depthFailMaterial` (see `hiddenLineMaterial`) so the hidden stretch draws
+  faintly instead of not at all. Draped (`clampToGround`) lines don't
+  support it and don't need it.
+- **3D Tiles draw over terrain even when they're under it.**
+  `depthTestAgainstTerrain` is off by default, so a tileset sitting below
+  the terrain surface is fully visible — but `globe.pick` finds the terrain
+  above it, not the roof you clicked. `pickSurface` handles this; anything
+  else that picks must too.
+- **`scene.pickPosition` caches per frame by `position.toString()`.** Pass
+  a real `Cartesian2`. A plain `{ x, y }` stringifies to `[object Object]`,
+  so every call in a frame returns the first answer — easy to hit when
+  testing from the console, baffling when you do.
+- **Terrain heights are ellipsoidal; most DTMs aren't.** Cesium measures
+  from the WGS84 ellipsoid, national DTMs usually from mean sea level. The
+  geoid is ~8 m above the ellipsoid around Singapore, so unconverted terrain
+  sits 8 m low. The terrain script converts via EGM2008 by default.
+- **3D Tiles keep their own heights when terrain loads.** A model authored
+  for flat ground (the 1965 tilesets in `public/` are) sits below real
+  terrain and misregisters against the draped imagery at oblique angles.
+  It isn't hidden — 3D Tiles draw over terrain by default — and the fix is
+  the tileset's georeferencing, not app code.
 - **Cesium is not a normal npm package** — `vite-plugin-cesium` copies its
   static assets (workers, shaders, widget images) and defines
   `CESIUM_BASE_URL`. Don't hand-roll that.
 - **`public/` holds static data**, including any 3D Tiles datasets dropped
-  in for testing. It's excluded from Prettier; don't reformat it.
+  in for testing. It's excluded from Prettier; don't reformat it. Dataset
+  folders and `.geojson` files in it are gitignored — never commit data.

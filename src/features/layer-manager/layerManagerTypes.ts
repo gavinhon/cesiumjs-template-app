@@ -3,7 +3,7 @@
  *
  * This feature is unusual: it shows layers it doesn't own. The OGC feature
  * owns imagery and WFS vectors, the 3D Tiles feature owns tilesets, and
- * neither may import the other (see docs/conventions.md). So instead of
+ * neither may import the other (see docs/coding-conventions.md). So instead of
  * importing their types, the manager declares the *minimum* it needs and
  * `App` — the composition root that already holds both hooks — maps each
  * feature's entries into it.
@@ -27,4 +27,22 @@ export interface LayerEntry {
    * vector data don't get reorder controls.
    */
   onMove?: (direction: 'up' | 'down') => void;
+}
+
+/**
+ * The terrain picker's view of whatever feature owns terrain — same idea
+ * as `LayerEntry`, for the one thing on the map that isn't a list.
+ *
+ * Terrain is a single slot (the globe has one surface), so instead of rows
+ * with toggles this is a choice between options, where `null` means the
+ * bare WGS84 ellipsoid.
+ */
+export interface TerrainChoice {
+  options: { id: string; name: string; attribution?: string }[];
+  selectedId: string | null;
+  loading: boolean;
+  /** Why the last selection failed, if it did. */
+  error: string | null;
+  onSelect: (id: string | null) => void;
+  onZoomTo: () => void;
 }

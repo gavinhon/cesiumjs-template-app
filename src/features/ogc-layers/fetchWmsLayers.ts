@@ -1,5 +1,5 @@
-import type { GeographicBoundingBox, ServiceLayerOption } from './types';
-import { childText, descendantsByLocalName, fetchCapabilities } from './xml';
+import type { GeographicBoundingBox, ServiceLayerOption } from './ogcLayerTypes';
+import { childText, descendantsByLocalName, fetchCapabilities } from './capabilitiesXml';
 
 /**
  * Looks up the layers a WMS server actually offers, by fetching and

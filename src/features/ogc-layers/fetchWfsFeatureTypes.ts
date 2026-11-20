@@ -1,5 +1,10 @@
-import type { GeographicBoundingBox, ServiceLayerOption, WfsVersion } from './types';
-import { childByLocalName, childText, descendantsByLocalName, fetchCapabilities } from './xml';
+import type { GeographicBoundingBox, ServiceLayerOption, WfsVersion } from './ogcLayerTypes';
+import {
+  childByLocalName,
+  childText,
+  descendantsByLocalName,
+  fetchCapabilities,
+} from './capabilitiesXml';
 
 /**
  * Looks up the feature types a WFS server offers — the WFS counterpart of
@@ -10,7 +15,7 @@ import { childByLocalName, childText, descendantsByLocalName, fetchCapabilities 
  *  - Feature types are a flat `<FeatureType>` list, not a nested tree, so
  *    there are no "group" entries to skip.
  *  - Everything is namespaced (`wfs:FeatureType`, `ows:WGS84BoundingBox`),
- *    which is why the parsing helpers in ./xml.ts match on `localName`.
+ *    which is why the parsing helpers in ./capabilitiesXml.ts match on `localName`.
  */
 
 /**

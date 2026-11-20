@@ -1,7 +1,7 @@
 import { ResourceList, ResourceRow } from '@/ui/ResourceList';
-import type { ManagedImageryLayer, ManagedVectorLayer } from './types';
+import type { ManagedImageryLayer, ManagedVectorLayer } from './ogcLayerTypes';
 
-interface LayerListProps {
+interface OgcLayerListProps {
   imagery: ManagedImageryLayer[];
   vectors: ManagedVectorLayer[];
   onRemove: (id: string) => void;
@@ -18,14 +18,14 @@ interface LayerListProps {
  * is about what *you* connected, and offering to delete the basemap here
  * would be a surprising thing to find next to your own layers.
  */
-export function LayerList({
+export function OgcLayerList({
   imagery,
   vectors,
   onRemove,
   onToggleVisibility,
   onAlphaChange,
   onZoomToLayer,
-}: LayerListProps) {
+}: OgcLayerListProps) {
   return (
     <ResourceList emptyMessage="No layers added yet.">
       {imagery

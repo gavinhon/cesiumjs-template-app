@@ -43,6 +43,11 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   color: var(--measure);
+  /* The width cap above guards against a long caption someone typed. A
+     readout is generated, bounded text — "Blocked at 463.5 m of
+     1.60 km" — and an ellipsis would cut off exactly the number it exists
+     to show. */
+  max-width: none;
 }
 
 /* Off-screen or behind the globe. `display: none` rather than opacity so a

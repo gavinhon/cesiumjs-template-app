@@ -53,3 +53,17 @@
   opacity: 0.25;
   cursor: default;
 }
+
+.layer-manager__error {
+  color: var(--danger);
+}
+
+/* Secondary action under the terrain picker — full width like the panel
+   form's secondary button, at the compact height since it's a convenience,
+   not the section's main control. */
+.layer-manager__zoom {
+  width: 100%;
+  height: var(--control-height-sm);
+  margin-top: 10px;
+  box-shadow: none;
+}
