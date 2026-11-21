@@ -17,10 +17,10 @@ CesiumJS, wired up **without** a Cesium ion account.
   included), with visibility toggles, double-click-to-zoom, and draw-order
   controls that reorder Cesium's real imagery stack so you can uncover a
   layer hidden underneath another.
-- **Three basemaps, all over WMS** and needing no key, switched in the
-  layer manager: OpenStreetMap (rendered by
-  [terrestris](https://www.terrestris.de)), the same map in grey, and
-  Sentinel-2 cloudless satellite imagery from [EOX](https://s2maps.eu). The
+- **Three basemaps** needing no key, switched in the layer manager:
+  OpenStreetMap from openstreetmap.org's own tile servers, the same map in
+  grey, and Sentinel-2 cloudless satellite imagery over WMS from
+  [EOX](https://s2maps.eu). The
   satellite mosaic has 10 m pixels — clear at district scale, soft at
   street level — and EOX licenses it for non-commercial use only. Each
   provider's credit is shown on the map, as their terms require; add your

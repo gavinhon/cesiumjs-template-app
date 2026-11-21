@@ -4,10 +4,16 @@ import * as Cesium from 'cesium';
  * The base maps the globe can be drawn with — the bottom of the imagery
  * stack, which every other imagery layer is drawn on top of.
  *
- * All of them are **WMS**, the same OGC standard the OGC panel connects to,
- * and none needs an API key or a Cesium ion account. Each is a public
- * server run by someone else, used under their terms; their credits are
- * shown on the map, as those terms require.
+ * None needs an API key or a Cesium ion account. Each is a public server run
+ * by someone else, used under their terms; their credits are shown on the
+ * map, as those terms require.
+ *
+ * OpenStreetMap comes from OSM's own tile servers rather than a WMS
+ * re-rendering of it: the free OSM WMS services (terrestris, for one) stamp
+ * a notice over the map once you zoom in to street level. OSM's tile usage
+ * policy allows light use like this — a browser app with a visible credit,
+ * not bulk downloading. If your app gets heavy traffic, point this at your
+ * own tile server or a commercial provider.
  *
  * Purpose-made dark or grey tile services (CARTO, Stadia, MapTiler) all need
  * an account or key now, and OpenStreetMap itself publishes only its one
@@ -44,12 +50,22 @@ function wmsLayer(url: string, layers: string, credit: string): Cesium.ImageryLa
   );
 }
 
-/** OpenStreetMap, rendered as WMS by terrestris — free, with no fees or key. */
-function terrestrisOsm(): Cesium.ImageryLayer {
-  return wmsLayer(
-    'https://ows.terrestris.de/osm/service',
-    'OSM-WMS',
-    'Map: © <a href="https://www.terrestris.de">terrestris</a>, data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+/** OpenStreetMap's Standard style, straight from openstreetmap.org's tile servers. */
+function osmStandard(): Cesium.ImageryLayer {
+  return new Cesium.ImageryLayer(
+    new Cesium.OpenStreetMapImageryProvider({
+      url: 'https://tile.openstreetmap.org/',
+      // OSM renders zoom 0–19. Without a cap, Cesium keeps asking for deeper
+      // tiles as you zoom in; every one of those fails, so the map would
+      // stop at 19 anyway, just after a flood of failed requests.
+      maximumLevel: 19,
+      // Replaces Cesium's built-in OSM credit, which still names MapQuest
+      // and the licence OSM dropped in 2012.
+      credit: new Cesium.Credit(
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+        true,
+      ),
+    }),
   );
 }
 
@@ -57,18 +73,18 @@ export const BASEMAPS: readonly Basemap[] = [
   {
     id: 'osm',
     name: 'OpenStreetMap',
-    kind: 'WMS',
-    createLayer: terrestrisOsm,
+    kind: 'XYZ',
+    createLayer: osmStandard,
   },
   {
     id: 'osm-grey',
     name: 'OpenStreetMap (grey)',
-    kind: 'WMS',
+    kind: 'XYZ',
     // The same map drawn without colour. `saturation` is applied by Cesium's
     // globe shader as it draws — the images themselves aren't processed —
     // so it costs nothing and needs no second service.
     createLayer: () => {
-      const layer = terrestrisOsm();
+      const layer = osmStandard();
       layer.saturation = 0;
       return layer;
     },

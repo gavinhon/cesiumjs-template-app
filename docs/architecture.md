@@ -283,7 +283,7 @@ the newest result for a feature is ever applied.
 Cesium's convenience APIs (`createWorldImagery`, world terrain, the
 geocoder, the base-layer picker) all call Cesium ion and need an access
 token. This template targets people connecting to their _own_ OGC services,
-so its basemaps are public keyless WMS services (`src/cesium/basemaps.ts`)
+so its basemaps are public keyless services (`src/cesium/basemaps.ts`)
 and its default surface is the plain WGS84 ellipsoid,
 and explicitly clears `Cesium.Ion.defaultAccessToken` so any accidental ion
 call fails loudly rather than silently riding on Cesium's shared public demo
