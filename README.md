@@ -88,6 +88,24 @@ Open the printed local URL; you should see the globe centered on Singapore.
 | `npm test`          | Run the unit tests once (`test:watch` to keep going)         |
 | `npm run check`     | Typecheck + lint + format check + tests — run before pushing |
 
+## Deploying to GitHub Pages
+
+`.github/workflows/deploy-pages.yml` builds the app and publishes it on
+every push to `main`. One-time setup: in the repository's **Settings →
+Pages**, set **Source** to **GitHub Actions**. The site then appears at
+`https://<user>.github.io/<repo>/`.
+
+Pages can't serve the repository directly — `index.html` points at
+`/src/main.tsx`, which only Vite's dev server understands, so an unbuilt
+deploy is a blank page. The build uses a relative base (`base: './'` in
+`vite.config.ts`), so it works under any repository name with no
+configuration; `vite.config.ts` explains why an absolute sub-path would
+break Cesium's web workers.
+
+Datasets in `public/` are gitignored, so the deployed site only has the
+ones you've committed. Large ones (terrain especially) are better hosted
+elsewhere — any CORS-enabled static host — and loaded by URL.
+
 ## Project structure
 
 ```

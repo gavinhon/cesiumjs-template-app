@@ -12,9 +12,11 @@ import {
   casedLineMaterial,
   colorFor,
   hiddenLineMaterial,
+  horizontalLabelFor,
   isReadoutKind,
   labelAnchorFor,
   labelTextFor,
+  levelLineFor,
   recolorPart,
   styleFeature,
   partOf,
@@ -24,11 +26,16 @@ import {
 import type { DrawnFeature, DrawnFeatureKind, FeatureAttribute, LabelSource } from './drawingTypes';
 import { computeLineOfSight, EYE_HEIGHT, raise } from './lineOfSight';
 import {
+  describeDirect,
   describeElevation,
   describeHeight,
+  describeHorizontal,
   describePath,
   formatDistance,
   heightTriangleCorner,
+  horizontalDiffers,
+  levelPath,
+  pointAlong,
 } from './measurement';
 import { computeViewshed, describeViewshed, rimPositions } from './viewshed';
 
@@ -194,6 +201,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
   // The in-progress measurement readout. Finished features get their labels
   // from the sync effect further down instead.
   const measureLabelIdRef = useRef<string | null>(null);
+  // The measure tool's second live label, on its dotted level line. Exists
+  // only while the path climbs enough for the horizontal distance to differ.
+  const horizontalLabelIdRef = useRef<string | null>(null);
 
   /**
    * Everything that has been drawn, and which one is selected.
@@ -212,6 +222,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
   /** Label ids per feature, keyed by feature id — see the label sync effect. */
   const featureLabelIdsRef = useRef<Map<string, string>>(new Map());
+  /** A measurement's second label, on its level line — see `horizontalLabelFor`. */
+  const horizontalLabelIdsRef = useRef<Map<string, string>>(new Map());
   /** Draggable vertex handles for the selected feature, in vertex order. */
   const handleEntitiesRef = useRef<Cesium.Entity[]>([]);
   const dragRef = useRef<{
@@ -256,6 +268,12 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     // handler below.
     const labelLayer = createMapLabelLayer(cesiumViewer);
     labelLayerRef.current = labelLayer;
+    // The label-id maps die with this layer. Captured here so the cleanup
+    // clears these maps — the refs hold the same objects for the hook's
+    // whole life, but reading `.current` in a cleanup is a lint error for
+    // good reason in general.
+    const featureLabelIds = featureLabelIdsRef.current;
+    const horizontalLabelIds = horizontalLabelIdsRef.current;
 
     // Every click and cursor move below becomes a position through
     // `pickSurface` — on the terrain, or on a 3D Tiles building standing on
@@ -317,10 +335,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     }
 
     function cancelInProgress() {
-      if (measureLabelIdRef.current) {
-        labelLayer.remove(measureLabelIdRef.current);
-        measureLabelIdRef.current = null;
-      }
+      removeLiveLabels();
       for (const ref of [previewEntityRef, outlineEntityRef]) {
         if (ref.current) {
           cesiumViewer.entities.remove(ref.current);
@@ -433,7 +448,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       const last = positions[positions.length - 1];
       switch (tool) {
         case 'measure':
-          return describePath(positions);
+          return describeDirect(positions);
         case 'height':
           return describeHeight(first, last);
         case 'line-of-sight':
@@ -461,7 +476,32 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       const id = measureLabelIdRef.current;
       const tool = inProgressToolRef.current;
       if (!id || !tool || positions.length === 0) return;
-      labelLayer.update(id, positions[positions.length - 1], liveReadout(tool, positions));
+      if (tool !== 'measure') {
+        labelLayer.update(id, positions[positions.length - 1], liveReadout(tool, positions));
+        return;
+      }
+      // A measurement labels each line it draws, halfway along it, exactly
+      // as the finished feature will: the 3D length on the measured line,
+      // the horizontal distance on the dotted level line below it.
+      labelLayer.update(id, pointAlong(positions, 0.5), describeDirect(positions));
+      const horizontal = horizontalLabelIdRef.current;
+      if (!horizontalDiffers(positions)) {
+        if (horizontal) labelLayer.remove(horizontal);
+        horizontalLabelIdRef.current = null;
+        return;
+      }
+      const anchor = pointAlong(levelPath(positions), 0.5);
+      const text = describeHorizontal(positions);
+      if (horizontal) labelLayer.update(horizontal, anchor, text);
+      else horizontalLabelIdRef.current = labelLayer.add(anchor, text, 'readout');
+    }
+
+    /** Takes down the in-progress readouts. Finished features get theirs from the sync effect. */
+    function removeLiveLabels() {
+      for (const ref of [measureLabelIdRef, horizontalLabelIdRef]) {
+        if (ref.current) labelLayer.remove(ref.current);
+        ref.current = null;
+      }
     }
 
     // First click of a line/polygon/measurement: create the entity that
@@ -522,9 +562,13 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       }
 
       if (tool === 'measure') {
+        // The dotted level line: the path flattened to its lowest point, so
+        // "horizontal" has a line of its own to be measured along. Empty —
+        // drawn as nothing — while the path is too flat for it to differ.
+        addPreviewLine(() => levelLineFor(livePositions()), DASHED_MEASURE, 2);
         measureLabelIdRef.current = labelLayer.add(
           positionsRef.current[0],
-          describePath(positionsRef.current),
+          describeDirect(positionsRef.current),
           'readout',
         );
       }
@@ -568,18 +612,29 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         ]);
       }
       clearVertexMarkers();
-      // The live readout goes away with the rest of the in-progress state.
-      // The finished measurement gets its label back from the sync effect,
-      // via `labelSource: 'measurement'` — one code path for every label
-      // instead of a special case that survives the handover.
-      if (measureLabelIdRef.current) {
-        labelLayer.remove(measureLabelIdRef.current);
-        measureLabelIdRef.current = null;
-      }
+      // The live readouts and construction lines go away with the rest of
+      // the in-progress state. The finished measurement gets its labels back
+      // from the sync effect, via `labelSource: 'measurement'` — one code
+      // path for every label instead of a special case that survives the
+      // handover.
+      removeLiveLabels();
+      for (const extra of previewExtrasRef.current) cesiumViewer.entities.remove(extra);
+      previewExtrasRef.current = [];
 
       const entities = [previewEntityRef.current, outlineEntityRef.current].filter(
         (entity): entity is Cesium.Entity => entity !== null,
       );
+      if (tool === 'measure') {
+        entities.push(
+          tagPart(
+            cesiumViewer.entities.add({
+              polyline: { positions: levelLineFor(finalPositions) },
+            }),
+            'level',
+            { dashed: true },
+          ),
+        );
+      }
       addFeature({
         kind: tool,
         positions: finalPositions,
@@ -967,6 +1022,14 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       };
       const text = labelTextFor(moved);
       if (text !== null) labelLayer.update(labelId, labelAnchorFor(moved), text);
+      // Its level line's label too. Appearing or disappearing as the drag
+      // makes the path steeper or flatter waits for the sync effect when the
+      // drag ends; mid-drag it just follows.
+      const horizontalId = horizontalLabelIdsRef.current.get(feature.id);
+      const horizontal = horizontalLabelFor(moved);
+      if (horizontalId && horizontal) {
+        labelLayer.update(horizontalId, horizontal.anchor, horizontal.text);
+      }
     }
 
     const handler = new Cesium.ScreenSpaceEventHandler(cesiumViewer.scene.canvas);
@@ -1195,7 +1258,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       }
       labelLayer.destroy();
       labelLayerRef.current = null;
-      featureLabelIdsRef.current.clear();
+      featureLabelIds.clear();
+      horizontalLabelIds.clear();
     };
     // `setActiveTool` is a stable callback; listing it doesn't re-run this.
   }, [viewer, setActiveTool]);
@@ -1262,6 +1326,29 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       if (!live.has(featureId)) {
         labelLayer.remove(labelId);
         labelIds.delete(featureId);
+      }
+    }
+
+    // A measurement's second label, on its dotted level line. Derived the
+    // same way: present exactly when `horizontalLabelFor` says so.
+    const horizontalIds = horizontalLabelIdsRef.current;
+    const wanted = new Set<string>();
+    for (const feature of features) {
+      const horizontal = horizontalLabelFor(feature);
+      if (!horizontal) continue;
+      wanted.add(feature.id);
+      const existing = horizontalIds.get(feature.id);
+      if (existing) labelLayer.update(existing, horizontal.anchor, horizontal.text);
+      else
+        horizontalIds.set(
+          feature.id,
+          labelLayer.add(horizontal.anchor, horizontal.text, 'readout'),
+        );
+    }
+    for (const [featureId, labelId] of horizontalIds) {
+      if (!wanted.has(featureId)) {
+        labelLayer.remove(labelId);
+        horizontalIds.delete(featureId);
       }
     }
   }, [features]);
@@ -1420,10 +1507,10 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     // they need clearing separately; the sync effect would also do it, but
     // not until the next render.
     const labelLayer = labelLayerRef.current;
-    for (const labelId of featureLabelIdsRef.current.values()) {
-      labelLayer?.remove(labelId);
+    for (const labels of [featureLabelIdsRef.current, horizontalLabelIdsRef.current]) {
+      for (const labelId of labels.values()) labelLayer?.remove(labelId);
+      labels.clear();
     }
-    featureLabelIdsRef.current.clear();
     setFeatures([]);
     setSelectedId(null);
   }, [viewer]);

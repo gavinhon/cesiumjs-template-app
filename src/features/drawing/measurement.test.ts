@@ -1,13 +1,18 @@
 import * as Cesium from 'cesium';
 import { describe, expect, it } from 'vitest';
 import {
+  describeDirect,
   describeElevation,
   describeHeight,
+  describeHorizontal,
   describePath,
   formatDistance,
   groundDistance,
   heightOf,
   heightTriangleCorner,
+  horizontalDiffers,
+  levelPath,
+  pointAlong,
   slantDistance,
 } from './measurement';
 
@@ -69,6 +74,39 @@ describe('describePath', () => {
 
   it('reads zero for a path with fewer than two points', () => {
     expect(describePath([at(0, 0)])).toBe('0.0 m');
+  });
+});
+
+describe('the level line', () => {
+  it('flattens the path to its lowest vertex', () => {
+    const level = levelPath([at(0, 40), at(30, 5), at(60, 20)]);
+    expect(level.map((point) => heightOf(point))).toEqual([
+      expect.closeTo(5, 4),
+      expect.closeTo(5, 4),
+      expect.closeTo(5, 4),
+    ]);
+  });
+
+  it('is only worth drawing once the path climbs', () => {
+    expect(horizontalDiffers([at(0, 10), at(30, 10.4)])).toBe(false);
+    expect(horizontalDiffers([at(0, 0), at(30, 40)])).toBe(true);
+    expect(horizontalDiffers([at(0, 0)])).toBe(false);
+  });
+
+  it('labels each line with its own distance', () => {
+    const path = [at(0, 0), at(30, 40)];
+    expect(describeDirect(path)).toBe('50.0 m');
+    expect(describeHorizontal(path)).toBe('30.0 m horizontal');
+  });
+});
+
+describe('pointAlong', () => {
+  it('finds the point a fraction of the way along a path, by length', () => {
+    const path = [at(0, 0), at(100, 0), at(100 + 300, 0)];
+    // Halfway along 400 m is 200 m: 100 m into the second segment.
+    expect(Cesium.Cartesian3.distance(pointAlong(path, 0.5), at(200, 0))).toBeLessThan(0.01);
+    expect(pointAlong(path, 0)).toEqual(path[0]);
+    expect(Cesium.Cartesian3.distance(pointAlong(path, 1), path[2])).toBeLessThan(0.01);
   });
 });
 

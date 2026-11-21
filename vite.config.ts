@@ -23,6 +23,18 @@ import { publicDatasetCatalog } from './vite-plugins/publicDatasetCatalog';
 // whatever datasets you've dropped in there. See the plugin file for why
 // that has to happen at build time rather than in the browser.
 export default defineConfig({
+  // A *relative* base, so the build works wherever it's served from: at a
+  // domain root, or under a sub-path like GitHub Pages'
+  // `https://<user>.github.io/<repo>/` — whatever the repo is called, so
+  // forks deploy without editing this.
+  //
+  // An absolute sub-path (`base: '/<repo>/'`) is the usual Vite advice, but
+  // it breaks Cesium: `vite-plugin-cesium` adds the base to the folder it
+  // copies Cesium's runtime files *into* as well as to the URL it loads
+  // them *from*, so they land in `dist/<repo>/cesium/` while the app asks
+  // for what is really `dist/cesium/` — every web worker 404s and the
+  // globe never draws. With './' both resolve to `dist/cesium/`.
+  base: './',
   plugins: [react(), cesium(), publicDatasetCatalog()],
   resolve: {
     alias: {

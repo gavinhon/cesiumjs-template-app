@@ -5,6 +5,7 @@ import type { DrawnFeature, DrawnFeatureKind } from './drawingTypes';
 import {
   applyGeometry,
   colorFor,
+  horizontalLabelFor,
   isReadoutKind,
   labelAnchorFor,
   labelTextFor,
@@ -77,8 +78,21 @@ describe('labelTextFor', () => {
 
   it('shows the measurement', () => {
     expect(
-      labelTextFor(feature({ kind: 'measure', labelSource: 'measurement', measurement: '30.0 m' })),
-    ).toBe('30.0 m');
+      labelTextFor(
+        feature({ kind: 'height', labelSource: 'measurement', measurement: '10.2 m up' }),
+      ),
+    ).toBe('10.2 m up');
+  });
+
+  it('shows only the 3D length on a measured line — the horizontal gets its own label', () => {
+    const climb = feature({
+      kind: 'measure',
+      labelSource: 'measurement',
+      positions: [p(103.8, 1.35, 0), p(103.80027, 1.35, 40)], // ~30 m across, 40 m up
+      measurement: '50.0 m · 30.0 m horizontal',
+    });
+    expect(labelTextFor(climb)).toBe('50.0 m');
+    expect(horizontalLabelFor(climb)?.text).toBe('30.0 m horizontal');
   });
 
   it('shows an attribute as "key: value", or the bare value without a key', () => {
@@ -104,8 +118,16 @@ describe('labelAnchorFor', () => {
 
   it('puts a line’s label at its last vertex', () => {
     const end = p(103.81, 1.35);
-    expect(labelAnchorFor(feature({ kind: 'measure', positions: [p(103.8, 1.35), end] }))).toBe(
-      end,
+    expect(labelAnchorFor(feature({ kind: 'line', positions: [p(103.8, 1.35), end] }))).toBe(end);
+  });
+
+  it('puts a measurement’s label halfway along the measured line', () => {
+    const anchor = labelAnchorFor(
+      feature({ kind: 'measure', positions: [p(103.8, 1.35), p(103.81, 1.35)] }),
+    );
+    expect(Cesium.Math.toDegrees(Cesium.Cartographic.fromCartesian(anchor).longitude)).toBeCloseTo(
+      103.805,
+      6,
     );
   });
 

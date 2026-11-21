@@ -1,0 +1,67 @@
+# Builds the app and publishes it to GitHub Pages on every push to main.
+#
+# GitHub Pages can't serve this repo as-is: index.html points at
+# /src/main.tsx, which only means something to Vite's dev server. The site
+# has to be *built* first (`npm run build` → dist/), and dist/ is what gets
+# published. Serving the branch directly gives a blank page and a 404 for
+# main.tsx in the console.
+#
+# One-time setup: in the repo's Settings → Pages, set "Source" to
+# "GitHub Actions". The build itself needs no per-repo configuration — Vite
+# builds with a relative base (see vite.config.ts), so it works at
+# https://<user>.github.io/<any-repo-name>/.
+#
+# Datasets under public/ are gitignored, so only the ones you've committed
+# are deployed; the app runs without any.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # a "Run workflow" button, for redeploying by hand
+
+permissions:
+  contents: read
+  pages: write # publish the site
+  id-token: write # prove to Pages that this workflow is allowed to
+
+# One deployment at a time; a newer push waits rather than cancelling one
+# that's mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # Vite 8 needs 20.19+ or 22.12+
+          cache: npm
+
+      - run: npm ci
+
+      # The same gate as locally: typecheck, lint, formatting and tests. A
+      # broken commit fails here instead of replacing a working site.
+      - run: npm run check
+
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
