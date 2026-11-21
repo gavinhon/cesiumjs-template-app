@@ -52,8 +52,8 @@ export function CesiumMap({ onViewerReady }: CesiumMapProps) {
     }
 
     const viewer = new Cesium.Viewer(containerRef.current, {
-      // The starting basemap — OpenStreetMap over WMS, with no API key and
-      // no Cesium ion account. The layer manager switches between the
+      // The starting basemap — Esri World Imagery, with no API key and no
+      // Cesium ion account. The layer manager switches between the
       // basemaps in ./basemaps.ts; add your own there.
       baseLayer: DEFAULT_BASEMAP.createLayer(),
       // No `terrainProvider`/`terrain` option here: Cesium's default is a

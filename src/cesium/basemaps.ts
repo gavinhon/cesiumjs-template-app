@@ -100,6 +100,17 @@ function esriLayer(service: string, sources: string): Cesium.ImageryLayer {
 
 export const BASEMAPS: readonly Basemap[] = [
   {
+    id: 'esri-imagery',
+    name: 'Esri World Imagery',
+    kind: 'ARCGIS',
+    // Sub-metre aerial imagery in cities, far sharper than Sentinel-2.
+    createLayer: () =>
+      esriLayer(
+        'World_Imagery',
+        'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+      ),
+  },
+  {
     id: 'osm',
     name: 'OpenStreetMap',
     kind: 'XYZ',
@@ -134,17 +145,6 @@ export const BASEMAPS: readonly Basemap[] = [
       ),
   },
   {
-    id: 'esri-imagery',
-    name: 'Esri World Imagery',
-    kind: 'ARCGIS',
-    // Sub-metre aerial imagery in cities, far sharper than Sentinel-2.
-    createLayer: () =>
-      esriLayer(
-        'World_Imagery',
-        'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
-      ),
-  },
-  {
     id: 'esri-dark-gray',
     name: 'Esri Dark Gray Canvas',
     kind: 'ARCGIS',
@@ -158,5 +158,10 @@ export const BASEMAPS: readonly Basemap[] = [
   },
 ];
 
-/** The basemap the app starts with. */
+/**
+ * The basemap the app starts with: Esri World Imagery, first in the list.
+ * Aerial imagery is what the app's 3D content — terrain, buildings, BIM —
+ * is easiest to read against. It's keyless like the rest; see `esriLayer`
+ * for Esri's terms.
+ */
 export const DEFAULT_BASEMAP = BASEMAPS[0];

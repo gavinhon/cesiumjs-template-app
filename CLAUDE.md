@@ -9,7 +9,7 @@ globe with panels for connecting to OGC map services and 3D Tiles datasets,
 plus drawing/measurement tools. It deliberately uses **no Cesium ion
 account** — keyless basemaps (`src/cesium/basemaps.ts`: OpenStreetMap's own
 tiles, the same in grey, Sentinel-2 satellite over WMS, Esri World Imagery
-and Dark Gray Canvas) and the plain WGS84 ellipsoid. Basemaps stay keyless;
+— the default, first in `BASEMAPS` — and Dark Gray Canvas) and the plain WGS84 ellipsoid. Basemaps stay keyless;
 OSM is not served via a WMS re-render because the free ones watermark
 street-level zooms. Switching one replaces the bottom imagery layer in place
 (`setBasemap` in `useOgcLayers`), so user layers keep their order above it.

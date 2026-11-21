@@ -8,8 +8,9 @@ CesiumJS, wired up **without** a Cesium ion account.
 - **A full-screen 3D globe**, camera pre-aimed at Singapore, with none of
   Cesium's built-in widgets (no toolbar, timeline, or search box) — the map
   itself is the UI.
-- **No Cesium ion dependency.** Base imagery is plain OpenStreetMap tiles;
-  terrain is the default WGS84 ellipsoid. No token, no account, no signup.
+- **No Cesium ion dependency.** The base imagery is Esri World Imagery,
+  from Esri's keyless public service; terrain is a DTM you drop into
+  `public/`, or the plain WGS84 ellipsoid. No token, no account, no signup.
 - **A map services panel** for connecting to OGC WMS, WMTS and XYZ raster
   services and WFS vector features, and to Esri ArcGIS REST services
   (ArcGIS Server, Enterprise and Online): MapServer imagery, cached or
@@ -26,7 +27,8 @@ CesiumJS, wired up **without** a Cesium ion account.
   OpenStreetMap from openstreetmap.org's own tile servers, the same map in
   grey, Sentinel-2 cloudless satellite imagery over WMS from
   [EOX](https://s2maps.eu) (10 m pixels, non-commercial use only), and
-  Esri's World Imagery (sub-metre in cities) and Dark Gray Canvas. Esri's
+  Esri's World Imagery (sub-metre in cities; the default) and Dark Gray
+  Canvas. Esri's
   public basemaps need no key, but check Esri's terms of use before using
   them commercially. Each provider's credit is shown on the
   map, as their terms require; add your own basemaps in

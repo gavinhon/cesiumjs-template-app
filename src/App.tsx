@@ -13,7 +13,9 @@ import type {
   LayerEntry,
   TerrainChoice,
 } from '@/features/layer-manager/layerManagerTypes';
+import { FeatureInfoCard } from '@/features/ogc-layers/FeatureInfoCard';
 import { OgcLayerPanel } from '@/features/ogc-layers/OgcLayerPanel';
+import { useFeatureInspector } from '@/features/ogc-layers/useFeatureInspector';
 import { useOgcLayers } from '@/features/ogc-layers/useOgcLayers';
 import { TilesetPanel } from '@/features/tiles-3d/TilesetPanel';
 import { useTilesets } from '@/features/tiles-3d/useTilesets';
@@ -60,6 +62,10 @@ function App() {
   const drawing = useDrawingTools(viewer);
   const { activeTool, setActiveTool, clearAll } = drawing;
   const { is2D, toggle: toggleSceneMode } = useSceneMode(viewer);
+
+  // Clicking a WFS / ArcGIS / GeoJSON feature shows its attributes — but
+  // only with no drawing tool armed, when a click isn't drawing something.
+  const featureInspector = useFeatureInspector(viewer, ogcLayers.vectors, activeTool === 'none');
 
   // Clicking a shape on the globe should show you its attributes, not just
   // highlight it — otherwise selection looks like it did nothing whenever
@@ -149,6 +155,11 @@ function App() {
       <DrawingPanel drawing={drawing} open={openPanel === 'drawings'} />
 
       <DrawingHint activeTool={activeTool} />
+      <FeatureInfoCard
+        viewer={viewer}
+        feature={featureInspector.inspected}
+        onClose={featureInspector.close}
+      />
 
       <div ref={rightRailRef} className="app__right-rail">
         <LayerManagerButton active={openPanel === 'layers'} onClick={() => togglePanel('layers')} />

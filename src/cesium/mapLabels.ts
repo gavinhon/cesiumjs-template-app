@@ -76,6 +76,23 @@ function isOnVisibleSide(
 }
 
 /**
+ * Where a world position appears in the window, in CSS pixels from the
+ * canvas's top-left — or undefined when it can't be seen there: behind the
+ * camera, outside the view, or on the far side of the globe.
+ *
+ * Shared by anything that pins HTML to the map (these labels, the feature
+ * info card). Runs every frame, so the caller supplies the scratch objects.
+ */
+export function toWindowPosition(
+  scene: Cesium.Scene,
+  position: Cesium.Cartesian3,
+  scratch: { window: Cesium.Cartesian2; normal: Cesium.Cartesian3; toCamera: Cesium.Cartesian3 },
+): Cesium.Cartesian2 | undefined {
+  if (!isOnVisibleSide(scene, position, scratch.normal, scratch.toCamera)) return undefined;
+  return Cesium.SceneTransforms.worldToWindowCoordinates(scene, position, scratch.window);
+}
+
+/**
  * Creates the overlay and starts tracking the scene.
  *
  * The container is appended to the Viewer's own element rather than to the
@@ -94,29 +111,17 @@ export function createMapLabelLayer(viewer: Cesium.Viewer): MapLabelLayer {
   // Reused across every label, every frame. These projections run in the
   // render loop, so allocating three Cartesians per label per frame would
   // be a steady stream of garbage for no reason.
-  const windowScratch = new Cesium.Cartesian2();
-  const normalScratch = new Cesium.Cartesian3();
-  const toCameraScratch = new Cesium.Cartesian3();
+  const scratch = {
+    window: new Cesium.Cartesian2(),
+    normal: new Cesium.Cartesian3(),
+    toCamera: new Cesium.Cartesian3(),
+  };
 
   function reposition() {
     if (labels.size === 0) return;
 
     for (const label of labels.values()) {
-      const onVisibleSide = isOnVisibleSide(
-        viewer.scene,
-        label.position,
-        normalScratch,
-        toCameraScratch,
-      );
-      // `undefined` here means the point doesn't project into the window at
-      // all — behind the camera, or outside the frustum.
-      const windowPosition = onVisibleSide
-        ? Cesium.SceneTransforms.worldToWindowCoordinates(
-            viewer.scene,
-            label.position,
-            windowScratch,
-          )
-        : undefined;
+      const windowPosition = toWindowPosition(viewer.scene, label.position, scratch);
 
       const visible = windowPosition !== undefined;
       if (visible !== label.visible) {

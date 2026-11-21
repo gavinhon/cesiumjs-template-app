@@ -1,5 +1,6 @@
 import * as Cesium from 'cesium';
 import { MAP_COLORS } from '@/cesium/mapColors';
+import { styleVectorEntity } from './vectorFeatureStyle';
 
 /**
  * Loads GeoJSON — a URL, or an object already fetched — as a styled Cesium
@@ -34,20 +35,22 @@ export async function loadVectorDataSource(
   // stays legible at density. There's no loader option for this — the pins
   // are swapped for points after loading.
   for (const entity of dataSource.entities.values) {
-    if (!entity.billboard) continue;
-    entity.billboard = undefined;
-    entity.point = new Cesium.PointGraphics({
-      pixelSize: 7,
-      color: MAP_COLORS.vector,
-      outlineColor: MAP_COLORS.casing,
-      outlineWidth: 1,
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-      // A clamped point sits exactly on the surface, so nearby terrain cuts
-      // it in half. Skipping the depth test draws it whole — but only up
-      // close: with no limit, points on the far side of the globe would
-      // show through it from space.
-      disableDepthTestDistance: 50_000,
-    });
+    if (entity.billboard) {
+      entity.billboard = undefined;
+      entity.point = new Cesium.PointGraphics({
+        color: MAP_COLORS.vector,
+        outlineColor: MAP_COLORS.casing,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        // A clamped point sits exactly on the surface, so nearby terrain cuts
+        // it in half. Skipping the depth test draws it whole — but only up
+        // close: with no limit, points on the far side of the globe would
+        // show through it from space.
+        disableDepthTestDistance: 50_000,
+      });
+    }
+    // Sizes and fill strength come from one place, shared with the
+    // selected look a click gives a feature.
+    styleVectorEntity(entity, false);
   }
   return dataSource;
 }
