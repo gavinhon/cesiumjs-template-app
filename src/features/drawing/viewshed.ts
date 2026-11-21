@@ -1,6 +1,7 @@
 import * as Cesium from 'cesium';
 import { MAP_COLORS } from '@/cesium/mapColors';
 import { EYE_HEIGHT, sampleGroundHeights } from './lineOfSight';
+import { formatDistance } from './measurement';
 
 /**
  * Viewshed analysis: everything a person standing at one point could see
@@ -38,7 +39,28 @@ const IMAGE_SIZE = 512;
  * standard coefficient GIS packages use for visible light.
  */
 const REFRACTION = 0.13;
+/** Mean earth radius — only for the curvature drop, where 0.5% doesn't matter. */
 const EARTH_RADIUS = 6_371_000;
+
+/**
+ * How many metres one radian of latitude and of longitude span at a given
+ * latitude, on the WGS84 ellipsoid Cesium draws.
+ *
+ * A sphere is not close enough here: near the equator a spherical earth
+ * puts a point "1 km north" only 994 m away on Cesium's globe, so the
+ * viewshed's rim and image came out visibly short of the radius it reported.
+ * The ellipsoid's curvature differs north–south (meridian radius) from
+ * east–west (prime-vertical radius); these are the textbook formulas.
+ */
+function metresPerRadian(latitude: number): { north: number; east: number } {
+  const { maximumRadius: a, minimumRadius: b } = Cesium.Ellipsoid.WGS84;
+  const e2 = 1 - (b * b) / (a * a);
+  const w = 1 - e2 * Math.sin(latitude) ** 2;
+  return {
+    north: (a * (1 - e2)) / w ** 1.5,
+    east: (a / Math.sqrt(w)) * Math.cos(latitude),
+  };
+}
 
 export interface ViewshedResult {
   /** The visible/hidden pattern, transparent outside the radius. */
@@ -50,7 +72,8 @@ export interface ViewshedResult {
 }
 
 /**
- * CSS colour strings for the canvas, from the same values Cesium draws with.
+ * The canvas fills, as the 0–255 RGBA bytes `ImageData` takes, from the same
+ * colours Cesium draws with.
  *
  * Visible ground is tinted with the sight colour; hidden ground is shaded
  * dark, which reads as "can't be seen" without needing a legend. Cyan
@@ -58,8 +81,47 @@ export interface ViewshedResult {
  * translucent orange almost entirely, while cyan stays distinct on every
  * basemap colour OSM uses.
  */
-const VISIBLE_FILL = MAP_COLORS.sight.withAlpha(0.5).toCssColorString();
-const HIDDEN_FILL = Cesium.Color.BLACK.withAlpha(0.42).toCssColorString();
+const VISIBLE_FILL = MAP_COLORS.sight.withAlpha(0.5).toBytes();
+const HIDDEN_FILL = Cesium.Color.BLACK.withAlpha(0.42).toBytes();
+
+/**
+ * Which samples on a set of rays can be seen from the eye — the heart of
+ * the viewshed, kept free of Cesium and the canvas so it can be tested.
+ *
+ * `ground` holds `rays × steps` terrain heights, ray by ray, nearest sample
+ * first; sample `s` (from 1) of each ray is `s × spacing` metres out. A
+ * sample is visible when the angle up to it is at least the steepest angle
+ * to anything nearer on the same ray.
+ */
+export function traceVisibility(
+  ground: ArrayLike<number>,
+  rays: number,
+  steps: number,
+  spacing: number,
+  eyeHeight: number,
+): { visible: Uint8Array; visibleFraction: number } {
+  const visible = new Uint8Array(rays * steps);
+  let visibleArea = 0;
+  let totalArea = 0;
+  for (let r = 0; r < rays; r++) {
+    let steepest = -Infinity;
+    for (let s = 1; s <= steps; s++) {
+      const index = r * steps + (s - 1);
+      const d = s * spacing;
+      // The ground falls away below a level sight line as the earth curves.
+      const curvatureDrop = ((d * d) / (2 * EARTH_RADIUS)) * (1 - REFRACTION);
+      const slope = (ground[index] - curvatureDrop - eyeHeight) / d;
+      // Each sample stands for a ring segment whose area grows with distance.
+      totalArea += d;
+      if (slope >= steepest) {
+        visible[index] = 1;
+        visibleArea += d;
+      }
+      steepest = Math.max(steepest, slope);
+    }
+  }
+  return { visible, visibleFraction: totalArea > 0 ? visibleArea / totalArea : 0 };
+}
 
 export async function computeViewshed(
   terrainProvider: Cesium.TerrainProvider,
@@ -68,7 +130,7 @@ export async function computeViewshed(
 ): Promise<ViewshedResult> {
   const origin = Cesium.Cartographic.fromCartesian(observer);
   const eyeHeight = origin.height + EYE_HEIGHT;
-  const cosLat = Math.cos(origin.latitude);
+  const scale = metresPerRadian(origin.latitude);
 
   // Rays close enough at the rim that neighbouring rays are about one
   // sample apart, so the result doesn't fan out into spokes.
@@ -92,40 +154,19 @@ export async function computeViewshed(
       const d = s * spacing;
       samples.push(
         new Cesium.Cartographic(
-          origin.longitude + (d * Math.sin(bearing)) / (EARTH_RADIUS * cosLat),
-          origin.latitude + (d * Math.cos(bearing)) / EARTH_RADIUS,
+          origin.longitude + (d * Math.sin(bearing)) / scale.east,
+          origin.latitude + (d * Math.cos(bearing)) / scale.north,
         ),
       );
     }
   }
   const ground = await sampleGroundHeights(terrainProvider, samples);
-
-  // Walk each ray outward. A sample is visible when the angle up to it is
-  // at least the steepest angle to anything nearer on the same ray.
-  const visible = new Uint8Array(rays * steps);
-  let visibleArea = 0;
-  let totalArea = 0;
-  for (let r = 0; r < rays; r++) {
-    let steepest = -Infinity;
-    for (let s = 1; s <= steps; s++) {
-      const index = r * steps + (s - 1);
-      const d = s * spacing;
-      const curvatureDrop = ((d * d) / (2 * EARTH_RADIUS)) * (1 - REFRACTION);
-      const slope = (ground[index] - curvatureDrop - eyeHeight) / d;
-      // Each sample stands for a ring segment whose area grows with distance.
-      totalArea += d;
-      if (slope >= steepest) {
-        visible[index] = 1;
-        visibleArea += d;
-      }
-      steepest = Math.max(steepest, slope);
-    }
-  }
+  const { visible, visibleFraction } = traceVisibility(ground, rays, steps, spacing, eyeHeight);
 
   // Paint: every pixel inside the circle looks up the ray and sample
   // nearest to it.
-  const angularRadiusLat = radius / EARTH_RADIUS;
-  const angularRadiusLon = radius / (EARTH_RADIUS * cosLat);
+  const angularRadiusLat = radius / scale.north;
+  const angularRadiusLon = radius / scale.east;
   const rectangle = new Cesium.Rectangle(
     origin.longitude - angularRadiusLon,
     origin.latitude - angularRadiusLat,
@@ -139,8 +180,6 @@ export async function computeViewshed(
   const context = image.getContext('2d');
   if (!context) throw new Error('This browser cannot draw the viewshed (no 2D canvas).');
   const pixels = context.createImageData(IMAGE_SIZE, IMAGE_SIZE);
-  const visibleRgba = rgbaOf(VISIBLE_FILL);
-  const hiddenRgba = rgbaOf(HIDDEN_FILL);
 
   for (let py = 0; py < IMAGE_SIZE; py++) {
     // Row 0 is the north edge of the rectangle.
@@ -153,13 +192,13 @@ export async function computeViewshed(
       if (bearing < 0) bearing += 2 * Math.PI;
       const r = Math.round((bearing / (2 * Math.PI)) * rays) % rays;
       const s = Math.min(steps, Math.max(1, Math.round(d / spacing)));
-      const rgba = visible[r * steps + (s - 1)] ? visibleRgba : hiddenRgba;
+      const rgba = visible[r * steps + (s - 1)] ? VISIBLE_FILL : HIDDEN_FILL;
       pixels.data.set(rgba, (py * IMAGE_SIZE + px) * 4);
     }
   }
   context.putImageData(pixels, 0, 0);
 
-  return { image, rectangle, visibleFraction: totalArea > 0 ? visibleArea / totalArea : 0 };
+  return { image, rectangle, visibleFraction };
 }
 
 /**
@@ -169,15 +208,15 @@ export async function computeViewshed(
  */
 export function rimPositions(center: Cesium.Cartesian3, radius: number): Cesium.Cartesian3[] {
   const origin = Cesium.Cartographic.fromCartesian(center);
-  const cosLat = Math.cos(origin.latitude);
+  const scale = metresPerRadian(origin.latitude);
   const ring: Cesium.Cartesian3[] = [];
   const segments = 96;
   for (let i = 0; i <= segments; i++) {
     const bearing = (i / segments) * 2 * Math.PI;
     ring.push(
       Cesium.Cartesian3.fromRadians(
-        origin.longitude + (radius * Math.sin(bearing)) / (EARTH_RADIUS * cosLat),
-        origin.latitude + (radius * Math.cos(bearing)) / EARTH_RADIUS,
+        origin.longitude + (radius * Math.sin(bearing)) / scale.east,
+        origin.latitude + (radius * Math.cos(bearing)) / scale.north,
         origin.height,
       ),
     );
@@ -185,21 +224,7 @@ export function rimPositions(center: Cesium.Cartesian3, radius: number): Cesium.
   return ring;
 }
 
-/** Parses a CSS colour into the 0–255 RGBA bytes `ImageData` wants. */
-function rgbaOf(css: string): [number, number, number, number] {
-  const color = Cesium.Color.fromCssColorString(css);
-  return [
-    Math.round(color.red * 255),
-    Math.round(color.green * 255),
-    Math.round(color.blue * 255),
-    Math.round(color.alpha * 255),
-  ];
-}
-
 /** "38% visible · 1.00 km radius" */
-export function describeViewshed(result: ViewshedResult, radius: number): string {
-  const percent = Math.round(result.visibleFraction * 100);
-  const radiusText =
-    radius >= 1000 ? `${(radius / 1000).toFixed(2)} km` : `${Math.round(radius)} m`;
-  return `${percent}% visible · ${radiusText} radius`;
+export function describeViewshed(visibleFraction: number, radius: number): string {
+  return `${Math.round(visibleFraction * 100)}% visible · ${formatDistance(radius)} radius`;
 }

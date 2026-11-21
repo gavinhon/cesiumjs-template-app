@@ -28,7 +28,6 @@ function configFor(dataset: OgcPublicDataset): OgcLayerConfig {
         id: dataset.id,
         name: dataset.name,
         url: dataset.urlTemplate,
-        urlTemplate: dataset.urlTemplate,
         maximumLevel: dataset.maximumLevel,
       };
     case 'geojson':

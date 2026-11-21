@@ -24,7 +24,7 @@
   color: var(--ink);
   font: 400 13px/1.4 var(--font);
   outline: none;
-  transition: box-shadow 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .field input::placeholder {
@@ -33,7 +33,7 @@
 
 .field input:focus,
 .field select:focus {
-  box-shadow: var(--shadow-active);
+  border-color: var(--accent-line);
 }
 
 /* A <select>'s dropdown list is drawn by the OS, which does not inherit the

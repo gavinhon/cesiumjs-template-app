@@ -234,14 +234,20 @@ Terrain changes things that sit on it:
   read its comment before changing how clicks become positions.
 - **Vector data is clamped** (`clampToGround`), so GeoJSON and WFS drape
   over the terrain instead of floating at height zero inside it.
-- **3D Tiles keep their own heights.** A tileset is positioned by its
-  creator, and terrain doesn't move it. A model built for flat ground at
-  the ellipsoid — like the 1965 city models in `public/tilesets/` — sits
-  below real terrain, so the imagery draped on the terrain no longer lines
-  up with the model's footprints at an oblique angle. Cesium draws 3D Tiles
-  over terrain by default (`depthTestAgainstTerrain` is off), so nothing
-  disappears; it's a registration offset, and the fix is in the tileset's
-  georeferencing, not here.
+- **3D Tiles are set on the terrain** (`src/features/tiles-3d/placeTilesetOnTerrain.ts`).
+  A tileset carries its own heights, and most BIM exports and CityGML
+  conversions are authored for flat ground at 0 — while the real ground
+  here is 10–20 m above the ellipsoid. Left alone they sit sunk into it
+  (still visible, since Cesium draws 3D Tiles over terrain by default, but
+  misregistered against the imagery and unclickable at roof level). So
+  each tileset is moved vertically, via `modelMatrix`, until its lowest
+  point meets the lowest ground beneath it — and moved again whenever the
+  terrain changes. A model entirely below the surface is taken to be
+  underground and left as authored; the 3D Tiles list has a per-model
+  switch, and a tileset can declare `"extras": { "placement": "as-authored" }`.
+  It's one rigid shift per tileset: a city spread over hills can't drop
+  each building onto its own ground — that still needs the model's own
+  georeferencing.
 
 ## Measurement and analysis are drawings too
 

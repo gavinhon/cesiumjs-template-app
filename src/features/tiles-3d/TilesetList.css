@@ -1,0 +1,19 @@
+/* The placement switch on a tileset's second row: a plain label-wrapped
+   checkbox, since it's a two-state setting rather than an action. */
+.tileset-list__placement {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* What the switch did — "Raised 12.9 m", "Underground" — kept quiet; it's
+   there to explain a model that moved, or one that didn't. */
+.tileset-list__note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}

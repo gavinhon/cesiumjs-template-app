@@ -20,7 +20,10 @@ import * as Cesium from 'cesium';
  */
 
 export function formatDistance(meters: number): string {
-  return meters >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${meters.toFixed(1)} m`;
+  // Decided on the value as it will print: 999.97 m rounds to "1000.0 m",
+  // which should read "1.00 km" instead.
+  const rounded = Math.round(meters * 10) / 10;
+  return rounded >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${rounded.toFixed(1)} m`;
 }
 
 /** Sum of the ground (geodesic) distance between consecutive points. */
@@ -48,23 +51,80 @@ export function heightOf(position: Cesium.Cartesian3): number {
 }
 
 /**
- * The measure tool's readout: the true 3D length, plus — only when it
- * differs enough to matter — the horizontal distance a flat map would give.
+ * Whether a path climbs enough for its horizontal distance to be worth
+ * showing beside its 3D length.
  *
- * Usually that's one number. Two near-identical numbers ("30.1 m 3D ·
- * 30.0 m ground", as this once printed) read as a contradiction rather
- * than information: on a street the gap is just the terrain's bumps, so
- * the second number appears only once the path climbs noticeably — up a
- * hill, or from the street to a roof — and is named in plain words.
+ * On a street the two differ only by the terrain's bumps — "30.1 m" against
+ * "30.0 m" — and showing both reads as a contradiction rather than
+ * information. So the horizontal distance (and the dotted line that
+ * carries it on the map) appears only once the path climbs noticeably: up a
+ * hill, or from the street to a roof.
+ */
+export function horizontalDiffers(positions: Cesium.Cartesian3[]): boolean {
+  if (positions.length < 2) return false;
+  const slant = slantDistance(positions);
+  const horizontal = groundDistance(positions);
+  return slant - horizontal >= Math.max(1, horizontal * 0.02);
+}
+
+/** The label on the measured line itself: its 3D length. */
+export function describeDirect(positions: Cesium.Cartesian3[]): string {
+  return formatDistance(slantDistance(positions));
+}
+
+/** The label on the dotted level line: the distance a flat map would give. */
+export function describeHorizontal(positions: Cesium.Cartesian3[]): string {
+  return `${formatDistance(groundDistance(positions))} horizontal`;
+}
+
+/**
+ * The measure tool's full readout, for the Drawings panel: the 3D length,
+ * plus the horizontal distance when it differs enough to matter. On the map
+ * the two are split onto the lines they describe instead — see
+ * `describeDirect` and `describeHorizontal`.
  */
 export function describePath(positions: Cesium.Cartesian3[]): string {
   if (positions.length < 2) return formatDistance(0);
-  const slant = slantDistance(positions);
-  const horizontal = groundDistance(positions);
-  const matters = slant - horizontal >= Math.max(1, horizontal * 0.02);
-  return matters
-    ? `${formatDistance(slant)} · ${formatDistance(horizontal)} horizontal`
-    : formatDistance(slant);
+  return horizontalDiffers(positions)
+    ? `${describeDirect(positions)} · ${describeHorizontal(positions)}`
+    : describeDirect(positions);
+}
+
+/**
+ * The path flattened to the height of its lowest vertex: the dotted level
+ * line that shows what "horizontal" means. It meets the measured path at
+ * that lowest point and runs level from there, so the gap between the two
+ * lines is the climb.
+ */
+export function levelPath(positions: Cesium.Cartesian3[]): Cesium.Cartesian3[] {
+  const cartographics = positions.map((position) => Cesium.Cartographic.fromCartesian(position));
+  const lowest = Math.min(...cartographics.map((carto) => carto.height));
+  return cartographics.map((carto) =>
+    Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, lowest),
+  );
+}
+
+/**
+ * The point `fraction` of the way along a path, by length — where a label
+ * goes so it reads as belonging to that line rather than to an endpoint.
+ */
+export function pointAlong(positions: Cesium.Cartesian3[], fraction: number): Cesium.Cartesian3 {
+  if (positions.length === 1) return positions[0];
+  const target = slantDistance(positions) * fraction;
+  let travelled = 0;
+  for (let i = 1; i < positions.length; i++) {
+    const segment = Cesium.Cartesian3.distance(positions[i - 1], positions[i]);
+    if (travelled + segment >= target && segment > 0) {
+      return Cesium.Cartesian3.lerp(
+        positions[i - 1],
+        positions[i],
+        (target - travelled) / segment,
+        new Cesium.Cartesian3(),
+      );
+    }
+    travelled += segment;
+  }
+  return positions[positions.length - 1];
 }
 
 /**

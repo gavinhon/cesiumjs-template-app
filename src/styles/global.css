@@ -44,11 +44,10 @@ body {
 }
 
 /* The browser default selection blue is the one colour in the app nobody
-   chose. Tint it to the accent so highlighting a URL doesn't drop a stripe
-   of unrelated hue into the panel. */
+   chose. A dark accent tint keeps highlighted text readable and on-theme. */
 ::selection {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: rgba(255, 138, 61, 0.35);
+  color: var(--ink);
 }
 
 /* The app root. Every piece of UI (the map canvas, the toolbars, the
@@ -122,15 +121,17 @@ select {
 .control-input {
   padding: 0 14px;
   outline: none;
-  transition: box-shadow 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .control-input::placeholder {
   color: var(--muted);
 }
 
+/* Focus is the edge turning orange — no glow. Every text field in the app
+   (here, Field.css, the attribute editor) does the same. */
 .control-input:focus {
-  box-shadow: var(--shadow-active);
+  border-color: var(--accent-line);
 }
 
 .control-button {
@@ -147,49 +148,58 @@ select {
   text-transform: uppercase;
   white-space: nowrap;
   transition:
-    box-shadow 0.15s ease,
+    border-color 0.15s ease,
     background 0.15s ease,
     color 0.15s ease;
 }
 
-/* Hover warms the label and tints the fill as well as lighting the border —
-   the glow alone is easy to miss against a busy map. */
+/* Hover is neutral: a slightly lighter surface and edge. Orange is kept
+   for state, so pointing at a button can't be mistaken for turning it on.
+ *
+ * State tints are *layered over* the dark surface as a background-image,
+ * never assigned as the background itself: they're translucent, and a
+ * button sitting straight on the map — the top toolbar's — would show the
+ * near-white street map through them and turn beige. */
 .control-button:hover:not(:disabled) {
-  background: var(--accent-soft);
-  color: var(--accent);
-  box-shadow: var(--shadow-active);
+  background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+  border-color: var(--border-strong);
+}
+
+/* Keyboard focus gets a visible edge; a mouse click doesn't leave one. */
+.control-button:focus-visible {
+  outline: none;
+  border-color: var(--accent-line);
 }
 
 /*
- * The solid accent fill, in two flavours: `--active` for a toggle that is
+ * The two "this one" looks, both dark: `--active` for a toggle that is
  * currently on (toolbar panels, drawing tools, layer manager) and
- * `--primary` for the one committing action in a form.
+ * `--primary` for the one committing action in a form. Orange label, orange
+ * edge, a faint orange tint behind — enough to find at a glance, without a
+ * solid block of colour pulling the eye off the map.
  *
- * Shared rather than redefined per component — the toggles used to carry
- * three byte-identical copies of this rule, and the submit buttons a
- * fourth. Both restate themselves for :hover, because the generic hover
- * rule above is a three-class selector that would otherwise out-specify
- * them and wash the fill out the moment you moused over.
+ * Shared rather than redefined per component. Both restate themselves for
+ * :hover, because the generic hover rule above is a three-class selector
+ * that would otherwise out-specify them and grey the tint out the moment
+ * you moused over.
  */
 .control-button--active,
 .control-button--primary,
 .control-button--active:hover:not(:disabled),
 .control-button--primary:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  box-shadow: var(--shadow-active);
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
 }
 
-/* A primary action brightens on hover; an active toggle doesn't, because
-   it isn't inviting another click — it's reporting a state. */
-.control-button--primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+/* A primary action at rest is only outlined, so an open panel's toggle (a
+   state) and its submit button (an invitation) don't look identical; it
+   takes the tint when hovered. */
+.control-button--primary {
+  background-image: none;
 }
 
 .control-button:disabled {
   cursor: not-allowed;
-  box-shadow: var(--shadow);
-  opacity: 0.5;
+  opacity: 0.45;
 }

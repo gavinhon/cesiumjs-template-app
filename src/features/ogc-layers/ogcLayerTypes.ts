@@ -98,9 +98,8 @@ export interface WmtsLayerConfig extends BaseConfig {
 }
 
 export interface XyzLayerConfig extends BaseConfig {
+  /** `url` is a template containing {z}/{x}/{y} placeholders, not a service endpoint. */
   type: 'xyz';
-  /** URL template containing {z}/{x}/{y} placeholders. */
-  urlTemplate: string;
   /**
    * The deepest zoom level the source has. Known for a tile pyramid found
    * in `public/`; past it Cesium stretches the deepest tiles instead of

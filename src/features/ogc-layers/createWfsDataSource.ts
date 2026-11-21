@@ -20,7 +20,7 @@ import type { WfsLayerConfig } from './ogcLayerTypes';
  * server that only speaks GML will return an exception report here, which
  * surfaces as a load error in the form.
  */
-function buildGetFeatureUrl(config: WfsLayerConfig): string {
+export function buildGetFeatureUrl(config: WfsLayerConfig): string {
   const url = new URL(config.url);
   url.searchParams.set('service', 'WFS');
   url.searchParams.set('version', config.version);

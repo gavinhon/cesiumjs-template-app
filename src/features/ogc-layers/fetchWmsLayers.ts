@@ -1,5 +1,13 @@
 import type { GeographicBoundingBox, ServiceLayerOption } from './ogcLayerTypes';
-import { childText, descendantsByLocalName, fetchCapabilities } from './capabilitiesXml';
+import {
+  boxFromMinMaxAttributes,
+  childByLocalName,
+  childText,
+  descendantsByLocalName,
+  fetchCapabilities,
+  finiteBox,
+  parseNumber,
+} from './capabilitiesXml';
 
 /**
  * Looks up the layers a WMS server actually offers, by fetching and
@@ -30,27 +38,18 @@ import { childText, descendantsByLocalName, fetchCapabilities } from './capabili
  * won't get a precise zoom target.
  */
 function parseBoundingBox(layerEl: Element): GeographicBoundingBox | undefined {
-  for (const child of layerEl.children) {
-    if (child.localName === 'EX_GeographicBoundingBox') {
-      const box = {
-        west: Number(childText(child, 'westBoundLongitude')),
-        east: Number(childText(child, 'eastBoundLongitude')),
-        south: Number(childText(child, 'southBoundLatitude')),
-        north: Number(childText(child, 'northBoundLatitude')),
-      };
-      if (Object.values(box).every(Number.isFinite)) return box;
-    }
-    if (child.localName === 'LatLonBoundingBox') {
-      const box = {
-        west: Number(child.getAttribute('minx')),
-        south: Number(child.getAttribute('miny')),
-        east: Number(child.getAttribute('maxx')),
-        north: Number(child.getAttribute('maxy')),
-      };
-      if (Object.values(box).every(Number.isFinite)) return box;
-    }
+  const exBox = childByLocalName(layerEl, 'EX_GeographicBoundingBox');
+  if (exBox) {
+    const box = finiteBox({
+      west: parseNumber(childText(exBox, 'westBoundLongitude')),
+      east: parseNumber(childText(exBox, 'eastBoundLongitude')),
+      south: parseNumber(childText(exBox, 'southBoundLatitude')),
+      north: parseNumber(childText(exBox, 'northBoundLatitude')),
+    });
+    if (box) return box;
   }
-  return undefined;
+  const latLon = childByLocalName(layerEl, 'LatLonBoundingBox');
+  return latLon ? boxFromMinMaxAttributes(latLon) : undefined;
 }
 
 export async function fetchWmsLayers(serviceUrl: string): Promise<ServiceLayerOption[]> {
@@ -58,7 +57,11 @@ export async function fetchWmsLayers(serviceUrl: string): Promise<ServiceLayerOp
     SERVICE: 'WMS',
     REQUEST: 'GetCapabilities',
   });
+  return parseWmsLayers(xml);
+}
 
+/** The requestable layers in a WMS capabilities document. Separate from the fetch so it can be tested. */
+export function parseWmsLayers(xml: Document): ServiceLayerOption[] {
   // A capabilities document nests <Layer> elements in a tree — a top-level
   // "group" layer containing sub-layers, which may themselves contain more
   // sub-layers. Only "leaf" layers that declare a <Name> are actually

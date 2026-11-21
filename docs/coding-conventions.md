@@ -247,7 +247,7 @@ Plain CSS, no preprocessor, no CSS-in-JS.
   inverted the order, so `.control-button`'s horizontal padding beat
   `.drawing-toolbar__button { padding: 0 }` and the icon buttons' content
   box collapsed to 2px — the SVG icons vanished. The submit buttons
-  silently lost their accent fill at the same time. If a component's
+  silently lost their accent styling at the same time. If a component's
   override of padding, background, or border-radius mysteriously does
   nothing, check stylesheet order before anything else.
 
@@ -302,5 +302,6 @@ Knowing what's _intentionally_ missing saves you from "fixing" it:
 - **No Cesium ion token** — see [architecture.md](architecture.md).
 - **No persistence.** Layers, tilesets, and drawings all vanish on reload.
 - **No global state library, context, or router.** The app is one screen.
-- **No test suite.** If you add one, Vitest is the natural fit; put tests
-  next to what they test and wire them into `npm run check`.
+- **No browser-automation tests.** Clicking a WebGL globe in a headless
+  browser is slow and flaky; the logic is unit-tested instead and the
+  interactions have a manual checklist — see [testing.md](testing.md).

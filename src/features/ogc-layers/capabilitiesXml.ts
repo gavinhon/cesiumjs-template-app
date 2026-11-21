@@ -1,3 +1,5 @@
+import type { GeographicBoundingBox } from './ogcLayerTypes';
+
 /**
  * Helpers for reading OGC capabilities documents.
  *
@@ -26,6 +28,35 @@ export function childByLocalName(parent: Element, localName: string): Element | 
 /** Trimmed text of the first direct child with the given local name. */
 export function childText(parent: Element, localName: string): string | null {
   return childByLocalName(parent, localName)?.textContent?.trim() || null;
+}
+
+/**
+ * A number from capabilities text or an attribute, or `NaN` when it's
+ * missing. Not plain `Number()`: `Number(null)` and `Number('')` are both
+ * `0`, so a missing edge would read as the equator or the prime meridian
+ * and pass every finiteness check.
+ */
+export function parseNumber(value: string | null | undefined): number {
+  return value == null || value.trim() === '' ? NaN : Number(value);
+}
+
+/** The box, if all four edges are real numbers — see `parseNumber` for missing ones. */
+export function finiteBox(box: GeographicBoundingBox): GeographicBoundingBox | undefined {
+  return Object.values(box).every(Number.isFinite) ? box : undefined;
+}
+
+/**
+ * Reads the older `minx`/`miny`/`maxx`/`maxy` attribute form of an extent —
+ * WMS 1.1.1's `<LatLonBoundingBox>` and WFS 1.0.0's `<LatLongBoundingBox>`,
+ * which spell the element differently but share the attributes.
+ */
+export function boxFromMinMaxAttributes(element: Element): GeographicBoundingBox | undefined {
+  return finiteBox({
+    west: parseNumber(element.getAttribute('minx')),
+    south: parseNumber(element.getAttribute('miny')),
+    east: parseNumber(element.getAttribute('maxx')),
+    north: parseNumber(element.getAttribute('maxy')),
+  });
 }
 
 /**

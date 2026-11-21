@@ -70,7 +70,7 @@
   color: var(--ink);
   font: 400 12px/1.4 var(--font);
   outline: none;
-  transition: box-shadow 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .drawn-feature-editor__key {
@@ -82,5 +82,5 @@
 }
 
 .drawn-feature-editor__attribute input:focus {
-  box-shadow: var(--shadow-active);
+  border-color: var(--accent-line);
 }

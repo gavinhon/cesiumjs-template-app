@@ -20,6 +20,38 @@ const BASE_LAYER_ID = 'base-imagery';
  */
 const WEB_MERCATOR_EXTENT = new Cesium.WebMercatorTilingScheme().rectangle;
 
+/**
+ * Flies to a layer, for an explicit "zoom to this" request.
+ *
+ * `provider.rectangle` is not a reliable "where is this layer" answer: a
+ * provider that doesn't know its own extent reports its *tiling scheme's*
+ * extent instead, which is the whole world. Which value you get depends on
+ * the scheme — `Rectangle.MAX_VALUE` for the geographic one (WMS's
+ * default), the slightly shorter Web Mercator extent for XYZ. Either way it
+ * means "no idea", and `flyTo` on a whole-world rectangle drops the camera
+ * at (0°, 0°), off the coast of west Africa.
+ *
+ * Since the user asked to go somewhere, we always move: to the real extent
+ * when the provider has one, and otherwise to a clean whole-globe view via
+ * `flyHome`, which is the honest rendering of "everywhere".
+ */
+function flyToImagery(viewer: Cesium.Viewer, layer: Cesium.ImageryLayer) {
+  const rectangle = layer.imageryProvider?.rectangle;
+  const knowsWhereItIs =
+    rectangle !== undefined &&
+    !Cesium.Rectangle.equals(rectangle, Cesium.Rectangle.MAX_VALUE) &&
+    !Cesium.Rectangle.equals(rectangle, WEB_MERCATOR_EXTENT);
+
+  if (knowsWhereItIs) {
+    viewer.flyTo(layer).catch(() => {
+      // A rejected flyTo (e.g. the layer was removed mid-flight) isn't
+      // worth surfacing to the user.
+    });
+  } else {
+    viewer.camera.flyHome(1);
+  }
+}
+
 /** Short badge text per service type, shown in the layer lists. */
 const KIND_LABEL: Record<OgcLayerConfig['type'], string> = {
   wms: 'WMS',
@@ -81,38 +113,6 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
       ];
     });
   }, [viewer]);
-
-  /**
-   * Flies to a layer, for an explicit "zoom to this" request.
-   *
-   * `provider.rectangle` is not a reliable "where is this layer" answer: a
-   * provider that doesn't know its own extent reports its *tiling scheme's*
-   * extent instead, which is the whole world. Which value you get depends
-   * on the scheme — `Rectangle.MAX_VALUE` for the geographic one (WMS's
-   * default), the slightly shorter Web Mercator extent for XYZ. Either way
-   * it means "no idea", and `flyTo` on a whole-world rectangle drops the
-   * camera at (0°, 0°), off the coast of west Africa.
-   *
-   * Since the user asked to go somewhere, we always move: to the real
-   * extent when the provider has one, and otherwise to a clean whole-globe
-   * view via `flyHome`, which is the honest rendering of "everywhere".
-   */
-  const flyToImagery = useCallback((cesiumViewer: Cesium.Viewer, layer: Cesium.ImageryLayer) => {
-    const rectangle = layer.imageryProvider?.rectangle;
-    const knowsWhereItIs =
-      rectangle !== undefined &&
-      !Cesium.Rectangle.equals(rectangle, Cesium.Rectangle.MAX_VALUE) &&
-      !Cesium.Rectangle.equals(rectangle, WEB_MERCATOR_EXTENT);
-
-    if (knowsWhereItIs) {
-      cesiumViewer.flyTo(layer).catch(() => {
-        // A rejected flyTo (e.g. the layer was removed mid-flight) isn't
-        // worth surfacing to the user.
-      });
-    } else {
-      cesiumViewer.camera.flyHome(1);
-    }
-  }, []);
 
   const addImageryLayer = useCallback((cesiumViewer: Cesium.Viewer, config: OgcImageryConfig) => {
     const provider = createImageryProvider(config);
@@ -253,7 +253,7 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
         });
       }
     },
-    [viewer, imagery, vectors, flyToImagery],
+    [viewer, imagery, vectors],
   );
 
   /**

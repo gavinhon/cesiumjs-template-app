@@ -20,6 +20,12 @@ CesiumJS, wired up **without** a Cesium ion account.
 - **A 3D Tiles panel** for loading tilesets (buildings, point clouds,
   photogrammetry) from a `tileset.json` URL: a remote service, an
   S3/CloudFront bucket, or a dataset dropped under this app's `public/`.
+  Models are set on the terrain automatically — BIM and city models are
+  usually authored for flat ground at height 0, which real terrain rarely
+  is — except underground ones (anything lying entirely below the
+  surface), which keep their authored depth. Each has an "On terrain"
+  switch; a dataset can also declare
+  `"extras": { "placement": "as-authored" }` in its `tileset.json`.
 - **Drawing tools**: place points (each shows its elevation), draw lines
   and polygons, drop text labels — plus a 2D/3D toggle, since the tools
   work in both. Live previews throughout: a marker showing where the next
@@ -71,15 +77,16 @@ Open the printed local URL; you should see the globe centered on Singapore.
 
 ## Commands
 
-| Command             | What it does                                          |
-| ------------------- | ----------------------------------------------------- |
-| `npm run dev`       | Vite dev server with hot reload                       |
-| `npm run build`     | Typecheck, then produce a production build in `dist/` |
-| `npm run preview`   | Serve the production build locally                    |
-| `npm run typecheck` | TypeScript only, no bundling                          |
-| `npm run lint`      | Oxlint                                                |
-| `npm run format`    | Rewrite files with Prettier                           |
-| `npm run check`     | Typecheck + lint + format check — run before pushing  |
+| Command             | What it does                                                 |
+| ------------------- | ------------------------------------------------------------ |
+| `npm run dev`       | Vite dev server with hot reload                              |
+| `npm run build`     | Typecheck, then produce a production build in `dist/`        |
+| `npm run preview`   | Serve the production build locally                           |
+| `npm run typecheck` | TypeScript only, no bundling                                 |
+| `npm run lint`      | Oxlint                                                       |
+| `npm run format`    | Rewrite files with Prettier                                  |
+| `npm test`          | Run the unit tests once (`test:watch` to keep going)         |
+| `npm run check`     | Typecheck + lint + format check + tests — run before pushing |
 
 ## Project structure
 

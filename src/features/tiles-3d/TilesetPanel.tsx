@@ -47,10 +47,14 @@ export function TilesetPanel({ tilesets, disabled, open }: TilesetPanelProps) {
       />
       <AddTilesetForm onAdd={tilesets.addTileset} disabled={disabled} />
       <TilesetList
-        tilesets={tilesets.tilesets}
+        tilesets={tilesets.tilesets.map((entry) => ({
+          ...entry,
+          placeable: entry.footprint !== null,
+        }))}
         onRemove={tilesets.removeTileset}
         onToggleVisibility={tilesets.toggleVisibility}
         onZoomTo={tilesets.zoomToTileset}
+        onPlacementChange={(id, placement) => void tilesets.setPlacement(id, placement)}
       />
     </Panel>
   );

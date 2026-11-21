@@ -1,9 +1,11 @@
 import type { GeographicBoundingBox, ServiceLayerOption, WfsVersion } from './ogcLayerTypes';
 import {
+  boxFromMinMaxAttributes,
   childByLocalName,
   childText,
   descendantsByLocalName,
   fetchCapabilities,
+  finiteBox,
 } from './capabilitiesXml';
 
 /**
@@ -30,23 +32,12 @@ function parseBoundingBox(featureTypeEl: Element): GeographicBoundingBox | undef
     const lower = childText(wgs84, 'LowerCorner')?.split(/\s+/).map(Number);
     const upper = childText(wgs84, 'UpperCorner')?.split(/\s+/).map(Number);
     if (lower?.length === 2 && upper?.length === 2) {
-      const box = { west: lower[0], south: lower[1], east: upper[0], north: upper[1] };
-      if (Object.values(box).every(Number.isFinite)) return box;
+      const box = finiteBox({ west: lower[0], south: lower[1], east: upper[0], north: upper[1] });
+      if (box) return box;
     }
   }
-
   const latLon = childByLocalName(featureTypeEl, 'LatLongBoundingBox');
-  if (latLon) {
-    const box = {
-      west: Number(latLon.getAttribute('minx')),
-      south: Number(latLon.getAttribute('miny')),
-      east: Number(latLon.getAttribute('maxx')),
-      north: Number(latLon.getAttribute('maxy')),
-    };
-    if (Object.values(box).every(Number.isFinite)) return box;
-  }
-
-  return undefined;
+  return latLon ? boxFromMinMaxAttributes(latLon) : undefined;
 }
 
 export async function fetchWfsFeatureTypes(
@@ -58,7 +49,11 @@ export async function fetchWfsFeatureTypes(
     REQUEST: 'GetCapabilities',
     VERSION: version,
   });
+  return parseWfsFeatureTypes(xml);
+}
 
+/** The feature types in a WFS capabilities document. Separate from the fetch so it can be tested. */
+export function parseWfsFeatureTypes(xml: Document): ServiceLayerOption[] {
   const featureTypes: ServiceLayerOption[] = [];
   for (const el of descendantsByLocalName(xml, 'FeatureType')) {
     const name = childText(el, 'Name');

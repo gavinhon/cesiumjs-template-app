@@ -46,7 +46,7 @@
 }
 
 .layer-manager__move:hover:not(:disabled) {
-  color: var(--accent);
+  color: var(--ink);
 }
 
 .layer-manager__move:disabled {

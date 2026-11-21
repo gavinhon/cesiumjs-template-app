@@ -99,7 +99,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Sizing only — the accent fill comes from `.control-button--primary`. */
+/* Sizing only — the orange label and edge come from `.control-button--primary`. */
 .panel-form__submit {
   width: 100%;
   height: var(--control-height);
@@ -108,8 +108,8 @@
 
 /* Secondary action (e.g. "Look up layers") — same control language as the
    submit button, but left at the neutral .control-button look rather than
-   filled with --accent, since it's a preparatory step and not the primary
-   "commit" action. */
+   marked with the accent, since it's a preparatory step and not the
+   primary "commit" action. */
 .panel-form__action {
   width: 100%;
   height: var(--control-height);

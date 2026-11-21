@@ -223,6 +223,11 @@ draw order.
 npm run check
 ```
 
+That includes the test suite. If your feature has logic that doesn't need
+the globe — parsing a response, building a request URL, a calculation —
+split it into a plain function and give it a `.test.ts` beside it; see
+[testing.md](testing.md).
+
 Then run the app and confirm: the button opens the panel, adding works, the
 camera flies to the new resource, toggling visibility and removing both take
 effect on the globe, and other features still work.

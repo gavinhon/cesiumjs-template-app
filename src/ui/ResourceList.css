@@ -20,13 +20,12 @@
   background: var(--surface-variant);
 }
 
-/* The current selection. An accent-tinted fill plus a left edge, rather
-   than a border all round, so the row doesn't jump by a pixel as selection
-   moves down the list. */
+/* The current selection: a faint accent tint and an orange left edge, the
+   same "on" language as an active button. Inset rather than a thicker
+   border, so the row doesn't jump by a pixel as selection moves. */
 .resource-list__item--selected {
   background: var(--accent-soft);
-  border-color: var(--accent);
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .resource-list__row {

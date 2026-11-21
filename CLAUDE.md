@@ -16,12 +16,18 @@ consistency matter more here than they would in an app shipped once.
 
 ```bash
 npm run dev        # Vite dev server (prefer the preview tooling over raw shell)
-npm run check      # typecheck + lint + format check — run this before finishing
+npm run check      # typecheck + lint + format check + tests — run this before finishing
+npm test           # Vitest unit tests only
 npm run format     # apply Prettier
 npm run build      # tsc -b && vite build
+npm run test:terrain-script   # Python tests for scripts/build_terrain_tiles.py
 ```
 
-There is no test suite. Verify changes by running the app.
+Unit tests cover the logic (geometry, parsers, the `public/` scan, the
+terrain encoder); map interactions are verified by running the app — see
+[docs/testing.md](docs/testing.md) for both, including the manual checklist.
+Put a test beside its module as `<module>.test.ts`; split logic from I/O to
+make it testable (`parseWmsLayers` vs `fetchWmsLayers`).
 
 ## Layout
 
@@ -97,7 +103,7 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
     decides; component styles can only override the shared `.control`
     primitives if the global sheet loads first. Getting this backwards
     collapsed the drawing toolbar's icon buttons to a 2px content box and
-    stripped the accent fill off every submit button.
+    stripped the accent styling off every submit button.
 
 ## Conventions in brief
 
@@ -129,6 +135,12 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   `--measure` near-white with a dark `--bg` casing (so they read on light
   streets), analyses `--sight` cyan, blocked sight lines `--danger`, WFS
   data `--vector` blue.
+- **The UI is minimal and dark; orange is a signal, not a surface.** An
+  active toggle, the primary button and a selected row are an orange label
+  or edge over a faint `--accent-soft` tint — never a solid orange fill,
+  never a glow. Hover is neutral (`--surface-hover`), so pointing at a
+  button can't be mistaken for turning it on. The bright thing on screen
+  should be the map.
 - **Every interactive control is `var(--control-height)` tall.** Inputs,
   selects, buttons and the square icon buttons in both rails all share one
   height so the UI reads on a single rhythm; `--control-height-sm` is the
@@ -264,11 +276,18 @@ non-obvious prop.
   from the WGS84 ellipsoid, national DTMs usually from mean sea level. The
   geoid is ~8 m above the ellipsoid around Singapore, so unconverted terrain
   sits 8 m low. The terrain script converts via EGM2008 by default.
-- **3D Tiles keep their own heights when terrain loads.** A model authored
-  for flat ground (the 1965 tilesets in `public/` are) sits below real
-  terrain and misregisters against the draped imagery at oblique angles.
-  It isn't hidden — 3D Tiles draw over terrain by default — and the fix is
-  the tileset's georeferencing, not app code.
+- **3D Tiles keep their own heights unless moved.** A model authored for
+  flat ground (BIM exports, the 1965 tilesets in `public/`) sits below real
+  terrain. `useTilesets` moves each one onto the terrain with
+  `tileset.modelMatrix` (see `placeTilesetOnTerrain.ts`) and re-seats them
+  on `scene.terrainProviderChanged`. Never set `modelMatrix` anywhere else.
+  The base height comes from `tileset.json`'s bounding volume, read
+  directly because Cesium's bounding-volume classes are private API — so a
+  tileset whose bounds are padded beyond its geometry (the 1965 aerial's
+  region is ±60 m around a flat sheet) is placed that far off. Models
+  entirely below the surface are left as authored (underground); the list
+  has a per-model switch, and `"extras": { "placement": "as-authored" }` in
+  tileset.json sets it from the data.
 - **Cesium is not a normal npm package** — `vite-plugin-cesium` copies its
   static assets (workers, shaders, widget images) and defines
   `CESIUM_BASE_URL`. Don't hand-roll that.

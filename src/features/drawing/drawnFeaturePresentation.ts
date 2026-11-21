@@ -2,7 +2,15 @@ import * as Cesium from 'cesium';
 import { MAP_COLORS } from '@/cesium/mapColors';
 import type { DrawnFeature, DrawnFeatureKind } from './drawingTypes';
 import { raise, EYE_HEIGHT } from './lineOfSight';
-import { heightOf, heightTriangleCorner } from './measurement';
+import {
+  describeDirect,
+  describeHorizontal,
+  heightOf,
+  heightTriangleCorner,
+  horizontalDiffers,
+  levelPath,
+  pointAlong,
+} from './measurement';
 import { rimPositions } from './viewshed';
 
 /**
@@ -25,6 +33,11 @@ const MEASURE_KINDS: ReadonlySet<DrawnFeatureKind> = new Set(['measure', 'height
  * and moving a vertex means recomputing, not just redrawing.
  */
 export const ANALYSIS_KINDS: ReadonlySet<DrawnFeatureKind> = new Set(['line-of-sight', 'viewshed']);
+
+/** Kinds whose default label is a computed number, drawn in the readout style. */
+export function isReadoutKind(kind: DrawnFeatureKind): boolean {
+  return MEASURE_KINDS.has(kind) || ANALYSIS_KINDS.has(kind);
+}
 
 export function colorFor(kind: DrawnFeatureKind): Cesium.Color {
   if (MEASURE_KINDS.has(kind)) return MAP_COLORS.measure;
@@ -52,6 +65,7 @@ export type EntityPart =
   | 'outline' // a polygon's edge
   | 'vertical' // height triangle: the vertical leg
   | 'horizontal' // height triangle: the horizontal leg
+  | 'level' // measurement: the path flattened to its lowest point, dotted
   | 'eye' // observer, raised to eye height
   | 'target' // line-of-sight target
   | 'clear' // line of sight: eye to the first obstruction (or the target)
@@ -111,6 +125,10 @@ export function labelAnchorFor(feature: DrawnFeature): Cesium.Cartesian3 {
     return heightOf(a) >= heightOf(b) ? a : b;
   }
 
+  // On the measured line, halfway along, so the number reads as that
+  // line's length rather than as something about its last point.
+  if (feature.kind === 'measure') return pointAlong(positions, 0.5);
+
   if (feature.kind === 'polygon') {
     // Averaged in geographic coordinates, not Cartesian: the mean of points
     // on a sphere falls *inside* it, which would bury the label under the
@@ -151,7 +169,10 @@ export function labelTextFor(feature: DrawnFeature): string | null {
     case 'name':
       return feature.name.trim() || null;
     case 'measurement':
-      return feature.measurement;
+      // A measurement's map label is just the measured line's length; the
+      // horizontal distance gets its own label on its own dotted line
+      // (`horizontalLabelFor`). The panel still shows both together.
+      return feature.kind === 'measure' ? describeDirect(feature.positions) : feature.measurement;
     default: {
       const attribute = feature.attributes.find((entry) => entry.id === feature.labelSource);
       if (!attribute?.value.trim()) return null;
@@ -159,6 +180,33 @@ export function labelTextFor(feature: DrawnFeature): string | null {
       return key ? `${key}: ${attribute.value}` : attribute.value;
     }
   }
+}
+
+/**
+ * The second label a measurement carries: the horizontal distance, halfway
+ * along the dotted level line it describes. `null` when the path barely
+ * climbs (the two distances would print the same), or when the feature's
+ * label isn't showing the measurement at all.
+ */
+export function horizontalLabelFor(
+  feature: DrawnFeature,
+): { anchor: Cesium.Cartesian3; text: string } | null {
+  if (feature.kind !== 'measure' || !feature.visible || feature.labelSource !== 'measurement') {
+    return null;
+  }
+  if (!horizontalDiffers(feature.positions)) return null;
+  return {
+    anchor: pointAlong(levelPath(feature.positions), 0.5),
+    text: describeHorizontal(feature.positions),
+  };
+}
+
+/**
+ * The dotted level line's vertices — or none at all on flat ground, where
+ * it would sit on top of the measured line and say nothing.
+ */
+export function levelLineFor(positions: Cesium.Cartesian3[]): Cesium.Cartesian3[] {
+  return horizontalDiffers(positions) ? levelPath(positions) : [];
 }
 
 /**
@@ -295,6 +343,9 @@ export function applyGeometry(feature: DrawnFeature, positions: Cesium.Cartesian
         break;
       case 'horizontal':
         setPolyline(entity, [heightTriangleCorner(first, last), last]);
+        break;
+      case 'level':
+        setPolyline(entity, levelLineFor(positions));
         break;
       case 'eye':
         entity.position = new Cesium.ConstantPositionProperty(eye);

@@ -63,7 +63,7 @@ export function createImageryProvider(config: OgcImageryConfig): Cesium.ImageryP
       // subdomain) and it will substitute them per tile. Useful for XYZ/TMS
       // tile servers and WMTS "RESTful" endpoints that hand you a template.
       return new Cesium.UrlTemplateImageryProvider({
-        url: config.urlTemplate,
+        url: config.url,
         ...(config.maximumLevel !== undefined && { maximumLevel: config.maximumLevel }),
       });
 

@@ -102,22 +102,39 @@ export function publicDatasetCatalog(): Plugin {
   };
 }
 
-/** Walks `public/` and returns every dataset it recognises, sorted by path. */
-function scanPublicFolder(publicDir: string, base: string): PublicDataset[] {
+/** The fields every dataset has, from its location under `public/`. */
+interface DatasetBase {
+  id: string;
+  name: string;
+  path: string;
+  /** The dataset's own URL, `base`-prefixed — a folder, or a `.geojson` file. */
+  url: string;
+}
+
+/**
+ * Walks `public/` and returns every dataset it recognises, sorted by path.
+ *
+ * `base` is '/' unless the app is deployed under a sub-path; every URL the
+ * app requests has to carry it, or a dataset that works in dev 404s in
+ * production. Exported for the tests.
+ */
+export function scanPublicFolder(publicDir: string, base: string): PublicDataset[] {
   if (!publicDir || !existsSync(publicDir)) return [];
   const datasets: PublicDataset[] = [];
 
-  // `base` is '/' unless the app is deployed under a sub-path; every URL
-  // the app requests has to carry it, or a dataset that works in dev 404s
-  // in production.
-  const urlFor = (relativePath: string) =>
-    `${base.replace(/\/$/, '')}/${relativePath.split(path.sep).join('/')}`;
+  const baseOf = (entryPath: string, name: string): DatasetBase => {
+    const relative = path.relative(publicDir, entryPath).split(path.sep).join('/');
+    return {
+      id: `public:${relative}`,
+      name,
+      path: relative,
+      url: `${base.replace(/\/$/, '')}/${relative}`,
+    };
+  };
 
   function scan(folder: string, depth: number) {
-    const relative = path.relative(publicDir, folder);
-
-    if (relative) {
-      const dataset = classifyFolder(folder, relative, urlFor);
+    if (folder !== publicDir) {
+      const dataset = classifyFolder(folder, baseOf(folder, path.basename(folder)));
       if (dataset) {
         datasets.push(dataset);
         return;
@@ -132,13 +149,9 @@ function scanPublicFolder(publicDir: string, base: string): PublicDataset[] {
       if (entry.isDirectory()) {
         if (!SKIPPED_FOLDERS.has(entry.name)) scan(entryPath, depth + 1);
       } else if (entry.name.toLowerCase().endsWith('.geojson')) {
-        const entryRelative = path.relative(publicDir, entryPath);
         datasets.push({
           kind: 'geojson',
-          id: `public:${toPosix(entryRelative)}`,
-          name: entry.name.replace(/\.geojson$/i, ''),
-          path: toPosix(entryRelative),
-          url: urlFor(entryRelative),
+          ...baseOf(entryPath, entry.name.replace(/\.geojson$/i, '')),
         });
       }
     }
@@ -149,46 +162,16 @@ function scanPublicFolder(publicDir: string, base: string): PublicDataset[] {
 }
 
 /** Decides whether a folder *is* a dataset, rather than a folder that might contain some. */
-function classifyFolder(
-  folder: string,
-  relative: string,
-  urlFor: (relativePath: string) => string,
-): PublicDataset | null {
-  const id = `public:${toPosix(relative)}`;
-  const folderName = path.basename(folder);
-
+function classifyFolder(folder: string, base: DatasetBase): PublicDataset | null {
   if (existsSync(path.join(folder, 'tileset.json'))) {
-    return {
-      kind: '3d-tiles',
-      id,
-      name: folderName,
-      path: toPosix(relative),
-      url: urlFor(path.join(relative, 'tileset.json')),
-    };
+    return { kind: '3d-tiles', ...base, url: `${base.url}/tileset.json` };
   }
-
   const layerJson = path.join(folder, 'layer.json');
-  if (existsSync(layerJson)) {
-    return readTerrain(
-      layerJson,
-      { id, name: folderName, path: toPosix(relative) },
-      urlFor(relative),
-    );
-  }
-
-  return readTilePyramid(
-    folder,
-    { id, name: folderName, path: toPosix(relative) },
-    relative,
-    urlFor,
-  );
+  if (existsSync(layerJson)) return readTerrain(layerJson, base);
+  return readTilePyramid(folder, base);
 }
 
-function readTerrain(
-  layerJson: string,
-  base: { id: string; name: string; path: string },
-  url: string,
-): PublicTerrainDataset | null {
+function readTerrain(layerJson: string, base: DatasetBase): PublicTerrainDataset | null {
   let layer: Record<string, unknown>;
   try {
     layer = JSON.parse(readFileSync(layerJson, 'utf8')) as Record<string, unknown>;
@@ -208,7 +191,6 @@ function readTerrain(
     kind: 'terrain',
     ...base,
     name: typeof layer.name === 'string' && layer.name ? layer.name : base.name,
-    url,
     ...(bounds && { bounds: bounds as [number, number, number, number] }),
     ...(typeof layer.attribution === 'string' &&
       layer.attribution && { attribution: layer.attribution }),
@@ -221,22 +203,15 @@ function readTerrain(
  * Checking one branch rather than all of them is what keeps the scan
  * instant on a pyramid with a hundred thousand tiles.
  */
-function readTilePyramid(
-  folder: string,
-  base: { id: string; name: string; path: string },
-  relative: string,
-  urlFor: (relativePath: string) => string,
-): PublicTilePyramidDataset | null {
+function readTilePyramid(folder: string, base: DatasetBase): PublicTilePyramidDataset | null {
   const levels = numberedFolders(folder);
   if (levels.length === 0) return null;
 
-  const firstLevel = path.join(folder, String(levels[0]));
+  const firstLevel = path.join(folder, levels[0]);
   const columns = numberedFolders(firstLevel);
   if (columns.length === 0) return null;
 
-  const tile = readdirSync(path.join(firstLevel, String(columns[0]))).find((name) =>
-    TILE_IMAGE.test(name),
-  );
+  const tile = readdirSync(path.join(firstLevel, columns[0])).find((name) => TILE_IMAGE.test(name));
   if (!tile) return null;
 
   // gdal2tiles and other TMS writers count rows up from the south and
@@ -245,21 +220,24 @@ function readTilePyramid(
   const isTms = existsSync(path.join(folder, 'tilemapresource.xml'));
   const extension = path.extname(tile);
 
+  const { url, ...rest } = base;
   return {
     kind: 'xyz',
-    ...base,
-    urlTemplate: `${urlFor(relative)}/{z}/{x}/${isTms ? '{reverseY}' : '{y}'}${extension}`,
-    maximumLevel: Math.max(...levels),
+    ...rest,
+    urlTemplate: `${url}/{z}/{x}/${isTms ? '{reverseY}' : '{y}'}${extension}`,
+    maximumLevel: Math.max(...levels.map(Number)),
   };
 }
 
-function numberedFolders(folder: string): number[] {
+/**
+ * The all-digit subfolder names, in numeric order. Kept as the names on
+ * disk, not converted to numbers: "01" would become 1, and opening a
+ * folder called "1" fails — which, inside a Vite plugin, takes the whole
+ * dev server down with it.
+ */
+function numberedFolders(folder: string): string[] {
   return readdirSync(folder, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && NUMERIC.test(entry.name))
-    .map((entry) => Number(entry.name))
-    .sort((a, b) => a - b);
-}
-
-function toPosix(relativePath: string): string {
-  return relativePath.split(path.sep).join('/');
+    .map((entry) => entry.name)
+    .sort((a, b) => Number(a) - Number(b));
 }

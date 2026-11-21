@@ -388,7 +388,14 @@ def encode_tile(
     mesher = Delatin(
         tile_heights.astype(np.float32).ravel(), width=GRID_SIZE, height=GRID_SIZE, max_error=max_error
     )
-    grid_xy = mesher.vertices[:, :2].astype(np.int64)  # (column, row)
+    # Delatin's y counts *up* from the bottom row, not down like a raster
+    # row: the vertex it reports at y is raster row (GRID_SIZE - 1 - y).
+    # Reading y as a row still yields self-consistent tiles — every vertex
+    # lands at the right place with the right height — but Delatin then
+    # chose its points by fitting the tile's north–south mirror image, so
+    # `max_error` held for the mirror and not for the terrain actually drawn.
+    grid_xy = mesher.vertices[:, :2].astype(np.int64)
+    grid_xy[:, 1] = (GRID_SIZE - 1) - grid_xy[:, 1]  # now (column, row)
     triangles = mesher.triangles.astype(np.int64)
 
     # Triangles must wind counter-clockwise seen from above (east right,

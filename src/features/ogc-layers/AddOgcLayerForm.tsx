@@ -121,7 +121,7 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
       case 'wmts':
         return { type, id, name: label, url, layer: layerName, style, format, tileMatrixSetID };
       case 'xyz':
-        return { type, id, name: label, url: urlTemplate, urlTemplate };
+        return { type, id, name: label, url: urlTemplate };
       case 'wfs':
         return {
           type,

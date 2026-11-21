@@ -12,6 +12,7 @@ import {
   casedLineMaterial,
   colorFor,
   hiddenLineMaterial,
+  isReadoutKind,
   labelAnchorFor,
   labelTextFor,
   recolorPart,
@@ -71,11 +72,9 @@ const DRAW_COLOR = MAP_COLORS.accent;
 const MEASURE_COLOR = MAP_COLORS.measure;
 const SIGHT_COLOR = MAP_COLORS.sight;
 
-/** Drawings in the accent, measurements near-white, analyses in the sight colour. */
+/** A tool draws in the colour of the feature kind it makes — see `colorFor`. */
 function toolColor(tool: DrawingTool): Cesium.Color {
-  if (tool === 'measure' || tool === 'height') return MEASURE_COLOR;
-  if (tool === 'line-of-sight' || tool === 'viewshed') return SIGHT_COLOR;
-  return DRAW_COLOR;
+  return tool === 'none' ? DRAW_COLOR : colorFor(tool);
 }
 
 /**
@@ -86,14 +85,6 @@ const MIN_TWO_POINT_DISTANCE = 0.5;
 
 /** Shown while a line-of-sight or viewshed analysis is running. */
 const ANALYSING = 'Analysing…';
-
-/** Kinds whose label is a number by default, drawn in the readout style. */
-const READOUT_KINDS: ReadonlySet<DrawnFeatureKind> = new Set([
-  'measure',
-  'height',
-  'line-of-sight',
-  'viewshed',
-]);
 
 /**
  * Translucent tool colours for the marker that follows the cursor.
@@ -147,10 +138,10 @@ function minimumVertices(tool: InProgressTool): number {
 
 /**
  * The readout a feature carries, for the kinds whose readout is pure
- * geometry. Analyses return `undefined`: theirs needs the terrain, so it's
- * computed asynchronously by `runAnalysis` instead.
+ * geometry. `null` for everything else — including the analyses, whose
+ * readout needs the terrain and is computed asynchronously by `runAnalysis`.
  */
-function measurementFor(kind: DrawnFeatureKind, positions: Cesium.Cartesian3[]) {
+function measurementFor(kind: DrawnFeatureKind, positions: Cesium.Cartesian3[]): string | null {
   switch (kind) {
     case 'point':
       return describeElevation(positions[0]);
@@ -158,9 +149,6 @@ function measurementFor(kind: DrawnFeatureKind, positions: Cesium.Cartesian3[]) 
       return describePath(positions);
     case 'height':
       return describeHeight(positions[0], positions[positions.length - 1]);
-    case 'line-of-sight':
-    case 'viewshed':
-      return undefined;
     default:
       return null;
   }
@@ -269,14 +257,11 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     const labelLayer = createMapLabelLayer(cesiumViewer);
     labelLayerRef.current = labelLayer;
 
-    // Turns a screen position into the point under it — on the terrain, or
-    // on a 3D Tiles building standing on it. That's what makes every tool
-    // here 3D: a vertex lands on the rooftop or hillside you clicked, so
-    // distances and heights between vertices are real 3D measurements. See
-    // `pickSurface` for how terrain and buildings are told apart.
-    function pickGlobe(screenPosition: Cesium.Cartesian2): Cesium.Cartesian3 | null {
-      return pickSurface(cesiumViewer, screenPosition);
-    }
+    // Every click and cursor move below becomes a position through
+    // `pickSurface` — on the terrain, or on a 3D Tiles building standing on
+    // it. That's what makes every tool here 3D: a vertex lands on the
+    // rooftop or hillside you clicked, so distances and heights between
+    // vertices are real 3D measurements.
 
     // The vertices placed so far, plus — while the next click hasn't
     // happened yet — a trailing point that follows the cursor. That's the
@@ -600,7 +585,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         positions: finalPositions,
         entities,
         labelSource: tool === 'measure' ? 'measurement' : 'none',
-        measurement: measurementFor(tool, finalPositions) ?? null,
+        measurement: measurementFor(tool, finalPositions),
       });
 
       previewEntityRef.current = null;
@@ -780,7 +765,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         positions,
         entities,
         labelSource: 'measurement',
-        measurement: isAnalysis ? ANALYSING : (measurementFor(tool, positions) ?? null),
+        measurement: isAnalysis ? ANALYSING : measurementFor(tool, positions),
       });
       if (isAnalysis) void runAnalysis(id, tool, positions, entities);
     }
@@ -858,7 +843,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             }),
             'overlay',
           );
-          measurement = describeViewshed(result, radius);
+          measurement = describeViewshed(result.visibleFraction, radius);
         }
       } catch (error) {
         if (!isCurrent()) return;
@@ -1002,7 +987,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         return;
       }
 
-      const point = pickGlobe(event.position);
+      const point = pickSurface(cesiumViewer, event.position);
       if (!point) return;
 
       if (tool === 'point') {
@@ -1124,7 +1109,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       // A drag in progress owns the pointer, whatever else is going on.
       const drag = dragRef.current;
       if (drag) {
-        const dragged = pickGlobe(event.endPosition);
+        const dragged = pickSurface(cesiumViewer, event.endPosition);
         const feature = featuresRef.current.find((entry) => entry.id === drag.featureId);
         if (!dragged || !feature) return;
         drag.positions[drag.index] = dragged;
@@ -1138,7 +1123,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
       const tool = activeToolRef.current;
       if (tool === 'none') return;
-      previewMousePosRef.current = pickGlobe(event.endPosition);
+      previewMousePosRef.current = pickSurface(cesiumViewer, event.endPosition);
       if (positionsRef.current.length > 0) {
         updateMeasureLabel(
           isTwoPointTool(tool) ? [positionsRef.current[0], liveEnd()] : livePositions(),
@@ -1268,7 +1253,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           // Keyed off the kind, which never changes, rather than the label
           // source: a label is created once, and its style can't follow a
           // later switch between readout and name.
-          labelLayer.add(anchor, text, READOUT_KINDS.has(feature.kind) ? 'readout' : 'text'),
+          labelLayer.add(anchor, text, isReadoutKind(feature.kind) ? 'readout' : 'text'),
         );
       }
     }
