@@ -188,7 +188,7 @@ match the `id` you gave `<Panel>`:
 
 ```ts
 const PANELS: { id: PanelId; label: string; controls: string }[] = [
-  { id: 'ogc-layers', label: 'OGC Layers', controls: 'ogc-layers-panel' },
+  { id: 'ogc-layers', label: 'Map Services', controls: 'ogc-layers-panel' },
   { id: 'tiles-3d', label: '3D Tiles', controls: 'tiles-3d-panel' },
   { id: 'geojson', label: 'GeoJSON', controls: 'geojson-panel' },
 ];

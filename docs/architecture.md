@@ -219,9 +219,12 @@ Cesium.Terrain(CesiumTerrainProvider.fromUrl(url, { requestVertexNormals:
 true })))` — rather than awaiting a provider and assigning it.
 `setTerrain` cancels a still-loading terrain when another is chosen, so a
 slow first choice can't land after a fast second one. The vertex normals
-feed a fixed hillshade light (`src/cesium/hillshadeLight.ts`) that's on
-whenever real terrain is: without it, terrain changes the globe's shape but
-not its colour, and from overhead you can't see it at all.
+feed a hillshade that's on whenever real terrain is: without it, terrain
+changes the globe's shape but not its colour, and from overhead you can't
+see it at all. The light it uses (`src/cesium/hillshadeLight.ts`) replaces
+Cesium's real-time sun for the life of the viewer, pinned to a fixed angle
+relative to the camera, so 3D models aren't black whenever it's night where
+they are.
 
 Terrain changes things that sit on it:
 

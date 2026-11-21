@@ -93,7 +93,7 @@ function App() {
       ...tilesets.tilesets.map((entry) => ({
         id: entry.config.id,
         name: entry.config.name,
-        kind: '3D TILES',
+        kind: entry.config.format === 'i3s' ? 'I3S' : '3D TILES',
         visible: entry.visible,
         onToggleVisibility: () => tilesets.toggleVisibility(entry.config.id),
         onZoomTo: () => tilesets.zoomToTileset(entry.config.id),

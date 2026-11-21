@@ -2,14 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import * as Cesium from 'cesium';
 import { BASEMAPS, DEFAULT_BASEMAP } from '@/cesium/basemaps';
 import { createImageryProvider } from './createImageryProvider';
-import { createWfsDataSource } from './createWfsDataSource';
-import { loadVectorDataSource } from './loadVectorDataSource';
-import type {
-  ManagedImageryLayer,
-  ManagedVectorLayer,
-  OgcImageryConfig,
-  OgcLayerConfig,
-} from './ogcLayerTypes';
+import { createVectorDataSource } from './createVectorDataSource';
+import type { ManagedImageryLayer, ManagedVectorLayer, OgcLayerConfig } from './ogcLayerTypes';
 
 /** Stable id for the base map, so re-seeding can recognise it. */
 const BASE_LAYER_ID = 'base-imagery';
@@ -53,6 +47,15 @@ function flyToImagery(viewer: Cesium.Viewer, layer: Cesium.ImageryLayer) {
   }
 }
 
+/**
+ * Whether an extent is a place worth flying to unasked. One wider than half
+ * the world isn't: flying "to" it just pulls the camera out to space,
+ * losing wherever the user was looking.
+ */
+function isRegional(rectangle: Cesium.Rectangle | undefined): rectangle is Cesium.Rectangle {
+  return rectangle !== undefined && Cesium.Rectangle.computeWidth(rectangle) < Math.PI;
+}
+
 /** Short badge text per service type, shown in the layer lists. */
 const KIND_LABEL: Record<OgcLayerConfig['type'], string> = {
   wms: 'WMS',
@@ -60,6 +63,8 @@ const KIND_LABEL: Record<OgcLayerConfig['type'], string> = {
   xyz: 'XYZ',
   wfs: 'WFS',
   geojson: 'GEOJSON',
+  'arcgis-map': 'ARCGIS',
+  'arcgis-feature': 'ARCGIS',
 };
 
 /**
@@ -118,54 +123,21 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
     });
   }, [viewer]);
 
-  const addImageryLayer = useCallback((cesiumViewer: Cesium.Viewer, config: OgcImageryConfig) => {
-    const provider = createImageryProvider(config);
-    const cesiumLayer = cesiumViewer.imageryLayers.addImageryProvider(provider);
-
-    setImagery((prev) => [
-      ...prev,
-      {
-        id: config.id,
-        name: config.name,
-        kind: KIND_LABEL[config.type],
-        cesiumLayer,
-        visible: true,
-        alpha: 1,
-        removable: true,
-      },
-    ]);
-
-    // Auto-fly only when the *config* carries a real extent — i.e. the user
-    // picked this layer from a capabilities lookup, so we know where it is.
-    // Deliberately not inferred from `provider.rectangle`: as described
-    // above that reports a whole-world extent for layers whose location is
-    // unknown, so trusting it would yank the camera out to a global view
-    // every time someone adds an XYZ overlay, losing wherever they were
-    // looking — the exact thing this guard exists to prevent.
-    if ('boundingBox' in config && config.boundingBox) {
-      cesiumViewer.flyTo(cesiumLayer).catch(() => {
-        // See flyToImagery.
-      });
-    }
-  }, []);
-
   /**
    * Adds a layer of any supported type.
    *
-   * Async because WFS and GeoJSON actually fetch and parse features before we know
-   * whether it worked — the form awaits this so it can show a loading state
-   * and surface a failure, rather than adding a layer that silently isn't
-   * there.
+   * Async because most types read something from the server before we know
+   * whether it worked — WFS, ArcGIS and GeoJSON fetch their features, an
+   * ArcGIS MapServer its description. The form awaits this so it can show a
+   * loading state and surface a failure, rather than adding a layer that
+   * silently isn't there.
    */
   const addLayer = useCallback(
     async (config: OgcLayerConfig) => {
       if (!viewer) return;
 
-      if (config.type === 'wfs' || config.type === 'geojson') {
-        const dataSource =
-          config.type === 'wfs'
-            ? await createWfsDataSource(config)
-            : await loadVectorDataSource(config.url, config.name);
+      if (config.type === 'wfs' || config.type === 'geojson' || config.type === 'arcgis-feature') {
+        const dataSource = await createVectorDataSource(config);
         await viewer.dataSources.add(dataSource);
         setVectors((prev) => [
           ...prev,
@@ -185,9 +157,32 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
         return;
       }
 
-      addImageryLayer(viewer, config);
+      const provider = await createImageryProvider(config);
+      const cesiumLayer = viewer.imageryLayers.addImageryProvider(provider);
+      setImagery((prev) => [
+        ...prev,
+        {
+          id: config.id,
+          name: config.name,
+          kind: KIND_LABEL[config.type],
+          cesiumLayer,
+          visible: true,
+          alpha: 1,
+          removable: true,
+        },
+      ]);
+
+      // Auto-fly only to a layer that is somewhere in particular. As
+      // described at `flyToImagery`, a provider that doesn't know its extent
+      // reports the whole world, and flying to that every time someone adds
+      // a global overlay would throw away wherever they were looking.
+      if (isRegional(provider.rectangle)) {
+        viewer.flyTo(cesiumLayer).catch(() => {
+          // See flyToImagery.
+        });
+      }
     },
-    [viewer, addImageryLayer],
+    [viewer],
   );
 
   const removeLayer = useCallback(

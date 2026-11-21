@@ -4,19 +4,30 @@ import {
   footprintOf,
   groundHeightUnder,
   initialPlacement,
+  isPlaceable,
   placementHint,
   verticalShift,
   type TilesetFootprint,
 } from './placeTilesetOnTerrain';
+import { loadI3sSceneLayer } from './loadI3sSceneLayer';
 import type { TilesetConfig, TilesetPlacement } from './tilesetTypes';
 
 export interface ManagedTileset {
   config: TilesetConfig;
   visible: boolean;
-  tileset: Cesium.Cesium3DTileset;
   /**
-   * Where the model was authored, or `null` if its tileset.json declares no
-   * usable bounds — then it can't be placed and stays as authored.
+   * What was added to `scene.primitives`: the tileset itself, or for I3S
+   * the provider that streams it. Showing and removing act on this.
+   */
+  primitive: Cesium.Cesium3DTileset | Cesium.I3SDataProvider;
+  /**
+   * The tilesets that make it up — just the one for 3D Tiles, one per layer
+   * for I3S. Placing the model moves these, and zooming frames them.
+   */
+  tilesets: Cesium.Cesium3DTileset[];
+  /**
+   * Where the model was authored, or `null` if it can't be placed and stays
+   * as authored: a tileset.json without usable bounds, or any I3S scene.
    */
   footprint: TilesetFootprint | null;
   placement: TilesetPlacement;
@@ -24,22 +35,30 @@ export interface ManagedTileset {
   offset: number;
   /** Why the placement was chosen automatically, shown beside it — e.g. "Underground". */
   reason: string | null;
+  /** The dataset's own attribution, shown on the map while it's loaded. See `copyrightOf`. */
+  credit: Cesium.Credit | null;
 }
 
 /**
- * Owns the list of 3D Tiles datasets the user has connected, and keeps it
- * in sync with the Cesium viewer's `scene.primitives` collection — the
- * `Cesium3DTileset` equivalent of what `useOgcLayers` does for
- * `imageryLayers`.
+ * Owns the list of 3D datasets the user has connected — 3D Tiles and I3S
+ * scene layers — and keeps it in sync with the Cesium viewer's
+ * `scene.primitives` collection: the 3D equivalent of what `useOgcLayers`
+ * does for `imageryLayers`.
  *
- * Each tileset is set on the terrain when it loads, unless it's
+ * Each 3D Tiles model is set on the terrain when it loads, unless it's
  * underground — see `placeTilesetOnTerrain.ts` — and set again whenever
  * the terrain changes, so choosing a different terrain (or none) in the
  * layer manager carries the models with it.
  *
- * Unlike our WMS/WMTS/XYZ imagery layers, a `Cesium3DTileset` always knows
- * its own real bounding volume once loaded, so we can unconditionally fly
- * to it on add — no "only if we know the extent" guard needed here.
+ * I3S scenes are left where they're authored. They're georeferenced to
+ * real heights (see `loadI3sSceneLayer`), and their declared bounds are
+ * padded far beyond the geometry — hundreds of metres in Esri's own
+ * samples — so "lift its lowest point onto the ground" would misplace
+ * them by that much.
+ *
+ * Unlike our WMS/WMTS/XYZ imagery layers, a loaded tileset always knows
+ * its own real bounding volume, so we can unconditionally fly to it on
+ * add — no "only if we know the extent" guard needed here.
  */
 export function useTilesets(viewer: Cesium.Viewer | null) {
   const [tilesets, setTilesets] = useState<ManagedTileset[]>([]);
@@ -64,6 +83,28 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
     async (config: TilesetConfig) => {
       if (!viewer) return;
 
+      if (config.format === 'i3s') {
+        const { provider, tilesets: parts } = await loadI3sSceneLayer(config.url, config.name);
+        viewer.scene.primitives.add(provider);
+        setTilesets((prev) => [
+          ...prev,
+          {
+            config,
+            visible: true,
+            primitive: provider,
+            tilesets: parts,
+            footprint: null,
+            placement: 'as-authored',
+            offset: 0,
+            reason: 'Georeferenced (I3S)',
+            // Cesium credits I3S itself, from each layer's copyright text.
+            credit: null,
+          },
+        ]);
+        flyToTilesets(viewer, parts);
+        return;
+      }
+
       // `config.url` can be an absolute URL (a remote 3D Tiles service, or
       // an S3/CloudFront bucket — no special-casing needed, since from the
       // browser's perspective a CORS-configured bucket is just another
@@ -80,15 +121,25 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
       // Cesium doesn't expose publicly (see `footprintOf`). The browser
       // cache makes the second request essentially free.
       const [tileset, json] = await Promise.all([
-        Cesium.Cesium3DTileset.fromUrl(config.url),
+        // Credits from the tiles' own glTF go on screen, not into the
+        // attribution pop-up: they're often a licence condition (ODbL, CC
+        // BY). The tileset.json's credit is added below — see `copyrightOf`.
+        Cesium.Cesium3DTileset.fromUrl(config.url, { showCreditsOnScreen: true }),
         fetch(config.url)
           .then((response): Promise<unknown> | null => (response.ok ? response.json() : null))
           .catch(() => null),
       ]);
 
-      const footprint = footprintOf(json);
+      // A tileset wider than a city (see `isPlaceable`) is treated like one
+      // without bounds: it stays where it was authored, with no switch.
+      const bounds = footprintOf(json);
+      const footprint = bounds && isPlaceable(bounds) ? bounds : null;
       let placement: TilesetPlacement = 'as-authored';
-      let reason: string | null = footprint ? null : 'No bounds in tileset.json';
+      let reason: string | null = footprint
+        ? null
+        : bounds
+          ? 'Too large to move'
+          : 'No bounds in tileset.json';
       let offset = 0;
       if (footprint) {
         const ground = await groundUnder(viewer, footprint);
@@ -100,15 +151,34 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
       // Placed before it's added, so it never appears at the wrong height
       // and the fly-to below heads for where it actually ends up.
       viewer.scene.primitives.add(tileset);
+      const copyright = copyrightOf(json);
+      const credit = copyright ? new Cesium.Credit(copyright, true) : null;
+      if (credit) viewer.creditDisplay.addStaticCredit(credit);
       setTilesets((prev) => [
         ...prev,
-        { config, visible: true, tileset, footprint, placement, offset, reason },
+        {
+          config,
+          visible: true,
+          primitive: tileset,
+          tilesets: [tileset],
+          footprint,
+          placement,
+          offset,
+          reason,
+          credit,
+        },
       ]);
-
-      viewer.flyTo(tileset).catch(() => {
-        // A rejected flyTo (e.g. the tileset was removed before it
-        // finished loading) isn't worth surfacing to the user.
-      });
+      if (tileset.boundingSphere.radius < REGIONAL_RADIUS) {
+        flyToTilesets(viewer, [tileset]);
+      } else {
+        // A worldwide layer is everywhere at once: flying "to" it would only
+        // pull the camera out to space, away from what the user was viewing.
+        // And Cesium lights each tileset's shaded sides with a sky rendered
+        // from the centre of its bounds — for a worldwide layer, the centre
+        // of the Earth, where the "sky" is black. Every wall facing away from
+        // the light renders solid black. A plain, even ambient light instead.
+        tileset.imageBasedLighting.sphericalHarmonicCoefficients = EVEN_AMBIENT_LIGHT;
+      }
     },
     [viewer],
   );
@@ -119,7 +189,7 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
       const target = tilesetsRef.current.find((entry) => entry.config.id === id);
       if (!target?.footprint) return;
       const offset = await offsetFor(target.footprint, placement);
-      target.tileset.modelMatrix = verticalShift(target.footprint.center, offset);
+      moveTilesets(target, verticalShift(target.footprint.center, offset));
       setTilesets((prev) =>
         prev.map((entry) =>
           // A choice the user made replaces whatever was chosen for them.
@@ -150,7 +220,7 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
       if (run !== latest || viewer.isDestroyed()) return;
       for (const { entry, offset } of updates) {
         if (entry.footprint) {
-          entry.tileset.modelMatrix = verticalShift(entry.footprint.center, offset);
+          moveTilesets(entry, verticalShift(entry.footprint.center, offset));
         }
       }
       const offsets = new Map(updates.map(({ entry, offset }) => [entry.config.id, offset]));
@@ -170,7 +240,8 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
       setTilesets((prev) => {
         const target = prev.find((t) => t.config.id === id);
         if (target) {
-          viewer.scene.primitives.remove(target.tileset);
+          viewer.scene.primitives.remove(target.primitive);
+          if (target.credit) viewer.creditDisplay.removeStaticCredit(target.credit);
         }
         return prev.filter((t) => t.config.id !== id);
       });
@@ -183,7 +254,7 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
       prev.map((t) => {
         if (t.config.id !== id) return t;
         const visible = !t.visible;
-        t.tileset.show = visible;
+        t.primitive.show = visible;
         return { ...t, visible };
       }),
     );
@@ -193,16 +264,58 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
     (id: string) => {
       if (!viewer) return;
       const target = tilesets.find((t) => t.config.id === id);
-      if (!target) return;
-      viewer.flyTo(target.tileset).catch(() => {
-        // A rejected flyTo (e.g. the tileset was removed mid-flight) isn't
-        // worth surfacing to the user.
-      });
+      if (target) flyToTilesets(viewer, target.tilesets);
     },
     [viewer, tilesets],
   );
 
   return { tilesets, addTileset, removeTileset, toggleVisibility, zoomToTileset, setPlacement };
+}
+
+/** Bigger than this (bounding-sphere radius, metres), a tileset isn't anywhere in particular. */
+const REGIONAL_RADIUS = 1_000_000;
+
+/**
+ * Light from every direction equally, as Cesium's spherical-harmonic
+ * coefficients: only the first (constant) term is set. Its strength is
+ * chosen by eye to read like an overcast sky against the map light; Cesium's
+ * own fallback (0.35) leaves shaded walls nearly black.
+ */
+const EVEN_AMBIENT_LIGHT = Array.from({ length: 9 }, (_, index) =>
+  index === 0 ? new Cesium.Cartesian3(0.6, 0.6, 0.6) : Cesium.Cartesian3.ZERO,
+);
+
+/**
+ * The attribution a tileset.json declares in `asset.copyright`, if any.
+ *
+ * Cesium shows the copyright embedded in each tile's glTF, but not this
+ * one — and it's where datasets usually put their licence's attribution
+ * (Re:Earth Buildings' ODbL notice, for one). It's third-party HTML; Cesium
+ * runs credit HTML through DOMPurify before it reaches the page.
+ */
+function copyrightOf(tilesetJson: unknown): string | null {
+  const copyright = (tilesetJson as { asset?: { copyright?: unknown } } | null)?.asset?.copyright;
+  return typeof copyright === 'string' && copyright.trim() ? copyright : null;
+}
+
+/** Applies one vertical shift to every tileset a model is made of. */
+function moveTilesets(entry: ManagedTileset, modelMatrix: Cesium.Matrix4) {
+  for (const tileset of entry.tilesets) tileset.modelMatrix = modelMatrix;
+}
+
+/**
+ * Flies to frame one or more tilesets. `viewer.flyTo` takes a single
+ * tileset; an I3S building scene can be several, so this frames the
+ * bounding sphere around all of them — which is what `viewer.flyTo` does
+ * for one, with the same default viewing angle.
+ */
+function flyToTilesets(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[]) {
+  const spheres = tilesets.map((tileset) => tileset.boundingSphere);
+  const [first, ...rest] = spheres;
+  if (!first) return;
+  viewer.camera.flyToBoundingSphere(
+    rest.reduce((union, sphere) => Cesium.BoundingSphere.union(union, sphere), first),
+  );
 }
 
 /**

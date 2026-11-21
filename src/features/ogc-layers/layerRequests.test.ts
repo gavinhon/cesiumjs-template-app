@@ -42,8 +42,8 @@ describe('buildGetFeatureUrl', () => {
 });
 
 describe('createImageryProvider', () => {
-  it('builds a WMS provider whose extent is the looked-up bounding box', () => {
-    const provider = createImageryProvider({
+  it('builds a WMS provider whose extent is the looked-up bounding box', async () => {
+    const provider = await createImageryProvider({
       type: 'wms',
       id: 'a',
       name: 'A',
@@ -61,8 +61,8 @@ describe('createImageryProvider', () => {
     ).toBe(true);
   });
 
-  it('leaves a WMS provider without a bounding box at the whole world', () => {
-    const provider = createImageryProvider({
+  it('leaves a WMS provider without a bounding box at the whole world', async () => {
+    const provider = await createImageryProvider({
       type: 'wms',
       id: 'a',
       name: 'A',
@@ -72,8 +72,8 @@ describe('createImageryProvider', () => {
     expect(Cesium.Rectangle.equals(provider.rectangle, Cesium.Rectangle.MAX_VALUE)).toBe(true);
   });
 
-  it('builds a WMTS provider', () => {
-    const provider = createImageryProvider({
+  it('builds a WMTS provider', async () => {
+    const provider = await createImageryProvider({
       type: 'wmts',
       id: 'b',
       name: 'B',
@@ -86,8 +86,8 @@ describe('createImageryProvider', () => {
     expect(provider).toBeInstanceOf(Cesium.WebMapTileServiceImageryProvider);
   });
 
-  it('builds an XYZ provider from the template, capped at the known deepest level', () => {
-    const provider = createImageryProvider({
+  it('builds an XYZ provider from the template, capped at the known deepest level', async () => {
+    const provider = await createImageryProvider({
       type: 'xyz',
       id: 'c',
       name: 'C',

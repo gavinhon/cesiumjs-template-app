@@ -5,6 +5,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  white-space: nowrap;
   color: var(--ink);
   cursor: pointer;
 }
@@ -15,5 +16,6 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+  text-align: right;
   color: var(--muted);
 }

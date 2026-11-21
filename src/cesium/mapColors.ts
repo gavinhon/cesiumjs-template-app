@@ -28,7 +28,7 @@ export const MAP_COLORS = {
    */
   measure: Cesium.Color.fromCssColorString('#f5f1ea'),
   /**
-   * --vector: WFS features.
+   * --vector: WFS, ArcGIS and GeoJSON features.
    *
    * Blue is roughly complementary to the orange accent, so server data
    * never reads as something you drew — the single most important

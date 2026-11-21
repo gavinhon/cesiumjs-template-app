@@ -69,6 +69,35 @@ function osmStandard(): Cesium.ImageryLayer {
   );
 }
 
+/**
+ * One of Esri's public basemaps, an ArcGIS MapServer with a Web Mercator
+ * tile cache — read with the same `ArcGisMapServerImageryProvider` as an
+ * ArcGIS service added from the map services panel.
+ *
+ * These `services.arcgisonline.com` maps answer without a key. Esri asks
+ * for "Powered by Esri" plus the data sources on screen; check its terms
+ * before using them in a commercial app. The sources are the service's own
+ * `copyrightText`, copied here because Cesium would otherwise put it in the
+ * attribution pop-up rather than on the map.
+ */
+function esriLayer(service: string, sources: string): Cesium.ImageryLayer {
+  // `fromUrl` is async — it reads the service's tiling scheme first — and
+  // `fromProviderAsync` wraps the promise in a layer that can go into the
+  // collection now and starts drawing once the provider is ready. That keeps
+  // `createLayer` synchronous like the others.
+  return Cesium.ImageryLayer.fromProviderAsync(
+    Cesium.ArcGisMapServerImageryProvider.fromUrl(
+      `https://services.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer`,
+      {
+        credit: new Cesium.Credit(
+          `Powered by <a href="https://www.esri.com">Esri</a> · ${sources}`,
+          true,
+        ),
+      },
+    ),
+  );
+}
+
 export const BASEMAPS: readonly Basemap[] = [
   {
     id: 'osm',
@@ -102,6 +131,29 @@ export const BASEMAPS: readonly Basemap[] = [
         'https://tiles.maps.eox.at/wms',
         's2cloudless-2024_3857',
         'Imagery: <a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2024)',
+      ),
+  },
+  {
+    id: 'esri-imagery',
+    name: 'Esri World Imagery',
+    kind: 'ARCGIS',
+    // Sub-metre aerial imagery in cities, far sharper than Sentinel-2.
+    createLayer: () =>
+      esriLayer(
+        'World_Imagery',
+        'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+      ),
+  },
+  {
+    id: 'esri-dark-gray',
+    name: 'Esri Dark Gray Canvas',
+    kind: 'ARCGIS',
+    // A purpose-made dark map, without place labels (Esri publishes those
+    // as a separate reference layer, which would cover anything you add).
+    createLayer: () =>
+      esriLayer(
+        'Canvas/World_Dark_Gray_Base',
+        'Esri, HERE, Garmin, © OpenStreetMap contributors, and the GIS user community',
       ),
   },
 ];

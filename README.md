@@ -10,21 +10,27 @@ CesiumJS, wired up **without** a Cesium ion account.
   itself is the UI.
 - **No Cesium ion dependency.** Base imagery is plain OpenStreetMap tiles;
   terrain is the default WGS84 ellipsoid. No token, no account, no signup.
-- **An OGC layers panel** for connecting to WMS, WMTS and XYZ raster
-  services, plus WFS vector features — including looking up a server's real
-  layer names, feature types and extents from its capabilities document.
+- **A map services panel** for connecting to OGC WMS, WMTS and XYZ raster
+  services and WFS vector features, and to Esri ArcGIS REST services
+  (ArcGIS Server, Enterprise and Online): MapServer imagery, cached or
+  dynamic, and FeatureServer or MapServer layers as vector data, with an
+  optional token for secured services. It can look up a server's real layer
+  names, feature types and extents, and an example picker fills the form
+  with free public Singapore services on ArcGIS Online, so you can try them without finding
+  endpoints first.
 - **A layer manager** listing everything currently on the map (the base map
   included), with visibility toggles, double-click-to-zoom, and draw-order
   controls that reorder Cesium's real imagery stack so you can uncover a
   layer hidden underneath another.
-- **Three basemaps** needing no key, switched in the layer manager:
+- **Five basemaps** needing no key, switched in the layer manager:
   OpenStreetMap from openstreetmap.org's own tile servers, the same map in
-  grey, and Sentinel-2 cloudless satellite imagery over WMS from
-  [EOX](https://s2maps.eu). The
-  satellite mosaic has 10 m pixels — clear at district scale, soft at
-  street level — and EOX licenses it for non-commercial use only. Each
-  provider's credit is shown on the map, as their terms require; add your
-  own basemaps in `src/cesium/basemaps.ts`.
+  grey, Sentinel-2 cloudless satellite imagery over WMS from
+  [EOX](https://s2maps.eu) (10 m pixels, non-commercial use only), and
+  Esri's World Imagery (sub-metre in cities) and Dark Gray Canvas. Esri's
+  public basemaps need no key, but check Esri's terms of use before using
+  them commercially. Each provider's credit is shown on the
+  map, as their terms require; add your own basemaps in
+  `src/cesium/basemaps.ts`.
 - **A 3D Tiles panel** for loading tilesets (buildings, point clouds,
   photogrammetry) from a `tileset.json` URL: a remote service, an
   S3/CloudFront bucket, or a dataset dropped under this app's `public/`.
@@ -34,6 +40,15 @@ CesiumJS, wired up **without** a Cesium ion account.
   surface), which keep their authored depth. Each has an "On terrain"
   switch; a dataset can also declare
   `"extras": { "placement": "as-authored" }` in its `tileset.json`.
+  The same panel loads Esri **I3S scene layers** (ArcGIS `SceneServer`
+  meshes, 3D objects and building layers), corrected from sea-level to
+  ellipsoid heights with Esri's public EGM2008 geoid service and left at
+  their georeferenced position. A tileset wider than a city (a worldwide
+  buildings layer) is left where it's authored, and the camera stays put.
+  An example picker, grouped by format, offers public Singapore datasets:
+  HDB blocks, building shells and a single development as I3S, and
+  worldwide OSM buildings
+  ([Re:Earth Buildings](https://buildings.reearth.land/)) as 3D Tiles.
 - **Drawing tools**: place points (each shows its elevation), draw lines
   and polygons, drop text labels — plus a 2D/3D toggle, since the tools
   work in both. Live previews throughout: a marker showing where the next
@@ -128,8 +143,8 @@ src/
 │   ├── cancelCameraInertia.ts  stops the globe gliding after a custom drag
 │   └── useSceneMode.ts         the 2D/3D toggle
 ├── features/             one folder per feature; each owns its own state + UI
-│   ├── ogc-layers/         WMS / WMTS / XYZ imagery; WFS and GeoJSON vectors
-│   ├── tiles-3d/           3D Tiles datasets
+│   ├── ogc-layers/         Map Services panel: OGC + ArcGIS imagery and vectors
+│   ├── tiles-3d/           3D Tiles datasets and I3S scene layers
 │   ├── terrain/            which elevation surface the globe uses
 │   ├── layer-manager/      one list of everything on the map, with draw order
 │   └── drawing/            point/line/polygon/measure/label tools
@@ -169,11 +184,13 @@ src/features/ogc-layers/
 ├── OgcLayerPanel.tsx         entry point; composes the form and the list
 ├── AddOgcLayerForm.tsx       add a new layer
 ├── OgcLayerList.tsx          manage the layers already added
-├── createImageryProvider.ts  turns a WMS/WMTS/XYZ config into imagery
-├── createWfsDataSource.ts    turns a WFS config into vector features
+├── createImageryProvider.ts  turns a WMS/WMTS/XYZ/ArcGIS config into imagery
+├── createVectorDataSource.ts turns a WFS/ArcGIS/GeoJSON config into features
 ├── fetchWmsLayers.ts         ask a WMS server what layers it serves
 ├── fetchWfsFeatureTypes.ts   ask a WFS server what feature types it serves
-└── capabilitiesXml.ts        XML parsing helpers those two lookups share
+├── capabilitiesXml.ts        XML parsing helpers those two lookups share
+├── arcGisRest.ts             ArcGIS REST URLs and responses, as pure functions
+└── …                         one small file per remaining step
 ```
 
 Filenames are unique across the whole repo and say what is inside them, so a
@@ -195,8 +212,8 @@ build) and offers what it recognises in the right panel:
 | -------------------------------------------------- | ------------- | ----------------------- |
 | a folder containing `tileset.json`                 | 3D Tiles      | 3D Tiles panel          |
 | a folder containing a terrain `layer.json`         | terrain       | layer manager → Terrain |
-| a folder of image tiles laid out `{z}/{x}/{y}.png` | XYZ imagery   | OGC Layers panel        |
-| a `.geojson` file                                  | vector data   | OGC Layers panel        |
+| a folder of image tiles laid out `{z}/{x}/{y}.png` | XYZ imagery   | Map Services panel      |
+| a `.geojson` file                                  | vector data   | Map Services panel      |
 
 The folder layout under `public/` is up to you — `public/tilesets/...` and
 `public/terrain/...` are just tidy conventions. A recognised folder isn't

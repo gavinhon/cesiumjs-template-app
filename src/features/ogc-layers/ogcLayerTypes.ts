@@ -39,6 +39,23 @@ import type * as Cesium from 'cesium';
  *
  * Because of that split, a WFS layer has no opacity slider and no place in
  * the imagery draw order — see `useOgcLayers`.
+ *
+ * **ArcGIS REST** — Esri's own protocol, not an OGC standard, but what
+ * ArcGIS Server, ArcGIS Enterprise and ArcGIS Online speak natively, so
+ * much of the world's GIS data is only reachable through it. It makes the
+ * same raster/vector split, by service type:
+ *
+ *  - MapServer:   a map the server draws — pre-rendered tiles if the
+ *                  service is cached, otherwise an image rendered per
+ *                  request (like WMS). Cesium reads it with
+ *                  `ArcGisMapServerImageryProvider`.
+ *  - FeatureServer (or one layer of a MapServer): the features
+ *                  themselves, fetched with a `query` request asking for
+ *                  GeoJSON and drawn exactly like WFS output.
+ *
+ * It lives in this feature, not its own, because a MapServer layer is part
+ * of the same `viewer.imageryLayers` stack — and one hook must own that
+ * stack, or the layer manager would reorder against half of it.
  */
 
 /** A geographic extent in degrees, the shape `Cesium.Rectangle.fromDegrees` expects. */
@@ -65,7 +82,7 @@ export interface ServiceLayerOption {
   boundingBox?: GeographicBoundingBox;
 }
 
-export type OgcServiceType = 'wms' | 'wmts' | 'xyz' | 'wfs';
+export type OgcServiceType = 'wms' | 'wmts' | 'xyz' | 'wfs' | 'arcgis-map' | 'arcgis-feature';
 
 interface BaseConfig {
   /** Locally-generated unique id, used as the React list key. */
@@ -139,11 +156,37 @@ export interface GeoJsonFileConfig extends BaseConfig {
   type: 'geojson';
 }
 
+/** An ArcGIS MapServer, drawn as imagery. `url` is the service, ending in `/MapServer`. */
+export interface ArcGisMapServerConfig extends BaseConfig {
+  type: 'arcgis-map';
+  /**
+   * Only for secured services. ArcGIS sends it as a `token` query
+   * parameter on every request, so it shows up in the network log.
+   */
+  token?: string;
+}
+
+/**
+ * One layer of an ArcGIS FeatureServer or MapServer, drawn as vector data.
+ * `url` is the layer itself, ending in its numeric id (`…/FeatureServer/0`).
+ */
+export interface ArcGisFeatureLayerConfig extends BaseConfig {
+  type: 'arcgis-feature';
+  /**
+   * Cap on how many features to fetch, as for WFS. The server applies its
+   * own `maxRecordCount` too, whichever is smaller.
+   */
+  maxFeatures: number;
+  /** See `ArcGisMapServerConfig.token`. */
+  token?: string;
+}
+
 /** The configs that produce a `Cesium.ImageryProvider`. */
-export type OgcImageryConfig = WmsLayerConfig | WmtsLayerConfig | XyzLayerConfig;
+export type OgcImageryConfig =
+  WmsLayerConfig | WmtsLayerConfig | XyzLayerConfig | ArcGisMapServerConfig;
 
 /** The configs that produce a `Cesium.GeoJsonDataSource`. */
-export type OgcVectorConfig = WfsLayerConfig | GeoJsonFileConfig;
+export type OgcVectorConfig = WfsLayerConfig | GeoJsonFileConfig | ArcGisFeatureLayerConfig;
 
 /** Every config this feature can put on the map. */
 export type OgcLayerConfig = OgcImageryConfig | OgcVectorConfig;
@@ -176,7 +219,7 @@ export interface ManagedImageryLayer {
 export interface ManagedVectorLayer {
   id: string;
   name: string;
-  /** Short badge text for the lists, e.g. "WFS" or "GEOJSON". */
+  /** Short badge text for the lists, e.g. "WFS", "GEOJSON" or "ARCGIS". */
   kind: string;
   /** The live Cesium object this entry controls. */
   dataSource: Cesium.GeoJsonDataSource;

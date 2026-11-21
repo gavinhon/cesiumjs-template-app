@@ -18,9 +18,9 @@ interface TilesetPanelProps {
 }
 
 /**
- * The panel for connecting to 3D Tiles datasets (buildings, point clouds,
- * photogrammetry meshes, ...) by URL — the `Cesium3DTileset` counterpart
- * of <OgcLayerPanel>'s imagery layers.
+ * The panel for connecting to 3D datasets (buildings, point clouds,
+ * photogrammetry meshes, ...) by URL, as 3D Tiles or Esri I3S — the 3D
+ * counterpart of <OgcLayerPanel>'s imagery layers.
  *
  * Same shape as every other feature panel: state, then a form and a list.
  * If you've read OgcLayerPanel.tsx this should look immediately familiar —
@@ -31,7 +31,7 @@ export function TilesetPanel({ tilesets, disabled, open }: TilesetPanelProps) {
     <Panel
       id="tiles-3d-panel"
       title="3D Tiles"
-      subtitle="Load a 3D Tiles dataset from a tileset.json URL."
+      subtitle="Load 3D Tiles (tileset.json) or I3S scene layers (ArcGIS SceneServer)."
       open={open}
     >
       {/* A public dataset is added under its catalog id rather than a fresh
@@ -41,7 +41,12 @@ export function TilesetPanel({ tilesets, disabled, open }: TilesetPanelProps) {
         badgeFor={() => '3D TILES'}
         isAdded={(dataset) => tilesets.tilesets.some((entry) => entry.config.id === dataset.id)}
         onAdd={(dataset) =>
-          tilesets.addTileset({ id: dataset.id, name: dataset.name, url: dataset.url })
+          tilesets.addTileset({
+            id: dataset.id,
+            name: dataset.name,
+            format: '3d-tiles',
+            url: dataset.url,
+          })
         }
         disabled={disabled}
       />

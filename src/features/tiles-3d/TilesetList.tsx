@@ -56,20 +56,27 @@ export function TilesetList({
           onZoomTo={() => onZoomTo(view.config.id)}
           zoomHint="Double-click to zoom to this tileset"
         >
-          <label className="tileset-list__placement">
-            <input
-              type="checkbox"
-              checked={view.placement === 'on-terrain'}
-              disabled={!view.placeable}
-              onChange={(event) =>
-                onPlacementChange(
-                  view.config.id,
-                  event.target.checked ? 'on-terrain' : 'as-authored',
-                )
-              }
-            />
-            On terrain
-          </label>
+          <span className="resource-list__badge">
+            {view.config.format === 'i3s' ? 'I3S' : '3D TILES'}
+          </span>
+          {/* No switch for I3S: a scene layer is never moved (see
+              useTilesets), so the note alone says where it is. */}
+          {view.config.format === '3d-tiles' && (
+            <label className="tileset-list__placement">
+              <input
+                type="checkbox"
+                checked={view.placement === 'on-terrain'}
+                disabled={!view.placeable}
+                onChange={(event) =>
+                  onPlacementChange(
+                    view.config.id,
+                    event.target.checked ? 'on-terrain' : 'as-authored',
+                  )
+                }
+              />
+              On terrain
+            </label>
+          )}
           <span className="tileset-list__note">{placementNote(view)}</span>
         </ResourceRow>
       ))}

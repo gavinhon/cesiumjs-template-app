@@ -169,6 +169,32 @@ export function placementHint(tilesetJson: unknown): TilesetPlacement | null {
 }
 
 /**
+ * Wider than this (centre to farthest corner, in metres), a tileset is
+ * taken to be a city or more rather than one model. Moving it as one rigid
+ * piece can't put it on the ground — every hill and valley under it wants
+ * a different shift — and its "lowest point" is somewhere else entirely.
+ * A worldwide buildings layer is the extreme: its bounds span the planet.
+ */
+const LARGEST_PLACEABLE_RADIUS = 20_000;
+
+/**
+ * Whether a tileset is small enough to be set on the terrain as one piece.
+ *
+ * Measured from the footprint's centre to its farthest corner in a straight
+ * line, not along the ground: a geodesic fails to converge between
+ * near-opposite points of the globe, which is exactly where a worldwide
+ * tileset's corners are.
+ */
+export function isPlaceable(footprint: TilesetFootprint): boolean {
+  const center = Cesium.Cartographic.toCartesian(footprint.center);
+  return footprint.under.every(
+    (point) =>
+      Cesium.Cartesian3.distance(center, Cesium.Cartographic.toCartesian(point)) <=
+      LARGEST_PLACEABLE_RADIUS,
+  );
+}
+
+/**
  * The placement to start a tileset with, and why — the why is shown to the
  * user, so an underground model that "didn't move" doesn't look broken.
  */

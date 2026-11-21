@@ -4,6 +4,7 @@ import {
   footprintOf,
   groundHeightUnder,
   initialPlacement,
+  isPlaceable,
   placementHint,
   verticalShift,
   type TilesetFootprint,
@@ -127,6 +128,16 @@ describe('initialPlacement', () => {
       placement: 'as-authored',
       reason: 'Set in tileset.json',
     });
+  });
+});
+
+describe('isPlaceable', () => {
+  it('places a district-sized model, but not one wider than a city', () => {
+    expect(isPlaceable(footprintOf(CITY_REGION) as TilesetFootprint)).toBe(true);
+    const world = footprintOf({
+      root: { boundingVolume: { region: [-Math.PI, -1.48, Math.PI, 1.48, 0, 1000] } },
+    }) as TilesetFootprint;
+    expect(isPlaceable(world)).toBe(false);
   });
 });
 

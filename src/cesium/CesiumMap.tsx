@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { DEFAULT_BASEMAP } from './basemaps';
+import { installMapLight } from './hillshadeLight';
 import { INITIAL_VIEW } from './initialView';
 
 // We never call any Cesium ion API (createWorldImagery, createWorldTerrain,
@@ -101,6 +102,10 @@ export function CesiumMap({ onViewerReady }: CesiumMapProps) {
         INITIAL_VIEW.height,
       ),
     });
+
+    // A fixed light instead of the real-time sun, so 3D models aren't
+    // black whenever it's night where they are. See installMapLight.
+    installMapLight(viewer.scene);
 
     viewerRef.current = viewer;
     onViewerReady(viewer);

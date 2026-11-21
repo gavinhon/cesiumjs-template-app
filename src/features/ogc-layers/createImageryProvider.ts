@@ -1,4 +1,5 @@
 import * as Cesium from 'cesium';
+import { createArcGisMapServerProvider } from './createArcGisMapServerProvider';
 import type { OgcImageryConfig } from './ogcLayerTypes';
 
 /**
@@ -15,8 +16,13 @@ import type { OgcImageryConfig } from './ogcLayerTypes';
  * what to request. This is the same interface Cesium uses internally for
  * Bing Maps, OpenStreetMap, etc, so any OGC server that speaks WMS/WMTS
  * slots in exactly the same way as a "big name" basemap would.
+ *
+ * Async because an ArcGIS MapServer has to be asked how it serves its map
+ * before a provider can be built; the OGC providers resolve immediately.
  */
-export function createImageryProvider(config: OgcImageryConfig): Cesium.ImageryProvider {
+export async function createImageryProvider(
+  config: OgcImageryConfig,
+): Promise<Cesium.ImageryProvider> {
   switch (config.type) {
     case 'wms': {
       const { boundingBox } = config;
@@ -66,6 +72,9 @@ export function createImageryProvider(config: OgcImageryConfig): Cesium.ImageryP
         url: config.url,
         ...(config.maximumLevel !== undefined && { maximumLevel: config.maximumLevel }),
       });
+
+    case 'arcgis-map':
+      return createArcGisMapServerProvider(config);
 
     default: {
       // Exhaustiveness check: if a new OgcServiceType is ever added to the

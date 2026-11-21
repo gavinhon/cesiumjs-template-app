@@ -8,6 +8,9 @@ import type {
   ServiceLayerOption,
   WfsVersion,
 } from './ogcLayerTypes';
+import { featureLayerUrl, urlNamesLayer } from './arcGisRest';
+import { EXAMPLE_MAP_SERVICES } from './exampleMapServices';
+import { fetchArcGisServiceLayers } from './fetchArcGisServiceLayers';
 import { fetchWmsLayers } from './fetchWmsLayers';
 import { fetchWfsFeatureTypes } from './fetchWfsFeatureTypes';
 
@@ -32,8 +35,54 @@ type Lookup =
 /** State machine for the submit itself, which can fail for WFS. */
 type Submit = { status: 'idle' } | { status: 'loading' } | { status: 'error'; message: string };
 
-/** Service types whose layer/feature list can be discovered from GetCapabilities. */
-const LOOKUP_SUPPORTED: OgcServiceType[] = ['wms', 'wfs'];
+/** Service types whose layer/feature list can be discovered from the server. */
+const LOOKUP_SUPPORTED: OgcServiceType[] = ['wms', 'wfs', 'arcgis-feature'];
+
+/** The display name used when none is typed. */
+const DEFAULT_NAME: Record<OgcServiceType, string> = {
+  wms: 'WMS layer',
+  wmts: 'WMTS layer',
+  xyz: 'XYZ layer',
+  wfs: 'WFS layer',
+  'arcgis-map': 'ArcGIS map service',
+  'arcgis-feature': 'ArcGIS feature layer',
+};
+
+/** Service URL placeholders; XYZ has a template field instead. */
+const URL_PLACEHOLDER: Record<OgcServiceType, string> = {
+  wms: 'https://ahocevar.com/geoserver/wms',
+  wmts: 'https://your-server/wmts',
+  xyz: '',
+  wfs: 'https://ahocevar.com/geoserver/wfs',
+  'arcgis-map': 'https://…/arcgis/rest/services/<name>/MapServer',
+  'arcgis-feature': 'https://…/arcgis/rest/services/<name>/FeatureServer',
+};
+
+const URL_HINT: Partial<Record<OgcServiceType, string>> = {
+  wfs: 'A WFS endpoint. GeoServer typically serves WMS and WFS from the same base URL.',
+  'arcgis-map':
+    'The service URL, ending in /MapServer. Cached services load as tiles; others are drawn per request.',
+  'arcgis-feature':
+    'A FeatureServer, a MapServer, or one layer of either (ending in its id, e.g. /FeatureServer/0).',
+};
+
+/** Label for the hand-typed layer field, for the types that have one. */
+const LAYER_FIELD_LABEL: Partial<Record<OgcServiceType, string>> = {
+  wms: 'Layer name(s)',
+  wfs: 'Feature type name',
+  'arcgis-feature': 'Layer id',
+};
+
+/** `<select>` values are strings; this one is the "pick one" prompt. */
+const NO_EXAMPLE = '';
+
+/** The example picker's headings, each with its examples, in list order. */
+const EXAMPLE_GROUPS = [...new Set(EXAMPLE_MAP_SERVICES.map((example) => example.group))].map(
+  (group) => ({
+    group,
+    examples: EXAMPLE_MAP_SERVICES.filter((example) => example.group === group),
+  }),
+);
 
 /**
  * Form for connecting to a new OGC service.
@@ -50,9 +99,16 @@ const LOOKUP_SUPPORTED: OgcServiceType[] = ['wms', 'wfs'];
  *     query parameter names — see `createWfsDataSource`), and a feature
  *     cap, because WFS has no tiling and will otherwise try to hand back
  *     an entire dataset in one response.
+ *   - **ArcGIS MapServer** needs only the service URL; Cesium reads the
+ *     rest from the service's own description.
+ *   - **ArcGIS feature layer** needs a layer — picked from the service, or
+ *     already in the URL — and a feature cap, for the same reason as WFS.
+ *   - Both ArcGIS types take an optional token, for secured services.
  *
- * WMS and WFS additionally offer a capabilities lookup, so you can pick a
- * real identifier off the server instead of having to already know it.
+ * WMS, WFS and ArcGIS feature layers additionally offer a lookup, so you
+ * can pick a real identifier off the server instead of having to already
+ * know it. The example picker at the top fills the form with a free public
+ * service, for trying a type out.
  */
 export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
   const formId = useId();
@@ -68,6 +124,8 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
   const [urlTemplate, setUrlTemplate] = useState('');
   const [wfsVersion, setWfsVersion] = useState<WfsVersion>('2.0.0');
   const [maxFeatures, setMaxFeatures] = useState('1000');
+  const [token, setToken] = useState('');
+  const [exampleId, setExampleId] = useState(NO_EXAMPLE);
   const [lookup, setLookup] = useState<Lookup>({ status: 'idle' });
   const [submit, setSubmit] = useState<Submit>({ status: 'idle' });
   // The selected layer's real extent, if known from the capabilities lookup
@@ -75,7 +133,12 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
   // instead of falling back to a whole-globe view.
   const [boundingBox, setBoundingBox] = useState<GeographicBoundingBox>();
 
-  const supportsLookup = LOOKUP_SUPPORTED.includes(type);
+  const isArcGis = type === 'arcgis-map' || type === 'arcgis-feature';
+  // An ArcGIS URL can already point at one layer (`…/FeatureServer/0`), and
+  // then there's nothing left to pick.
+  const needsLayer =
+    type === 'wms' || type === 'wfs' || (type === 'arcgis-feature' && !urlNamesLayer(url));
+  const supportsLookup = LOOKUP_SUPPORTED.includes(type) && needsLayer;
 
   /** Anything that invalidates a previous lookup: a new URL, or a new service type. */
   function resetLookup() {
@@ -87,7 +150,11 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
     setLookup({ status: 'loading' });
     try {
       const options =
-        type === 'wfs' ? await fetchWfsFeatureTypes(url, wfsVersion) : await fetchWmsLayers(url);
+        type === 'wfs'
+          ? await fetchWfsFeatureTypes(url, wfsVersion)
+          : type === 'arcgis-feature'
+            ? await fetchArcGisServiceLayers(url, token.trim() || undefined)
+            : await fetchWmsLayers(url);
       setLookup({ status: 'success', options });
     } catch (error) {
       setLookup({
@@ -110,10 +177,29 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
     }
   }
 
-  /** Builds the discriminated-union config matching the selected service type. */
+  /** Fills the form from one of `EXAMPLE_MAP_SERVICES`. */
+  function handleSelectExample(id: string) {
+    setExampleId(id);
+    const example = EXAMPLE_MAP_SERVICES.find((entry) => entry.id === id);
+    if (!example) return;
+    setType(example.type);
+    setName(example.name);
+    setUrl(example.url);
+    setLayerName('');
+    setMaxFeatures(String(example.maxFeatures ?? 1000));
+    resetLookup();
+  }
+
+  /**
+   * Builds the discriminated-union config matching the selected service type.
+   * Throws for an ArcGIS URL it can't use, which the submit shows as an error.
+   */
   function buildConfig(): OgcLayerConfig {
     const id = createId();
-    const label = name.trim() || `${type.toUpperCase()} layer`;
+    const label = name.trim() || DEFAULT_NAME[type];
+    // A blank or nonsense cap would mean "no limit" to the server.
+    const featureCap = Number(maxFeatures) || 1000;
+    const accessToken = token.trim() || undefined;
 
     switch (type) {
       case 'wms':
@@ -130,9 +216,19 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
           url,
           typeName: layerName,
           version: wfsVersion,
-          // A blank or nonsense cap would mean "no limit" to the server.
-          maxFeatures: Number(maxFeatures) || 1000,
+          maxFeatures: featureCap,
           boundingBox,
+        };
+      case 'arcgis-map':
+        return { type, id, name: label, url, token: accessToken };
+      case 'arcgis-feature':
+        return {
+          type,
+          id,
+          name: label,
+          url: featureLayerUrl(url, layerName),
+          maxFeatures: featureCap,
+          token: accessToken,
         };
       default: {
         // Exhaustiveness check: adding a service type without a case here
@@ -148,8 +244,10 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
     setSubmit({ status: 'loading' });
     try {
       await onAdd(buildConfig());
-      // Reset the entered values but keep the selected service type, so
-      // adding several layers of the same kind in a row stays quick.
+      // Reset the entered values but keep the selected service type (and
+      // any token), so adding several layers of the same kind in a row
+      // stays quick.
+      setExampleId(NO_EXAMPLE);
       setName('');
       setUrl('');
       setLayerName('');
@@ -168,6 +266,26 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
     <form className="panel-form" onSubmit={handleSubmit}>
       <SelectField
         formId={formId}
+        fieldId="example"
+        label="Example service"
+        value={exampleId}
+        onChange={(e) => handleSelectExample(e.target.value)}
+        hint="Free public Singapore services that fill in the form below, to try each type."
+      >
+        <option value={NO_EXAMPLE}>Choose an example…</option>
+        {EXAMPLE_GROUPS.map(({ group, examples }) => (
+          <optgroup key={group} label={group}>
+            {examples.map((example) => (
+              <option key={example.id} value={example.id}>
+                {example.name}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </SelectField>
+
+      <SelectField
+        formId={formId}
         fieldId="type"
         label="Service type"
         value={type}
@@ -182,6 +300,8 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
         <option value="wmts">WMTS (Web Map Tile Service)</option>
         <option value="wfs">WFS (Web Feature Service)</option>
         <option value="xyz">XYZ tile template</option>
+        <option value="arcgis-map">ArcGIS MapServer (imagery)</option>
+        <option value="arcgis-feature">ArcGIS FeatureServer / layer (vector)</option>
       </SelectField>
 
       <Field
@@ -206,14 +326,23 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
             // belongs to whatever URL it was fetched for.
             resetLookup();
           }}
-          placeholder={
-            type === 'wmts' ? 'https://your-server/wmts' : 'https://ahocevar.com/geoserver/wms'
-          }
-          hint={
-            type === 'wfs'
-              ? 'A WFS endpoint. GeoServer typically serves WMS and WFS from the same base URL.'
-              : undefined
-          }
+          placeholder={URL_PLACEHOLDER[type]}
+          hint={URL_HINT[type]}
+        />
+      )}
+
+      {isArcGis && (
+        <Field
+          formId={formId}
+          fieldId="token"
+          label="Token (optional)"
+          value={token}
+          onChange={(e) => {
+            setToken(e.target.value);
+            resetLookup();
+          }}
+          autoComplete="off"
+          hint="Only for secured services. It's sent in every request URL, so treat it as visible."
         />
       )}
 
@@ -260,10 +389,11 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
         </>
       )}
 
-      {/* WMS layer / WFS feature type: a picklist once discovered, a plain
-          text field otherwise. Same control either way, so the form doesn't
-          reshape itself around whether the lookup happened to work. */}
-      {(type === 'wms' || type === 'wfs') &&
+      {/* WMS layer / WFS feature type / ArcGIS layer: a picklist once
+          discovered, a plain text field otherwise. Same control either way,
+          so the form doesn't reshape itself around whether the lookup
+          happened to work. */}
+      {needsLayer &&
         (lookup.status === 'success' ? (
           <SelectField
             formId={formId}
@@ -286,7 +416,7 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
           <Field
             formId={formId}
             fieldId="layers"
-            label={type === 'wfs' ? 'Feature type name' : 'Layer name(s)'}
+            label={LAYER_FIELD_LABEL[type] ?? 'Layer'}
             required
             value={layerName}
             onChange={(e) => {
@@ -295,16 +425,18 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
               // lookup's bounding box was for — don't zoom to the wrong place.
               setBoundingBox(undefined);
             }}
-            placeholder="topp:states"
+            placeholder={type === 'arcgis-feature' ? '0' : 'topp:states'}
             hint={
               type === 'wfs'
                 ? 'The WFS typeName parameter, or use “Look up feature types” above.'
-                : 'Comma-separated WMS LAYERS parameter, or use “Look up layers” above.'
+                : type === 'arcgis-feature'
+                  ? 'The layer’s numeric id, or use “Look up layers” above.'
+                  : 'Comma-separated WMS LAYERS parameter, or use “Look up layers” above.'
             }
           />
         ))}
 
-      {type === 'wfs' && (
+      {(type === 'wfs' || type === 'arcgis-feature') && (
         <Field
           formId={formId}
           fieldId="max-features"
@@ -314,7 +446,11 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
           required
           value={maxFeatures}
           onChange={(e) => setMaxFeatures(e.target.value)}
-          hint="WFS sends every matching feature in one response — there is no tiling, so a large layer without a cap will hang the browser."
+          hint={
+            type === 'wfs'
+              ? 'WFS sends every matching feature in one response — there is no tiling, so a large layer without a cap will hang the browser.'
+              : 'Features arrive in one response, like WFS. The server also applies its own limit (maxRecordCount), whichever is smaller.'
+          }
         />
       )}
 

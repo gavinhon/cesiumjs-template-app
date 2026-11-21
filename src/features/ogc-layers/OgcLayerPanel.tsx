@@ -52,13 +52,19 @@ interface OgcLayerPanelProps {
   layers: ReturnType<typeof useOgcLayers>;
   /** True while the Cesium viewer hasn't finished initializing yet. */
   disabled: boolean;
-  /** Whether the panel is open. Controlled by the "OGC Layers" toolbar button. */
+  /** Whether the panel is open. Controlled by the "Map Services" toolbar button. */
   open: boolean;
 }
 
 /**
- * The panel for connecting to OGC map services — WMS, WMTS and XYZ raster
- * imagery, plus WFS vector features — with no Cesium ion account required.
+ * The panel for connecting to map services — OGC WMS, WMTS and XYZ raster
+ * imagery and WFS vector features, and their ArcGIS REST counterparts
+ * (MapServer imagery, FeatureServer features) — with no Cesium ion
+ * account required.
+ *
+ * The code keeps its original `ogc-layers` name; ArcGIS was added to it
+ * rather than given its own feature because both share one imagery stack
+ * (see `./ogcLayerTypes.ts`).
  *
  * This is the shape every feature panel in this app follows: take the
  * feature's state, then hand it to a form (add something) and a list
@@ -68,8 +74,8 @@ export function OgcLayerPanel({ layers, disabled, open }: OgcLayerPanelProps) {
   return (
     <Panel
       id="ogc-layers-panel"
-      title="OGC Layers"
-      subtitle="Connect to WMS, WMTS, WFS, or XYZ tile services."
+      title="Map Services"
+      subtitle="Connect to OGC (WMS, WMTS, WFS), ArcGIS REST, or XYZ tile services."
       open={open}
     >
       <PublicDatasetList

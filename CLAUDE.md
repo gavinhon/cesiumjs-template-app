@@ -8,9 +8,10 @@ A CesiumJS + React 19 + Vite + TypeScript template app: a full-screen 3D
 globe with panels for connecting to OGC map services and 3D Tiles datasets,
 plus drawing/measurement tools. It deliberately uses **no Cesium ion
 account** — keyless basemaps (`src/cesium/basemaps.ts`: OpenStreetMap's own
-tiles, the same in grey, Sentinel-2 satellite over WMS) and the plain WGS84
-ellipsoid. Basemaps stay keyless; OSM is not served via a WMS re-render
-because the free ones watermark street-level zooms. Switching one replaces the bottom imagery layer in place
+tiles, the same in grey, Sentinel-2 satellite over WMS, Esri World Imagery
+and Dark Gray Canvas) and the plain WGS84 ellipsoid. Basemaps stay keyless;
+OSM is not served via a WMS re-render because the free ones watermark
+street-level zooms. Switching one replaces the bottom imagery layer in place
 (`setBasemap` in `useOgcLayers`), so user layers keep their order above it.
 
 It is a template other people will fork and learn from, so clarity and
@@ -194,15 +195,27 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   `null` means `EllipsoidTerrainProvider`. It's applied with
   `scene.setTerrain(new Cesium.Terrain(...))` — Cesium's current API, which
   cancels a superseded load — and turns on `enableHillshade` while real
-  terrain is loaded. The first terrain in `public/` loads at startup. Anything placed on the ground must pick or clamp to the
+  terrain is loaded. The light itself is always the camera-anchored one
+  `installMapLight` sets up in `CesiumMap.tsx`, never the real-time sun,
+  which would leave 3D models black wherever it's night. The first terrain in `public/` loads at startup. Anything placed on the ground must pick or clamp to the
   rendered surface (`globe.pick`, `clampToGround`), never the bare ellipsoid.
-- **OGC services split two ways.** WMS/WMTS/XYZ produce an
-  `ImageryProvider` for `viewer.imageryLayers`; WFS returns vector features
-  and produces a `GeoJsonDataSource` for `viewer.dataSources`, as do static
-  GeoJSON files (`GeoJsonFileConfig`, which only the `public/` scan creates).
-  The config union is split accordingly (`OgcImageryConfig` vs
-  `OgcVectorConfig`) so `createImageryProvider` can't be handed something it
-  can't render.
+- **Map services split two ways.** WMS/WMTS/XYZ and ArcGIS MapServer
+  produce an `ImageryProvider` for `viewer.imageryLayers`; WFS and ArcGIS
+  feature layers return vector features and produce a `GeoJsonDataSource`
+  for `viewer.dataSources`, as do static GeoJSON files (`GeoJsonFileConfig`,
+  which only the `public/` scan creates). The config union is split
+  accordingly (`OgcImageryConfig` vs `OgcVectorConfig`) so
+  `createImageryProvider` can't be handed something it can't render.
+  ArcGIS lives in the `ogc-layers` feature (shown as "Map Services") rather
+  than its own, because one hook must own the whole imagery stack.
+- **ArcGIS reports errors as HTTP 200** with an `{"error": …}` body. Fetch
+  ArcGIS JSON through `fetchArcGisJson`, which checks for it; Cesium's
+  provider doesn't, and draws a silently blank layer instead. Example
+  endpoints for the add forms live in `exampleMapServices.ts` and
+  `exampleTilesets.ts` — each must answer without a key, send CORS
+  headers, and cover Singapore, where the app is focused. ArcGIS Online's
+  public catalogue search finds candidates:
+  `https://www.arcgis.com/sharing/rest/search?q=singapore type:"Scene Service"&f=json`.
 
 ## Commenting
 
@@ -291,7 +304,20 @@ non-obvious prop.
   region is ±60 m around a flat sheet) is placed that far off. Models
   entirely below the surface are left as authored (underground); the list
   has a per-model switch, and `"extras": { "placement": "as-authored" }` in
-  tileset.json sets it from the data.
+  tileset.json sets it from the data. **I3S scene layers are never moved**:
+  their declared bounds (`fullExtent`, the root node's box) are padded by
+  hundreds of metres, so they stay at their georeferenced heights.
+- **I3S needs the geoid provider awaited.** `I3SDataProvider.fromUrl`'s docs
+  accept a promise for `geoidTiledTerrainProvider`, but the code uses the
+  value as-is, so a promise silently disables the sea-level → ellipsoid
+  conversion (Cesium only logs it). `loadI3sSceneLayer` awaits it. Its
+  ArcGIS errors arrive as a `RuntimeError` whose `message` is an _object_;
+  rendering that crashes React, so they're turned into text there.
+- **3D models are lit by a fixed light, not the sun.** `installMapLight`
+  (`src/cesium/hillshadeLight.ts`) runs once in `CesiumMap.tsx`. With
+  Cesium's default real-time sun, a model somewhere it's currently night
+  renders almost black — every US or European scene, viewed from a
+  Singapore afternoon.
 - **Cesium is not a normal npm package** — `vite-plugin-cesium` copies its
   static assets (workers, shaders, widget images) and defines
   `CESIUM_BASE_URL`. Don't hand-roll that.

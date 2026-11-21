@@ -25,33 +25,31 @@ const directionScratch = new Cesium.Cartesian3();
 const positionScratch = new Cesium.Cartesian3();
 
 /**
- * Shades the terrain by slope, so relief is visible from above.
- *
- * Terrain on its own changes the *shape* of the globe but not its colour:
- * the draped imagery looks identical whether the ground under it is flat
- * or a 160 m hill, so from overhead you can't see the terrain at all. Lit
- * terrain fixes that — slopes facing the light brighten, slopes facing away
- * darken — using the per-vertex normals the terrain tiles carry (see
- * `requestVertexNormals` in `useTerrain`).
+ * Replaces Cesium's sun with a light pinned to a fixed angle *relative to
+ * wherever the camera is*, re-aimed every frame — for the whole life of
+ * the viewer.
  *
  * Cesium's default light is the sun at the clock's current time, which is
- * wrong for a map: half the time it's night where you're looking, and the
- * globe goes dark. Instead this pins a directional light to a fixed
- * hillshade angle *relative to wherever the camera is*, re-aimed every
- * frame, so the shading looks the same anywhere on the globe at any hour.
+ * wrong for a map: half the time it's night where you're looking. The
+ * globe is unlit by default so it doesn't show, but 3D models are always
+ * lit — so a city loaded from the other side of the world (an I3S scene in
+ * Frankfurt, viewed from a Singapore afternoon) renders almost black. With
+ * this light, models and hillshaded terrain look the same anywhere on the
+ * globe at any hour.
  *
- * Returns a function that restores the scene's previous lighting.
+ * Returns a function that restores the sun.
  */
-export function enableHillshade(scene: Cesium.Scene): () => void {
+export function installMapLight(scene: Cesium.Scene): () => void {
   const previousLight = scene.light;
-  const previousLighting = scene.globe.enableLighting;
   const previousAtmosphereFromSun = scene.globe.dynamicAtmosphereLightingFromSun;
 
   const light = new Cesium.DirectionalLight({
     direction: Cesium.Cartesian3.negate(Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3()),
+    // The sun's intensity, which glTF materials are tuned for. The
+    // `DirectionalLight` default of 1 leaves models noticeably dim.
+    intensity: 2,
   });
   scene.light = light;
-  scene.globe.enableLighting = true;
   // Otherwise the atmosphere still tracks the real sun, and tints the
   // ground with dusk colours whenever it happens to be evening there.
   scene.globe.dynamicAtmosphereLightingFromSun = false;
@@ -89,7 +87,28 @@ export function enableHillshade(scene: Cesium.Scene): () => void {
   return () => {
     removeListener();
     scene.light = previousLight;
-    scene.globe.enableLighting = previousLighting;
     scene.globe.dynamicAtmosphereLightingFromSun = previousAtmosphereFromSun;
+  };
+}
+
+/**
+ * Shades the terrain by slope, so relief is visible from above, using the
+ * light `installMapLight` set up.
+ *
+ * Terrain on its own changes the *shape* of the globe but not its colour:
+ * the draped imagery looks identical whether the ground under it is flat
+ * or a 160 m hill, so from overhead you can't see the terrain at all. Lit
+ * terrain fixes that — slopes facing the light brighten, slopes facing away
+ * darken — using the per-vertex normals the terrain tiles carry (see
+ * `requestVertexNormals` in `useTerrain`). On the smooth ellipsoid there's
+ * no relief to show, and lighting would only darken the map.
+ *
+ * Returns a function that turns the shading off again.
+ */
+export function enableHillshade(scene: Cesium.Scene): () => void {
+  const previousLighting = scene.globe.enableLighting;
+  scene.globe.enableLighting = true;
+  return () => {
+    scene.globe.enableLighting = previousLighting;
   };
 }
