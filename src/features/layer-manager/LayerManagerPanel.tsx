@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { SelectField } from '@/ui/Field';
 import { Panel } from '@/ui/Panel';
 import { ResourceList, ResourceRow } from '@/ui/ResourceList';
-import type { LayerEntry, TerrainChoice } from './layerManagerTypes';
+import type { BasemapChoice, LayerEntry, TerrainChoice } from './layerManagerTypes';
 import './LayerManager.css';
 
 interface LayerManagerPanelProps {
@@ -16,8 +16,35 @@ interface LayerManagerPanelProps {
   imagery: LayerEntry[];
   /** 3D Tiles and vector data — present in the scene, but not part of the imagery stack. */
   sceneData: LayerEntry[];
+  /** Which map is at the bottom of the imagery stack. */
+  basemap: BasemapChoice;
   /** The globe surface everything else is draped on or sits above. */
   terrain: TerrainChoice;
+}
+
+/**
+ * The basemap picker, under the imagery list — beside the row it changes,
+ * which is always the last one, since the basemap is the bottom of the stack.
+ */
+function BasemapPicker({ basemap }: { basemap: BasemapChoice }) {
+  const formId = useId();
+  return (
+    <div className="layer-manager__basemap">
+      <SelectField
+        formId={formId}
+        fieldId="basemap"
+        label="Basemap"
+        value={basemap.selectedId}
+        onChange={(event) => basemap.onSelect(event.target.value)}
+      >
+        {basemap.options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </SelectField>
+    </div>
+  );
 }
 
 /** `<select>` values must be strings; this one stands for "no terrain". */
@@ -116,7 +143,13 @@ function MoveButton({
  * up/down arrows on those would be a control that visibly does nothing, so
  * they're listed in their own section without them.
  */
-export function LayerManagerPanel({ open, imagery, sceneData, terrain }: LayerManagerPanelProps) {
+export function LayerManagerPanel({
+  open,
+  imagery,
+  sceneData,
+  basemap,
+  terrain,
+}: LayerManagerPanelProps) {
   // Cesium's collection is bottom-first; a layer list reads top-down.
   const topDownImagery = [...imagery].reverse();
 
@@ -162,6 +195,7 @@ export function LayerManagerPanel({ open, imagery, sceneData, terrain }: LayerMa
             </ResourceRow>
           ))}
         </ResourceList>
+        <BasemapPicker basemap={basemap} />
       </section>
 
       <section className="layer-manager__section">

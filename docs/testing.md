@@ -119,3 +119,5 @@ the Singapore terrain in `public/`.
 | L8  | Add the BIM model from the public/ list                                 | Its row reads "On terrain · Raised … m"; zoomed in, its ground floor meets the street |
 | L9  | With a model on terrain, set Terrain to None, then back                 | The row's offset changes with each switch and the model follows the surface           |
 | L10 | Untick "On terrain" on a model                                          | It returns to its authored height; the row reads "Authored height"                    |
+| L11 | Layers panel → Basemap → grey, then satellite, then back                | Each map replaces the last; the credit line at bottom left changes to match           |
+| L12 | Add an XYZ layer, then change the basemap                               | The added layer stays on top of the new basemap                                       |

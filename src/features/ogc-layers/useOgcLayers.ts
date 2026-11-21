@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as Cesium from 'cesium';
+import { BASEMAPS, DEFAULT_BASEMAP } from '@/cesium/basemaps';
 import { createImageryProvider } from './createImageryProvider';
 import { createWfsDataSource } from './createWfsDataSource';
 import { loadVectorDataSource } from './loadVectorDataSource';
@@ -86,6 +87,9 @@ const KIND_LABEL: Record<OgcLayerConfig['type'], string> = {
 export function useOgcLayers(viewer: Cesium.Viewer | null) {
   const [imagery, setImagery] = useState<ManagedImageryLayer[]>([]);
   const [vectors, setVectors] = useState<ManagedVectorLayer[]>([]);
+  // Which of `BASEMAPS` is at the bottom of the stack. `CesiumMap` starts
+  // the Viewer with the default one.
+  const [basemapId, setBasemapId] = useState(DEFAULT_BASEMAP.id);
 
   // Adopt the base map once the viewer exists. `CesiumMap` passes it as the
   // Viewer's `baseLayer` option, which puts it at index 0 of the imagery
@@ -102,8 +106,8 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
       return [
         {
           id: BASE_LAYER_ID,
-          name: 'OpenStreetMap',
-          kind: 'OSM',
+          name: DEFAULT_BASEMAP.name,
+          kind: DEFAULT_BASEMAP.kind,
           cesiumLayer: baseLayer,
           visible: baseLayer.show,
           alpha: baseLayer.alpha,
@@ -296,7 +300,49 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
     [viewer, imagery],
   );
 
+  /**
+   * Swaps the basemap for another from `BASEMAPS`.
+   *
+   * An `ImageryLayer`'s provider can't be changed after it's created, so
+   * this replaces the whole layer — at the old one's position in the stack,
+   * so anything the user added stays on top of it, even after reordering.
+   * The visibility and opacity set on the old layer carry over.
+   *
+   * The Cesium calls happen before, not inside, the state updater: adding a
+   * layer isn't idempotent (see `moveImagery`).
+   */
+  const setBasemap = useCallback(
+    (id: string) => {
+      if (!viewer) return;
+      const basemap = BASEMAPS.find((entry) => entry.id === id);
+      const current = imagery.find((entry) => entry.id === BASE_LAYER_ID);
+      if (!basemap || !current) return;
+
+      const collection = viewer.imageryLayers;
+      const index = collection.indexOf(current.cesiumLayer);
+      const cesiumLayer = basemap.createLayer();
+      cesiumLayer.show = current.visible;
+      cesiumLayer.alpha = current.alpha;
+      collection.add(cesiumLayer, index);
+      collection.remove(current.cesiumLayer, true);
+
+      setImagery((prev) =>
+        prev.map((entry) =>
+          entry.id === BASE_LAYER_ID
+            ? { ...entry, name: basemap.name, kind: basemap.kind, cesiumLayer }
+            : entry,
+        ),
+      );
+      setBasemapId(id);
+    },
+    [viewer, imagery],
+  );
+
   return {
+    /** Every basemap on offer, and which one is showing. */
+    basemaps: BASEMAPS,
+    basemapId,
+    setBasemap,
     imagery,
     vectors,
     addLayer,

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
+import { DEFAULT_BASEMAP } from './basemaps';
 import { INITIAL_VIEW } from './initialView';
 
 // We never call any Cesium ion API (createWorldImagery, createWorldTerrain,
@@ -50,15 +51,10 @@ export function CesiumMap({ onViewerReady }: CesiumMapProps) {
     }
 
     const viewer = new Cesium.Viewer(containerRef.current, {
-      // A plain OpenStreetMap raster layer as the base imagery. It talks
-      // directly to OSM's public tile servers with no API key and no
-      // Cesium ion account — swap this for your own WMS/WMTS/XYZ source
-      // (see the sidebar) or a commercial basemap once you have one.
-      baseLayer: new Cesium.ImageryLayer(
-        new Cesium.OpenStreetMapImageryProvider({
-          url: 'https://tile.openstreetmap.org/',
-        }),
-      ),
+      // The starting basemap — OpenStreetMap over WMS, with no API key and
+      // no Cesium ion account. The layer manager switches between the
+      // basemaps in ./basemaps.ts; add your own there.
+      baseLayer: DEFAULT_BASEMAP.createLayer(),
       // No `terrainProvider`/`terrain` option here: Cesium's default is a
       // smooth WGS84 ellipsoid (no elevation data), which — like the
       // imagery above — needs no ion access. Swap in `Cesium.Terrain.fromWorldTerrain()`

@@ -7,7 +7,10 @@ Guidance for coding agents working in this repository.
 A CesiumJS + React 19 + Vite + TypeScript template app: a full-screen 3D
 globe with panels for connecting to OGC map services and 3D Tiles datasets,
 plus drawing/measurement tools. It deliberately uses **no Cesium ion
-account** — OpenStreetMap raster imagery and the plain WGS84 ellipsoid.
+account** — keyless WMS basemaps (`src/cesium/basemaps.ts`: OpenStreetMap,
+grey, Sentinel-2 satellite) and the plain WGS84 ellipsoid. Basemaps stay on
+WMS and keyless; switching one replaces the bottom imagery layer in place
+(`setBasemap` in `useOgcLayers`), so user layers keep their order above it.
 
 It is a template other people will fork and learn from, so clarity and
 consistency matter more here than they would in an app shipped once.

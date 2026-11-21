@@ -8,7 +8,11 @@ import { DrawingHint } from '@/features/drawing/DrawingHint';
 import { DrawingPanel } from '@/features/drawing/DrawingPanel';
 import { LayerManagerButton } from '@/features/layer-manager/LayerManagerButton';
 import { LayerManagerPanel } from '@/features/layer-manager/LayerManagerPanel';
-import type { LayerEntry, TerrainChoice } from '@/features/layer-manager/layerManagerTypes';
+import type {
+  BasemapChoice,
+  LayerEntry,
+  TerrainChoice,
+} from '@/features/layer-manager/layerManagerTypes';
 import { OgcLayerPanel } from '@/features/ogc-layers/OgcLayerPanel';
 import { useOgcLayers } from '@/features/ogc-layers/useOgcLayers';
 import { TilesetPanel } from '@/features/tiles-3d/TilesetPanel';
@@ -106,6 +110,15 @@ function App() {
     [tilesets, ogcLayers],
   );
 
+  const basemapChoice = useMemo<BasemapChoice>(
+    () => ({
+      options: ogcLayers.basemaps.map(({ id, name }) => ({ id, name })),
+      selectedId: ogcLayers.basemapId,
+      onSelect: ogcLayers.setBasemap,
+    }),
+    [ogcLayers],
+  );
+
   const terrainChoice = useMemo<TerrainChoice>(
     () => ({
       options: terrain.options.map(({ id, name, attribution }) => ({ id, name, attribution })),
@@ -130,6 +143,7 @@ function App() {
         open={openPanel === 'layers'}
         imagery={imageryEntries}
         sceneData={sceneEntries}
+        basemap={basemapChoice}
         terrain={terrainChoice}
       />
       <DrawingPanel drawing={drawing} open={openPanel === 'drawings'} />

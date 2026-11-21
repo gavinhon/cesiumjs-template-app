@@ -54,6 +54,11 @@
   cursor: default;
 }
 
+/* The basemap picker, set a little apart from the list above it. */
+.layer-manager__basemap {
+  margin-top: 12px;
+}
+
 .layer-manager__error {
   color: var(--danger);
 }

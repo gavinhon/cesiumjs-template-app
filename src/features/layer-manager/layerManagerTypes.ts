@@ -30,6 +30,16 @@ export interface LayerEntry {
 }
 
 /**
+ * The basemap picker's view of whatever feature owns the imagery stack —
+ * a single choice, like terrain, since there's one map at the bottom.
+ */
+export interface BasemapChoice {
+  options: { id: string; name: string }[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}
+
+/**
  * The terrain picker's view of whatever feature owns terrain — same idea
  * as `LayerEntry`, for the one thing on the map that isn't a list.
  *

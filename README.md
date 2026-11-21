@@ -17,6 +17,14 @@ CesiumJS, wired up **without** a Cesium ion account.
   included), with visibility toggles, double-click-to-zoom, and draw-order
   controls that reorder Cesium's real imagery stack so you can uncover a
   layer hidden underneath another.
+- **Three basemaps, all over WMS** and needing no key, switched in the
+  layer manager: OpenStreetMap (rendered by
+  [terrestris](https://www.terrestris.de)), the same map in grey, and
+  Sentinel-2 cloudless satellite imagery from [EOX](https://s2maps.eu). The
+  satellite mosaic has 10 m pixels — clear at district scale, soft at
+  street level — and EOX licenses it for non-commercial use only. Each
+  provider's credit is shown on the map, as their terms require; add your
+  own basemaps in `src/cesium/basemaps.ts`.
 - **A 3D Tiles panel** for loading tilesets (buildings, point clouds,
   photogrammetry) from a `tileset.json` URL: a remote service, an
   S3/CloudFront bucket, or a dataset dropped under this app's `public/`.
@@ -266,8 +274,9 @@ This is a starting point, not a framework. Common first moves:
 
 - Change the starting camera in
   [src/cesium/initialView.ts](src/cesium/initialView.ts).
-- Swap the base imagery in
-  [src/cesium/CesiumMap.tsx](src/cesium/CesiumMap.tsx) for your own basemap.
+- Add or replace basemaps in
+  [src/cesium/basemaps.ts](src/cesium/basemaps.ts); the first is the one
+  the app starts with.
 - Delete a feature folder you don't need, plus its entry in the `PANELS`
   registry in [src/ui/AppToolbar.tsx](src/ui/AppToolbar.tsx) and its element in
   `App.tsx`. Nothing else references it.
