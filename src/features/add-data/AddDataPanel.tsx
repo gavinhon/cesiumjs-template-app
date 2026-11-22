@@ -85,7 +85,7 @@ export function AddDataPanel({
   return (
     <Panel
       id="add-data-panel"
-      side="right"
+      side="beside"
       title="Add data"
       subtitle="Ready-made datasets, or connect your own service by URL."
       open={open}

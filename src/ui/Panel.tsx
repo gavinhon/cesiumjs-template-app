@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { PanelSlot } from './panelIds';
 import { useBottomSheet } from './useBottomSheet';
 import './Panel.css';
 
@@ -16,11 +17,10 @@ interface PanelProps {
   /** Whether the panel is open. Controlled by its toolbar button. */
   open: boolean;
   /**
-   * Which edge the panel docks to, matching the button that opens it.
-   * Defaults to `'left'` (the panels opened from the top-left toolbar); the
-   * layer manager uses `'right'` because its button lives in the right rail.
+   * Where the panel docks — see `PanelSlot`. Defaults to `'left'`; Add
+   * data is `'beside'`, so it opens next to the Layers panel.
    */
-  side?: 'left' | 'right';
+  side?: PanelSlot;
   /**
    * Closes the panel from its own header. On a desktop the toolbar button
    * does the same, but on a phone the panel is a bottom sheet over most of

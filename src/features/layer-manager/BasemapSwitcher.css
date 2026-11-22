@@ -121,10 +121,12 @@
   text-align: center;
 }
 
-/* A left-hand panel reaches down over this corner. Hidden while one is
-   open rather than stacked on top of it: the Layers panel has its own
-   basemap picker, and nothing in Drawings wants the basemap changed. */
-.app:has(.panel--left:not(.panel--collapsed)) .basemap-switcher {
+/* A left-hand panel reaches down over this corner — Layers, Drawings, or
+   Add data on its own in the 'beside' slot. Hidden while one is open
+   rather than stacked on top of it: the Layers panel has its own basemap
+   picker, and nothing in Drawings or Add data wants the basemap changed. */
+.app:has(.panel--left:not(.panel--collapsed)) .basemap-switcher,
+.app:has(.panel--beside:not(.panel--collapsed)) .basemap-switcher {
   display: none;
 }
 

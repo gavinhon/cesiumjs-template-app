@@ -167,8 +167,8 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   short for one column, `.app__right-rail` wraps into more columns
   (`flex-wrap: wrap-reverse`, so the first column stays at the edge). Each
   button group must therefore be a _direct_ child of the rail — that's why
-  `DrawingToolbar` returns a fragment — and the right panel's offset comes
-  from the rail's measured width (`--right-rail-width`, published by
+  `DrawingToolbar` returns a fragment — and the phone toolbar's right edge
+  comes from the rail's measured width (`--right-rail-width`, published by
   `useWidthAsCssVariable` in `App.tsx`), never from a fixed number.
 - **Phones get two switches, keyed to different things.** A coarse
   pointer (`@media (pointer: coarse)`, in `designTokens.css`) swaps
@@ -183,9 +183,9 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   sheet must be dismissible from itself.
 - **The bottom-right corner is a stack.** Status bar (cursor coordinate in
   WGS84 or SVY21, ground height, scale bar, camera altitude), then the
-  navigation row above it (compass, zoom, home, my location, 2D/3D, share
-  link). Its height is `--bottom-right-stack` on `.app` in `global.css`;
-  the rail's max-height, the right panel's bottom and the drawing hint
+  navigation row above it (compass, home, my location, 2D/3D, share
+  link — no zoom buttons: wheel and pinch zoom better, about the pointer). Its height is `--bottom-right-stack` on `.app` in `global.css`;
+  the rail's max-height, the panels' bottoms on narrow windows and the drawing hint
   are all calc()'d from it, so add to the corner by updating that one
   variable. The 2D/3D switch lives here, not in the drawing rail: these
   buttons move the view, the rail's put things on the map. The status bar
@@ -259,12 +259,15 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   like the map labels, never through React state.
 - **TypeScript is strict.** No `any`, avoid `!`, prefer discriminated
   unions, add `never` exhaustiveness checks on union switches.
-- **Registering a panel** means adding to `PanelId` and `PANEL_SIDE` in
+- **Registering a panel** means adding to `PanelId` and `PANEL_SLOT` in
   `src/ui/panelIds.ts`, an entry in `PANELS` in `src/ui/AppToolbar.tsx`, and
   one element in `App.tsx` — additive, never editing existing entries. `App`
-  keeps one panel open per side: Layers and Drawings dock left, Add data
-  right, so you add on one side and watch it arrive on the other; under
-  800px wide, opening one closes the other. A new _data source_ usually
+  keeps one panel open per slot: Layers and Drawings dock left, Add data
+  opens `'beside'` them (a `:has` rule in `Panel.css` shifts it past an
+  open left panel), so the catalogue sits next to its button and the list
+  it adds to; under
+  800px wide or 500px tall (`SINGLE_PANEL_QUERY` — a phone on its side),
+  opening one closes the other. A new _data source_ usually
   needs no panel at all — it feeds the Add data catalogue and/or adds a
   connect tab (next bullet).
 - **Add data adds; Layers manages.** `AddDataPanel` is a catalogue tab — one

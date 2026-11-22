@@ -190,11 +190,11 @@ there.
 Two small edits, both mechanical.
 
 Add the id to `PanelId` in [`src/ui/panelIds.ts`](../src/ui/panelIds.ts), and
-say which edge it docks to in `PANEL_SIDE`:
+say where it docks in `PANEL_SLOT` (`'left'`, or `'beside'` the left panel):
 
 ```ts
 export type PanelId = 'map-services' | 'models-3d' | 'layers' | 'drawings' | 'geojson';
-// …and in PANEL_SIDE:
+// …and in PANEL_SLOT:
   geojson: 'left',
 ```
 

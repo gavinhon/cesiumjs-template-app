@@ -60,7 +60,7 @@ body {
   height: 100%;
   /*
    * Closed panels are slid off-screen, not removed (they stay mounted), and
-   * a bottom sheet slid down or a right panel slid right leaves overflow
+   * a bottom sheet slid down leaves overflow
    * past the viewport's edge. `overflow: hidden` on #root hides the
    * scrollbar but still lets the browser scroll programmatically — tapping
    * a button near the edge scrolled the whole app, map and all, up by the
@@ -93,8 +93,8 @@ body {
    * view don't move. The wrap happens between whole button groups, never
    * inside one, because each group is a single flex item.
    *
-   * The right-hand panel steps aside for however wide this ends up — see
-   * `--right-rail-width` in Panel.css.
+   * The phone toolbar stops short of however wide this ends up — see
+   * `--right-rail-width` in AppToolbar.css.
    */
   flex-wrap: wrap-reverse;
   /* It must also stop short of the navigation row and status bar stacked

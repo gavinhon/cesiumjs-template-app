@@ -112,7 +112,8 @@ the Singapore terrain in `public/`.
 
 | #   | Do                                                            | Expect                                                                                         |
 | --- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| T1  | Toolbar → Layers, then its Add data button                    | Layers on the left, Add data on the right; adding from the catalogue lists it on the left      |
+| T1  | Toolbar → Layers, then its Add data button                    | Add data opens right beside Layers; adding from the catalogue lists it in Layers next to it    |
+| T1b | Close Layers with Add data still open                         | Add data slides back to the left edge; reopening Layers pushes it aside again                  |
 | T2  | Add data → type `rail` in the filter                          | Only the rail layers remain, under "Features — points, lines and areas"                        |
 | T3  | Add data → 3D service → choose I3S                            | The URL field asks for a scene layer and the button reads "Add scene layer"                    |
 | T4  | Right rail → Measure and analyse                              | A menu of four named tools with hints; picking one arms it and its icon lights the menu button |
@@ -125,16 +126,17 @@ the Singapore terrain in `public/`.
 Use the browser's device emulation (a phone preset, which also makes the
 pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 
-| #   | Do                                              | Expect                                                                                   |
-| --- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| M1  | Load the page at 375 × 812                      | Search and a Menu button top-left, the rail top-right; every control 44 px tall          |
-| M2  | Tap Menu, then Layers                           | The menu closes; the panel rises as a half-height sheet with a grab handle and a ×       |
-| M3  | Tap the sheet's ×                               | The sheet slides down; the map does not scroll or jump                                   |
-| M4  | Open Layers, then tap Add data in it            | Layers closes; Add data takes the sheet                                                  |
-| M5  | Arm the line tool and tap two points            | The hint shows Undo and Finish instead of key hints; Finish keeps the line               |
-| M6  | Add Rail stations and tap a station             | Its attribute card docks to the bottom, full width, instead of floating over the station |
-| M6b | Drag a sheet's grab bar down, then tap it twice | It snaps to peek; taps step it to half, then full                                        |
-| M7  | Widen the window past 640 px with a mouse       | Side panels and the full toolbar return; controls go back to 34 px                       |
+| #   | Do                                                                 | Expect                                                                                   |
+| --- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| M1  | Load the page at 375 × 812                                         | Search and a Menu button top-left, the rail top-right; every control 44 px tall          |
+| M2  | Tap Menu, then Layers                                              | The menu closes; the panel rises as a half-height sheet with a grab handle and a ×       |
+| M3  | Tap the sheet's ×                                                  | The sheet slides down; the map does not scroll or jump                                   |
+| M4  | Open Layers, then tap Add data in it                               | Layers closes; Add data takes the sheet                                                  |
+| M5  | Arm the line tool and tap two points                               | The hint shows Undo and Finish instead of key hints; Finish keeps the line               |
+| M6  | Add Rail stations and tap a station                                | Its attribute card docks to the bottom, full width, instead of floating over the station |
+| M6b | Drag a sheet's grab bar down, then tap it twice                    | It snaps to peek; taps step it to half, then full                                        |
+| M7  | Widen the window past 640 px with a mouse                          | Side panels and the full toolbar return; controls go back to 34 px                       |
+| M7b | Turn the phone on its side (812 × 375), open Layers, then Add data | Layers closes: one side panel at a time on a short screen                                |
 
 ### Drawing
 

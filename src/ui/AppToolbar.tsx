@@ -23,7 +23,7 @@ const PANELS: { id: PanelId; label: string; controls: string }[] = [
 ];
 
 interface AppToolbarProps {
-  /** Whether a panel is open — on either side, since Add data docks right. */
+  /** Whether a panel is open — in either slot, since Add data opens beside Layers. */
   isOpen: (panel: PanelId) => boolean;
   onTogglePanel: (panel: PanelId) => void;
   /**
@@ -38,8 +38,8 @@ interface AppToolbarProps {
  * side panel. This and the right rail are the app's only chrome besides
  * the map itself and whichever panel is open.
  *
- * Layers and Drawings dock left, one at a time; Add data docks right, so it
- * can stay open beside Layers (see PANEL_SIDE).
+ * Layers and Drawings dock left, one at a time; Add data opens beside
+ * whichever is open, so it can stay open next to Layers (see PANEL_SLOT).
  */
 export function AppToolbar({ isOpen, onTogglePanel, search }: AppToolbarProps) {
   // Only meaningful in the compact layout, where the panel buttons don't

@@ -34,7 +34,8 @@ import { ModelPlacementControl } from '@/features/models-3d/ModelPlacementContro
 import { useModels } from '@/features/models-3d/useModels';
 import { useTerrain } from '@/features/terrain/useTerrain';
 import { AppToolbar } from '@/ui/AppToolbar';
-import { PANEL_SIDE, type PanelId } from '@/ui/panelIds';
+import { SINGLE_PANEL_QUERY } from '@/ui/compactLayoutQuery';
+import { PANEL_SLOT, type PanelId, type PanelSlot } from '@/ui/panelIds';
 import { useWidthAsCssVariable } from '@/ui/useWidthAsCssVariable';
 
 /**
@@ -60,26 +61,27 @@ function App() {
   // which is why every feature hook takes `Viewer | null`.
   const [viewer, setViewer] = useState<Cesium.Viewer | null>(null);
 
-  // Which panel is open on each side. One per side, so two panels never
-  // stack in the same corner — but Layers (left) and Add data (right) can be
-  // open together: add a dataset on the right, see it arrive on the left.
-  // On a screen too narrow for both, opening one closes the other.
-  const [openPanels, setOpenPanels] = useState<Record<'left' | 'right', PanelId | null>>({
+  // Which panel is open in each slot (PANEL_SLOT). One per slot, so two
+  // panels never stack on each other — but Layers and Add data can be open
+  // together, side by side: add a dataset from the catalogue, watch it
+  // arrive in the list next to it. On a screen too narrow or too short for
+  // both (SINGLE_PANEL_QUERY), opening one closes the other.
+  const [openPanels, setOpenPanels] = useState<Record<PanelSlot, PanelId | null>>({
     left: null,
-    right: null,
+    beside: null,
   });
   const showPanel = (panel: PanelId, show = true) => {
-    const side = PANEL_SIDE[panel];
-    // Opening a panel where there's no room for two closes the other side;
+    const slot = PANEL_SLOT[panel];
+    // Opening a panel where there's no room for two closes the other slot;
     // closing one leaves the other alone.
-    const closeOther = show && window.matchMedia('(max-width: 800px)').matches;
+    const closeOther = show && window.matchMedia(SINGLE_PANEL_QUERY).matches;
     setOpenPanels((current) => ({
-      left: side === 'left' ? (show ? panel : null) : closeOther ? null : current.left,
-      right: side === 'right' ? (show ? panel : null) : closeOther ? null : current.right,
+      left: slot === 'left' ? (show ? panel : null) : closeOther ? null : current.left,
+      beside: slot === 'beside' ? (show ? panel : null) : closeOther ? null : current.beside,
     }));
   };
-  const togglePanel = (panel: PanelId) => showPanel(panel, openPanels[PANEL_SIDE[panel]] !== panel);
-  const isOpen = (panel: PanelId) => openPanels[PANEL_SIDE[panel]] === panel;
+  const togglePanel = (panel: PanelId) => showPanel(panel, openPanels[PANEL_SLOT[panel]] !== panel);
+  const isOpen = (panel: PanelId) => openPanels[PANEL_SLOT[panel]] === panel;
   // After adding data, show where it went: the Layers panel is where it's
   // managed, and the Add data panel doesn't list it again.
   const showLayers = () => showPanel('layers');

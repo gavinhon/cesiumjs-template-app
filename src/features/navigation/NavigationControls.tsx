@@ -16,18 +16,20 @@ interface NavigationControlsProps {
 type LocateState = { state: 'idle' } | { state: 'locating' } | { state: 'error'; message: string };
 
 /**
- * The camera controls every web map has, in one row at the bottom-right:
- * a compass that shows which way is north and resets it, zoom in/out,
- * home, my location, and the 2D/3D switch.
+ * The camera controls, in one row at the bottom-right: a compass that
+ * shows which way is north and resets it, home, my location, and the
+ * 2D/3D switch.
  *
  * Kept apart from the drawing rail on purpose. These move the *view*; the
  * rail's buttons put things *on the map*. Mixed in one strip, the 2D/3D
  * switch read as a drawing tool.
  *
- * A mouse or trackpad can do everything here already. The buttons are for
- * touch screens (where pinch-to-rotate is fiddly and there's no scroll
- * wheel), for keyboard users, and for anyone who has rotated the globe and
- * can't find north again.
+ * No zoom buttons, deliberately: the scroll wheel, a trackpad pinch and a
+ * touch pinch all zoom about the cursor or fingers, which a button about
+ * the screen centre can't match — so on every device people actually use,
+ * +/− were two tiles of chrome over the map that nobody pressed. What's
+ * left is what a gesture does badly: finding north again after rotating
+ * (pinch-to-rotate is fiddly), going home, and jumping to your location.
  */
 export function NavigationControls({
   viewer,
@@ -101,7 +103,7 @@ export function NavigationControls({
       <button
         type="button"
         className="control control-button map-nav__button"
-        onClick={() => viewer && orbitScreenCenter(viewer, { heading: 0 })}
+        onClick={() => viewer && orbitScreenCenter(viewer, 0)}
         disabled={disabled}
         aria-label="Reset to north"
         title="Reset to north"
@@ -117,47 +119,6 @@ export function NavigationControls({
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
-        </svg>
-      </button>
-      <button
-        type="button"
-        className="control control-button map-nav__button"
-        onClick={() => viewer && orbitScreenCenter(viewer, { rangeScale: 0.5 })}
-        disabled={disabled}
-        aria-label="Zoom in"
-        title="Zoom in"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          aria-hidden="true"
-        >
-          <line x1="5" y1="12" x2="19" y2="12" />
-          <line x1="12" y1="5" x2="12" y2="19" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        className="control control-button map-nav__button"
-        onClick={() => viewer && orbitScreenCenter(viewer, { rangeScale: 2 })}
-        disabled={disabled}
-        aria-label="Zoom out"
-        title="Zoom out"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          aria-hidden="true"
-        >
-          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
       <button

@@ -6,45 +6,32 @@ import { pickSurface } from '@/cesium/pickSurface';
 const DURATION = 0.4;
 
 /**
- * Turns and/or zooms the camera about the point at the centre of the
- * screen, the way a map's compass and zoom buttons do.
+ * Turns the camera to `heading` (radians) about the point at the centre
+ * of the screen, the way a map's compass button does.
  *
- * Cesium's own `camera.zoomIn` and `setView` move the *camera*: zooming
- * slides it along its view direction, and resetting heading spins it on
- * the spot — so the place you were looking at swings off-screen whenever
- * the view is tilted. Orbiting the centre point instead keeps what's in
- * the middle of the screen in the middle of the screen, which is what
- * every map's buttons do and what people expect.
+ * Cesium's own `setView` moves the *camera*: resetting heading spins it
+ * on the spot, so the place you were looking at swings off-screen
+ * whenever the view is tilted. Orbiting the centre point instead keeps
+ * what's in the middle of the screen in the middle of the screen, which is
+ * what every map's compass does and what people expect.
  *
- * Falls back to the camera-relative calls when there's no surface at the
- * centre (looking at the sky or into space), and in 2D, where Cesium's
- * camera is orthographic and `zoomIn`/`zoomOut` are the right calls.
+ * Falls back to turning on the spot when there's no surface at the centre
+ * (looking at the sky or into space), and in 2D, where there's no tilt to
+ * swing the view away.
  */
-export function orbitScreenCenter(
-  viewer: Cesium.Viewer,
-  { heading, rangeScale = 1 }: { heading?: number; rangeScale?: number },
-): void {
+export function orbitScreenCenter(viewer: Cesium.Viewer, heading: number): void {
   const { camera, scene } = viewer;
   const center = new Cesium.Cartesian2(scene.canvas.clientWidth / 2, scene.canvas.clientHeight / 2);
   const target = scene.mode === Cesium.SceneMode.SCENE3D ? pickSurface(viewer, center) : null;
 
   if (!target) {
-    const height = camera.positionCartographic.height;
-    if (rangeScale < 1) camera.zoomIn(height * (1 - rangeScale));
-    if (rangeScale > 1) camera.zoomOut(height * (rangeScale - 1));
-    if (heading !== undefined) {
-      camera.setView({ orientation: { heading, pitch: camera.pitch, roll: 0 } });
-    }
+    camera.setView({ orientation: { heading, pitch: camera.pitch, roll: 0 } });
     return;
   }
 
   const range = Cesium.Cartesian3.distance(camera.positionWC, target);
   camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
-    offset: new Cesium.HeadingPitchRange(
-      heading ?? camera.heading,
-      camera.pitch,
-      range * rangeScale,
-    ),
+    offset: new Cesium.HeadingPitchRange(heading, camera.pitch, range),
     duration: DURATION,
   });
 }
