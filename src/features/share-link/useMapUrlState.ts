@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
-import { decodeMapUrlState, encodeMapUrlState, type MapUrlState } from './mapUrlState';
+import {
+  decodeMapUrlState,
+  encodeMapUrlState,
+  terrainForLink,
+  type MapUrlState,
+} from './mapUrlState';
 
 /** The parts of the map's state a link carries, as `App` reports them. */
 export interface ShareableState {
   basemapId: string;
   terrainId: string | null;
+  /** The terrain the app starts on; a link leaves terrain out while it's this. */
+  defaultTerrainId: string | null;
   is2D: boolean;
   /** Catalogue ids of what's on the map — see mapUrlState.ts on why only those. */
   layerIds: string[];
@@ -99,7 +106,7 @@ function stateOf(viewer: Cesium.Viewer, current: ShareableState): MapUrlState {
       pitch: Cesium.Math.toDegrees(camera.pitch),
     },
     basemap: current.basemapId,
-    terrain: current.terrainId,
+    terrain: terrainForLink(current.terrainId, current.defaultTerrainId),
     mode: current.is2D ? '2d' : '3d',
     layers: current.layerIds,
   };

@@ -232,6 +232,7 @@ function App() {
     {
       basemapId: mapServices.basemapId,
       terrainId: terrain.selectedId,
+      defaultTerrainId: terrain.defaultId,
       is2D,
       layerIds: [
         ...mapServices.imagery.map((entry) => entry.id),

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { decodeMapUrlState, encodeMapUrlState, type MapUrlState } from './mapUrlState';
+import {
+  decodeMapUrlState,
+  encodeMapUrlState,
+  terrainForLink,
+  type MapUrlState,
+} from './mapUrlState';
 
 describe('encodeMapUrlState / decodeMapUrlState', () => {
   const state: MapUrlState = {
@@ -40,6 +45,17 @@ describe('encodeMapUrlState / decodeMapUrlState', () => {
     expect(encodeMapUrlState({ terrain: null })).toBe('terrain=none');
     expect(decodeMapUrlState('terrain=none')).toEqual({ terrain: null });
     expect(encodeMapUrlState({})).toBe('');
+  });
+
+  it('leaves the default terrain out of a link, and writes any change from it', () => {
+    const singapore = 'public:terrain/singapore';
+    expect(terrainForLink(singapore, singapore)).toBeUndefined();
+    // No terrain anywhere: nothing to say, so a later default still loads.
+    expect(terrainForLink(null, null)).toBeUndefined();
+    // Switched off, or swapped for another: deliberate, so written.
+    expect(terrainForLink(null, singapore)).toBeNull();
+    expect(terrainForLink('public:terrain/other', singapore)).toBe('public:terrain/other');
+    expect(encodeMapUrlState({ terrain: terrainForLink(singapore, singapore) })).toBe('');
   });
 
   it('drops malformed fields one by one instead of rejecting the link', () => {

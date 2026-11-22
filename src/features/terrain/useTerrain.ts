@@ -132,6 +132,8 @@ export function useTerrain(viewer: Cesium.Viewer | null) {
   return {
     /** Every terrain on offer, in `public/` path order. */
     options: PUBLIC_TERRAINS,
+    /** What the app starts on — so a shared link need only mention a change from it. */
+    defaultId: FIRST_TERRAIN?.id ?? null,
     selectedId,
     loading,
     error,

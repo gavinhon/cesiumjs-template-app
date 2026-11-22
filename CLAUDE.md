@@ -206,7 +206,9 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   on load (layers added with `flyTo: false`, so the shared view stays)
   and rewritten with `replaceState` on `camera.moveEnd`. Layers connected
   by typing a URL are deliberately left out: links shouldn't carry service
-  URLs and ArcGIS tokens around.
+  URLs and ArcGIS tokens around. Terrain is written only when it differs
+  from the default (`terrainForLink`): writing it always meant links made
+  before the site had terrain said `terrain=none` and hid it once added.
 - **Legends come from the service, or from our style.** `LayerEntry.legend`
   is a loader: WMS `GetLegendGraphic`, ArcGIS `/legend?f=json`
   (`layerLegend.ts`), and for vector layers the app's own `--vector`

@@ -37,6 +37,24 @@ export interface MapUrlState {
   layers?: string[];
 }
 
+/**
+ * What a link should say about terrain: nothing while it's the app's
+ * default, so the link keeps meaning "whatever terrain the app starts on".
+ *
+ * Writing the selection every time froze the deployment of the day into
+ * every link. Before the site had any terrain, each address it wrote said
+ * `terrain=none` — so once terrain was added, every bookmark and open tab
+ * kept switching it off, and the new terrain looked missing. Now only a
+ * deliberate change is written: choosing "None" while a default exists, or
+ * another terrain than the default.
+ */
+export function terrainForLink(
+  selectedId: string | null,
+  defaultId: string | null,
+): string | null | undefined {
+  return selectedId === defaultId ? undefined : selectedId;
+}
+
 /** The fragment (without its `#`) for `state`. Absent fields are left out. */
 export function encodeMapUrlState(state: MapUrlState): string {
   const params = new URLSearchParams();
