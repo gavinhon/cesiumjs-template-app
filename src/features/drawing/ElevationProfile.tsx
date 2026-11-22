@@ -19,6 +19,12 @@ type Profile = {
   stats: ProfileStats;
 };
 
+/** What a terrain request answered — and for which line on which terrain. */
+type Answer = { positions: Cesium.Cartesian3[]; terrain: Cesium.TerrainProvider } & (
+  { state: 'done'; profile: Profile } | { state: 'error'; message: string }
+);
+
+/** What the panel shows, worked out from the answer during render. */
 type LoadState =
   | { state: 'loading' }
   | { state: 'no-terrain' }
@@ -44,41 +50,59 @@ const HEIGHT = 88;
  * Cesium entity directly — never through React state per mouse move.
  */
 export function ElevationProfile({ viewer, positions }: ElevationProfileProps) {
-  const [result, setResult] = useState<LoadState>({ state: 'loading' });
+  const [answer, setAnswer] = useState<Answer | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const markerRef = useRef<Cesium.Entity | null>(null);
 
+  // Only the terrain's answer is state; "loading" and "no terrain" are
+  // worked out here, during render. Setting them from the effect would
+  // commit a frame showing the previous line's profile before switching —
+  // and the effect would be setting state that isn't an answer from
+  // anything outside React.
+  //
+  // The terrain provider is read here and passed to the effect as an input,
+  // so choosing a terrain while a line is selected re-samples it. (The App
+  // re-renders when the terrain finishes loading, which is when Cesium
+  // swaps the provider in.)
+  const terrain = viewer.terrainProvider;
+  const noTerrain = terrain instanceof Cesium.EllipsoidTerrainProvider;
+  const result: LoadState = noTerrain
+    ? { state: 'no-terrain' }
+    : answer && answer.positions === positions && answer.terrain === terrain
+      ? answer
+      : { state: 'loading' };
+
   useEffect(() => {
-    if (viewer.terrainProvider instanceof Cesium.EllipsoidTerrainProvider) {
-      setResult({ state: 'no-terrain' });
-      return;
-    }
+    if (terrain instanceof Cesium.EllipsoidTerrainProvider) return;
     let current = true;
-    setResult({ state: 'loading' });
     const { cartographics, distances } = samplePath(positions, SAMPLE_COUNT);
     // Fills in each cartographic's height from the most detailed terrain
     // tiles available, fetching them if needed.
-    Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartographics).then(
+    Cesium.sampleTerrainMostDetailed(terrain, cartographics).then(
       (samples) => {
         if (!current) return;
         const heights = samples.map((sample) => sample.height);
-        setResult({
+        setAnswer({
+          positions,
+          terrain,
           state: 'done',
           profile: { distances, heights, samples, stats: profileStats(heights) },
         });
       },
       (error: unknown) => {
-        if (current)
-          setResult({
-            state: 'error',
-            message: error instanceof Error ? error.message : String(error),
-          });
+        if (!current) return;
+        setAnswer({
+          positions,
+          terrain,
+          state: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        });
       },
     );
     return () => {
       current = false;
     };
-  }, [viewer, positions]);
+  }, [terrain, positions]);
 
   // The hover marker: created on first hover, removed with the chart.
   useEffect(

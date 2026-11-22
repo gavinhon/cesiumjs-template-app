@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import { pickSurface } from '@/cesium/pickSurface';
 import { readAttributes, type AttributeRow } from './featureAttributes';
@@ -93,9 +93,15 @@ export function useFeatureInspector(
   const [inspected, setInspected] = useState<InspectedFeature | null>(null);
   // Read by the click handler, which is subscribed once per viewer.
   const layersRef = useRef(layers);
-  layersRef.current = layers;
   const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  // Kept current in a layout effect, not by assigning during render: React
+  // may render without committing (StrictMode, concurrent rendering), and a
+  // render-time write would leak a value that never reached the screen. A
+  // layout effect runs right after commit, before any input event can.
+  useLayoutEffect(() => {
+    layersRef.current = layers;
+    enabledRef.current = enabled;
+  });
 
   useEffect(() => {
     if (!viewer) return;
@@ -117,12 +123,17 @@ export function useFeatureInspector(
 
   // Arming a tool, or removing or hiding the feature's layer, closes the
   // card: it would otherwise describe something you can no longer see.
+  //
+  // Cleared during render, not in an effect, so no frame is ever committed
+  // with a card describing a hidden layer. It's a real reset rather than a
+  // value derived and hidden: showing the layer again or putting the tool
+  // down must not bring back a card the user had moved on from. Setting
+  // this hook's own state while rendering is allowed, and the next pass
+  // has `inspected === null`, so it settles at once.
   const stale =
     inspected !== null &&
     (!enabled || !layers.some((layer) => layer.id === inspected.layerId && layer.visible));
-  useEffect(() => {
-    if (stale) setInspected(null);
-  }, [stale]);
+  if (stale) setInspected(null);
 
   useEffect(() => {
     if (!inspected) return;

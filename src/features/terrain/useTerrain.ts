@@ -7,6 +7,9 @@ import type { PublicTerrainDataset } from '@/lib/publicDatasetTypes';
 /** Terrain tilesets found under `public/` at build time. */
 const PUBLIC_TERRAINS = publicDatasetsOfKind('terrain');
 
+/** The terrain the app starts on — the first in `public/` — or none. */
+const FIRST_TERRAIN: PublicTerrainDataset | null = PUBLIC_TERRAINS[0] ?? null;
+
 /**
  * Owns which terrain the globe is drawn on: one of the terrain tilesets
  * found in `public/`, or none — the bare WGS84 ellipsoid the app starts
@@ -34,8 +37,12 @@ const PUBLIC_TERRAINS = publicDatasetsOfKind('terrain');
  * one from a GeoTIFF.
  */
 export function useTerrain(viewer: Cesium.Viewer | null) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Starts on the terrain the preload below is about to fetch, already
+  // "loading", rather than on None and then switched by an effect. The
+  // picker shows the truth from the first render — it's been chosen and is
+  // on its way — and the preload effect has no state of its own to set.
+  const [selectedId, setSelectedId] = useState<string | null>(FIRST_TERRAIN?.id ?? null);
+  const [loading, setLoading] = useState(FIRST_TERRAIN !== null);
   const [error, setError] = useState<string | null>(null);
 
   // `setTerrain` already makes the *globe* honour only the latest choice;
@@ -48,16 +55,17 @@ export function useTerrain(viewer: Cesium.Viewer | null) {
   // the globe: shading a perfectly smooth ellipsoid only darkens the map.
   const disableHillshade = useRef<(() => void) | null>(null);
 
-  const selectTerrain = useCallback(
-    async (id: string | null, { flyToIfOffscreen = true } = {}) => {
+  /**
+   * Puts a terrain on the globe and reports how it went. The panel state
+   * for *starting* a load is the caller's job; everything set here happens
+   * after the first `await`, once Cesium has answered. That split is what
+   * lets the startup preload call this from an effect: an effect should
+   * talk to Cesium, and only state changes that answer it belong in there.
+   */
+  const load = useCallback(
+    async (dataset: PublicTerrainDataset | null, flyToIfOffscreen: boolean) => {
       if (!viewer) return;
       const request = ++latestRequest.current;
-      const dataset = id === null ? null : PUBLIC_TERRAINS.find((entry) => entry.id === id);
-      if (id !== null && !dataset) return;
-
-      setSelectedId(id);
-      setError(null);
-      setLoading(dataset !== null);
 
       const terrain = new Cesium.Terrain(
         dataset
@@ -71,7 +79,7 @@ export function useTerrain(viewer: Cesium.Viewer | null) {
       try {
         await terrainReady(terrain);
         if (request !== latestRequest.current || viewer.isDestroyed()) return;
-        appliedId.current = id;
+        appliedId.current = dataset?.id ?? null;
 
         if (dataset && !disableHillshade.current) {
           disableHillshade.current = enableHillshade(viewer.scene);
@@ -91,14 +99,29 @@ export function useTerrain(viewer: Cesium.Viewer | null) {
     [viewer],
   );
 
+  /** Chooses a terrain from the picker (or `null` for none) and loads it. */
+  const selectTerrain = useCallback(
+    async (id: string | null, { flyToIfOffscreen = true } = {}) => {
+      if (!viewer) return;
+      const dataset = id === null ? null : PUBLIC_TERRAINS.find((entry) => entry.id === id);
+      if (id !== null && !dataset) return;
+
+      setSelectedId(id);
+      setError(null);
+      setLoading(dataset !== null);
+      await load(dataset ?? null, flyToIfOffscreen);
+    },
+    [viewer, load],
+  );
+
   // Preload the first terrain once there's a viewer to put it on. No
   // fly-to: the camera is wherever the app chose to start it, and terrain
-  // arriving shouldn't move it.
+  // arriving shouldn't move it. The state already says so (see useState
+  // above), so this only has to tell Cesium.
   useEffect(() => {
-    const first = PUBLIC_TERRAINS[0];
-    if (!viewer || !first) return;
-    void selectTerrain(first.id, { flyToIfOffscreen: false });
-  }, [viewer, selectTerrain]);
+    if (!viewer || !FIRST_TERRAIN) return;
+    void load(FIRST_TERRAIN, false);
+  }, [viewer, load]);
 
   const zoomToSelected = useCallback(() => {
     if (!viewer) return;

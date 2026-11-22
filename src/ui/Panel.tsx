@@ -51,19 +51,19 @@ export function Panel({ id, title, subtitle, open, side = 'left', onClose, child
   // On a phone the panel is a bottom sheet that can be dragged between
   // three heights; on a wider screen the grabber is hidden and the
   // `panel--sheet-*` class has no rules, so none of this applies.
-  const sheet = useBottomSheet<HTMLElement>('half');
+  const { sheetRef, detent, grabberProps } = useBottomSheet<HTMLElement>('half');
   const className = [
     'panel',
     `panel--${side}`,
-    `panel--sheet-${sheet.detent}`,
+    `panel--sheet-${detent}`,
     open ? null : 'panel--collapsed',
   ]
     .filter(Boolean)
     .join(' ');
 
   return (
-    <aside ref={sheet.sheetRef} id={id} className={className} aria-hidden={!open}>
-      <button type="button" className="panel__grabber" {...sheet.grabberProps} />
+    <aside ref={sheetRef} id={id} className={className} aria-hidden={!open}>
+      <button type="button" className="panel__grabber" {...grabberProps} />
       <header className="panel__header">
         <div className="panel__title-row">
           <h1>{title}</h1>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import * as Cesium from 'cesium';
 import { BASEMAPS, DEFAULT_BASEMAP } from '@/cesium/basemaps';
 import { createImageryProvider } from './createImageryProvider';
@@ -99,30 +99,39 @@ export function useMapServices(viewer: Cesium.Viewer | null) {
   // Adopt the base map once the viewer exists. `CesiumMap` passes it as the
   // Viewer's `baseLayer` option, which puts it at index 0 of the imagery
   // collection before any of our code runs.
-  useEffect(() => {
-    if (!viewer) return;
+  //
+  // Done during the render in which the viewer first appears, not in an
+  // effect: nothing is being synchronised *to* Cesium here — the layer is
+  // already on the globe — we're only reading it into React state, and an
+  // effect would commit one render with an empty layer list first (the
+  // layer manager and the shared-link restore, which waits for this, would
+  // both see it). Remembering which viewer was adopted is what makes it
+  // happen once per viewer and lets the second pass settle.
+  const [adoptedViewer, setAdoptedViewer] = useState<Cesium.Viewer | null>(null);
+  if (viewer && viewer !== adoptedViewer) {
+    setAdoptedViewer(viewer);
     const baseLayer = viewer.imageryLayers.get(0);
-    if (!baseLayer) return;
-
-    setImagery((prev) => {
-      // Guard against React StrictMode's double-invoke re-seeding a second
-      // copy, and against wiping layers the user has already added.
-      if (prev.some((entry) => entry.id === BASE_LAYER_ID)) return prev;
-      return [
-        {
-          id: BASE_LAYER_ID,
-          name: DEFAULT_BASEMAP.name,
-          kind: DEFAULT_BASEMAP.kind,
-          cesiumLayer: baseLayer,
-          config: null,
-          visible: baseLayer.show,
-          alpha: baseLayer.alpha,
-          removable: false,
-        },
-        ...prev,
-      ];
-    });
-  }, [viewer]);
+    if (baseLayer) {
+      setImagery((prev) => {
+        // Guard against React StrictMode's double-invoke re-seeding a second
+        // copy, and against wiping layers the user has already added.
+        if (prev.some((entry) => entry.id === BASE_LAYER_ID)) return prev;
+        return [
+          {
+            id: BASE_LAYER_ID,
+            name: DEFAULT_BASEMAP.name,
+            kind: DEFAULT_BASEMAP.kind,
+            cesiumLayer: baseLayer,
+            config: null,
+            visible: baseLayer.show,
+            alpha: baseLayer.alpha,
+            removable: false,
+          },
+          ...prev,
+        ];
+      });
+    }
+  }
 
   /**
    * Adds a layer of any supported type.

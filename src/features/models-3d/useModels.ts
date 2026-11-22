@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import {
   footprintOf,
@@ -64,7 +64,13 @@ export function useModels(viewer: Cesium.Viewer | null) {
   const [models, setModels] = useState<ManagedModel[]>([]);
   // Read by the terrain-change listener, which is subscribed once.
   const modelsRef = useRef<ManagedModel[]>([]);
-  modelsRef.current = models;
+  // Kept current in a layout effect, not by assigning during render: React
+  // may render without committing (StrictMode, concurrent rendering), and a
+  // render-time write would leak a value that never reached the screen. A
+  // layout effect runs right after commit, before any input event can.
+  useLayoutEffect(() => {
+    modelsRef.current = models;
+  });
 
   /**
    * How far to move a model for a placement, on the terrain that's loaded

@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import * as Cesium from 'cesium';
 import { flyToPoint } from '@/cesium/flyToPoint';
 import { createPlaceMarker, type PlaceMarker } from '@/cesium/placeMarker';
+import { APP_CONFIG } from '@/lib/appConfig';
 import { formatLatLon } from '@/lib/mapReadouts';
 import { parseCoordinateQuery } from './parseCoordinateQuery';
 import { searchNominatim, searchOneMap, type PlaceResult } from './searchPlaces';
@@ -40,6 +41,22 @@ const DEBOUNCE_MS = 300;
 const MIN_QUERY = 3;
 
 /**
+ * Place search needs OneMap or Nominatim, both on the internet. Offline
+ * (`APP_CONFIG.offline`) it's left out entirely — no "Searching…" and no
+ * error on every word typed — and the box finds coordinates and datasets,
+ * which need no server.
+ */
+const PLACE_SEARCH = !APP_CONFIG.offline;
+
+const IDLE: PlaceState = { state: 'idle' };
+
+/** Whether text is worth asking a gazetteer about: long enough, and not a coordinate. */
+function isPlaceQuery(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length >= MIN_QUERY && !parseCoordinateQuery(trimmed);
+}
+
+/**
  * The search box at the top-left — the front door of every web map.
  *
  * One box finds three kinds of thing, listed in this order:
@@ -61,7 +78,7 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const [places, setPlaces] = useState<PlaceState>({ state: 'idle' });
+  const [fetchedPlaces, setPlaces] = useState<PlaceState>(IDLE);
   const [addError, setAddError] = useState<{ id: string; message: string } | null>(null);
   const markerRef = useRef<PlaceMarker | null>(null);
   const requestRef = useRef<AbortController | null>(null);
@@ -79,14 +96,21 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
   const trimmed = query.trim();
   const coordinate = useMemo(() => parseCoordinateQuery(trimmed), [trimmed]);
 
+  // A coordinate or a couple of letters is never sent to a gazetteer, so for
+  // those the places section is simply idle — worked out here, not stored.
+  // The stored answer is also dropped in `changeQuery`, the event that made
+  // the query ineligible, so it can't flash back when a new word is typed.
+  const eligible = PLACE_SEARCH && !coordinate && trimmed.length >= MIN_QUERY;
+  const places: PlaceState = eligible ? fetchedPlaces : IDLE;
+
   // OneMap as you type. Each keystroke cancels the previous request, so a
-  // slow early answer can never overwrite a later one.
+  // slow early answer can never overwrite a later one. The only state set
+  // here is OneMap's answer (and "loading", once the debounce has elapsed
+  // and the request is really going out) — never a reset, which belongs to
+  // the event that caused it.
   useEffect(() => {
     requestRef.current?.abort();
-    if (coordinate || trimmed.length < MIN_QUERY) {
-      setPlaces({ state: 'idle' });
-      return;
-    }
+    if (!eligible) return;
     const controller = new AbortController();
     requestRef.current = controller;
     const timer = window.setTimeout(() => {
@@ -103,7 +127,7 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [trimmed, coordinate]);
+  }, [trimmed, eligible]);
 
   const matchingDatasets = useMemo(() => {
     if (trimmed.length < 2 || coordinate) return [];
@@ -133,6 +157,7 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
     for (const place of places.places) rows.push({ kind: 'place', id: place.id, place });
   }
   if (
+    PLACE_SEARCH &&
     !coordinate &&
     trimmed.length >= MIN_QUERY &&
     !(places.state === 'done' && places.source === 'osm')
@@ -200,6 +225,12 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
     }
   }
 
+  /** Every edit of the query goes through here, so stale places are dropped where they go stale. */
+  function changeQuery(value: string) {
+    setQuery(value);
+    if (!isPlaceQuery(value)) setPlaces(IDLE);
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
@@ -213,7 +244,7 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
     } else if (event.key === 'Escape') {
       // First Escape closes the list; a second clears the box.
       if (open) setOpen(false);
-      else setQuery('');
+      else changeQuery('');
     }
   }
 
@@ -232,7 +263,7 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
       <input
         type="search"
         className="control control-input search-box__input"
-        placeholder="Search places, coordinates or data"
+        placeholder={PLACE_SEARCH ? 'Search places, coordinates or data' : 'Search coordinates or data'}
         aria-label="Search places, coordinates or data"
         role="combobox"
         aria-expanded={showList}
@@ -243,7 +274,7 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
         aria-autocomplete="list"
         value={query}
         onChange={(event) => {
-          setQuery(event.target.value);
+          changeQuery(event.target.value);
           setActive(0);
           setAddError(null);
           setOpen(true);

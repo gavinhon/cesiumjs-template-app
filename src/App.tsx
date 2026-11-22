@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { QuickAddItem } from '@/ui/QuickAddList';
 import type * as Cesium from 'cesium';
 import type { LegendContent, VectorGeometry } from '@/lib/legendTypes';
@@ -109,12 +109,21 @@ function App() {
   // Clicking a shape on the globe should show you its attributes, not just
   // highlight it — otherwise selection looks like it did nothing whenever
   // the panel happens to be closed.
+  //
+  // Done while rendering, when the selection is seen to change, rather than
+  // in an effect: an effect would commit one frame with the panel still
+  // shut, then re-render to open it. React's "adjust state when a value
+  // changes" pattern — remember the last value seen, compare, update — gets
+  // it into the same render. Only App's own state is set, and the second
+  // pass finds nothing changed, so it can't loop.
   const selectedDrawingId = drawing.selectedId;
-  useEffect(() => {
+  const [seenDrawingId, setSeenDrawingId] = useState(selectedDrawingId);
+  if (selectedDrawingId !== seenDrawingId) {
+    setSeenDrawingId(selectedDrawingId);
     if (selectedDrawingId) {
       setOpenPanels((current) => ({ ...current, left: 'drawings' }));
     }
-  }, [selectedDrawingId]);
+  }
 
   // Adapt each feature's own entries into the neutral shape the layer
   // manager renders. Doing it here is what keeps that feature from

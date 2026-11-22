@@ -4,20 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CesiumJS + Vite + React Template</title>
-    <!-- Two fonts, used deliberately (see src/styles/designTokens.css): Inter for
-         body copy people read, JetBrains Mono — uppercase, letter-spaced —
-         for labels and technical readouts (layer types, field names,
-         measurements). That split is what gives a dark ops/dashboard UI its
-         "instrument panel" feel.
-
-         Only the weights the app actually uses are requested; each extra
-         weight is another file the browser blocks text rendering on. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    <!-- No font links: Inter and JetBrains Mono are bundled with the app
+         (src/styles/fonts.css), so it renders the same with no internet. -->
   </head>
   <body>
     <div id="root"></div>

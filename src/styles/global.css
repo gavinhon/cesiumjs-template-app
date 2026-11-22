@@ -1,4 +1,5 @@
 @import './designTokens.css';
+@import './fonts.css';
 
 /*
  * Global reset for a full-screen map app, plus the `.control` primitives

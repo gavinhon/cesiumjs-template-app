@@ -1,4 +1,7 @@
 import * as Cesium from 'cesium';
+import { APP_CONFIG } from '@/lib/appConfig';
+import { PUBLIC_BASEMAPS } from '@/lib/publicDatasets';
+import type { PublicTilePyramidDataset } from '@/lib/publicDatasetTypes';
 import { tileAt, tileBbox3857 } from '@/lib/slippyTile';
 import { INITIAL_VIEW } from './initialView';
 
@@ -20,6 +23,12 @@ import { INITIAL_VIEW } from './initialView';
  * Purpose-made dark or grey tile services (CARTO, Stadia, MapTiler) all need
  * an account or key now, and OpenStreetMap itself publishes only its one
  * Standard style, so "grey" here is the OSM map drawn without colour.
+ *
+ * **Offline.** Tile pyramids in the datasets' `basemaps/` folder are added
+ * to the list (`localBasemap`). With `APP_CONFIG.offline` set, those are
+ * the whole list — the online ones would only draw a blank globe — plus
+ * Natural Earth II, the low-resolution world image Cesium ships in its own
+ * assets, so there's always *something* under the data.
  */
 export interface Basemap {
   id: string;
@@ -119,7 +128,67 @@ function esriLayer(service: string, sources: string): Cesium.ImageryLayer {
   );
 }
 
-export const BASEMAPS: readonly Basemap[] = [
+/**
+ * A basemap from a tile pyramid in the datasets' `basemaps/` folder — the
+ * way to give an air-gapped deployment a real base map. Make one with
+ * `gdal2tiles` or QGIS's "Generate XYZ tiles" from imagery you're licensed
+ * to copy (docs/deployment-docker.md); it should start at zoom 0, since
+ * Cesium asks for the top levels first and shows nothing until they load.
+ */
+function localBasemap(dataset: PublicTilePyramidDataset): Basemap {
+  // The thumbnail tile, or the deepest one that exists for a shallow
+  // pyramid. `{reverseY}` is the TMS row order (see the scan), flipped here
+  // by hand because this URL goes to an <img>, not through Cesium.
+  const tile = tileAt(
+    INITIAL_VIEW.longitude,
+    INITIAL_VIEW.latitude,
+    Math.min(THUMB.z, dataset.maximumLevel),
+  );
+  const thumbnailUrl = dataset.urlTemplate
+    .replace('{z}', String(tile.z))
+    .replace('{x}', String(tile.x))
+    .replace('{y}', String(tile.y))
+    .replace('{reverseY}', String(2 ** tile.z - 1 - tile.y));
+
+  return {
+    id: dataset.id,
+    name: dataset.name,
+    kind: 'LOCAL XYZ',
+    thumbnail: { url: thumbnailUrl },
+    createLayer: () =>
+      new Cesium.ImageryLayer(
+        new Cesium.UrlTemplateImageryProvider({
+          url: dataset.urlTemplate,
+          maximumLevel: dataset.maximumLevel,
+        }),
+      ),
+  };
+}
+
+/**
+ * Natural Earth II: a shaded-relief world image at roughly 1 km per pixel,
+ * shipped inside Cesium's own static assets (served from `cesium/`, copied
+ * there by vite-plugin-cesium), so it needs no network and no files of
+ * your own. Too coarse for a city, but it keeps the offline globe from
+ * being a featureless ball when no local basemap has been provided.
+ */
+const NATURAL_EARTH: Basemap = {
+  id: 'natural-earth',
+  name: 'Natural Earth II (offline)',
+  kind: 'TMS',
+  // Its deepest level is 2: a geographic (lon/lat) grid of 8 × 4 tiles,
+  // rows counted from the south. Column 6, row 2 is the one holding
+  // Singapore.
+  thumbnail: { url: Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII/2/6/2.jpg') },
+  createLayer: () =>
+    Cesium.ImageryLayer.fromProviderAsync(
+      Cesium.TileMapServiceImageryProvider.fromUrl(
+        Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'),
+      ),
+    ),
+};
+
+const ONLINE_BASEMAPS: readonly Basemap[] = [
   {
     id: 'esri-imagery',
     name: 'Esri World Imagery',
@@ -190,10 +259,22 @@ export const BASEMAPS: readonly Basemap[] = [
   },
 ];
 
+const LOCAL_BASEMAPS = PUBLIC_BASEMAPS.map(localBasemap);
+
 /**
- * The basemap the app starts with: Esri World Imagery, first in the list.
- * Aerial imagery is what the app's 3D content — terrain, buildings, BIM —
- * is easiest to read against. It's keyless like the rest; see `esriLayer`
- * for Esri's terms.
+ * Every basemap on offer. Online: the public services, then any local
+ * pyramids. Offline: the local pyramids first, then Natural Earth.
  */
-export const DEFAULT_BASEMAP = BASEMAPS[0];
+export const BASEMAPS: readonly Basemap[] = APP_CONFIG.offline
+  ? [...LOCAL_BASEMAPS, NATURAL_EARTH]
+  : [...ONLINE_BASEMAPS, ...LOCAL_BASEMAPS];
+
+/**
+ * The basemap the app starts with: the one `app-config.json` names, else
+ * the first in the list. Online that's Esri World Imagery — aerial imagery
+ * is what the app's 3D content (terrain, buildings, BIM) is easiest to
+ * read against; it's keyless like the rest, see `esriLayer` for Esri's
+ * terms. Offline it's the first local pyramid, or Natural Earth.
+ */
+export const DEFAULT_BASEMAP: Basemap =
+  BASEMAPS.find((basemap) => basemap.id === APP_CONFIG.defaultBasemap) ?? BASEMAPS[0];

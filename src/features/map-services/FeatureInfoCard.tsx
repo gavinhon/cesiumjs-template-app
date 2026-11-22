@@ -34,11 +34,14 @@ export function FeatureInfoCard({ viewer, feature, onClose }: FeatureInfoCardPro
   // On a phone the card is a bottom sheet, opening at peek height — the
   // title and first few attributes — like a tapped place in a maps app.
   // It can be pulled up for the rest. On wider screens this has no effect.
-  const sheet = useBottomSheet<HTMLElement>('peek');
-  const cardRef = sheet.sheetRef;
+  const {
+    sheetRef: cardRef,
+    detent,
+    setDetent,
+    grabberProps,
+  } = useBottomSheet<HTMLElement>('peek');
   // Each newly tapped feature opens at peek again, not wherever the last
   // card was left.
-  const { setDetent } = sheet;
   useEffect(() => setDetent('peek'), [feature, setDetent]);
 
   useEffect(() => {
@@ -83,10 +86,10 @@ export function FeatureInfoCard({ viewer, feature, onClose }: FeatureInfoCardPro
   return (
     <section
       ref={cardRef}
-      className={`feature-info feature-info--sheet-${sheet.detent}`}
+      className={`feature-info feature-info--sheet-${detent}`}
       aria-label={`Feature: ${feature.title}`}
     >
-      <button type="button" className="feature-info__grabber" {...sheet.grabberProps} />
+      <button type="button" className="feature-info__grabber" {...grabberProps} />
       <header className="feature-info__header">
         <div className="feature-info__heading">
           <h2 className="feature-info__title">{feature.title}</h2>

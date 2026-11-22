@@ -1,3 +1,4 @@
+import { APP_CONFIG } from '@/lib/appConfig';
 import type { ModelConfig } from './modelTypes';
 
 /**
@@ -13,7 +14,7 @@ import type { ModelConfig } from './modelTypes';
  */
 export type ExampleModel = Omit<ModelConfig, 'id'>;
 
-export const EXAMPLE_MODELS: readonly ExampleModel[] = [
+const EXAMPLE_MODELS_ONLINE: readonly ExampleModel[] = [
   {
     // HDB blocks island-wide, modelled with roof shapes (LoD2).
     format: 'i3s',
@@ -41,3 +42,11 @@ export const EXAMPLE_MODELS: readonly ExampleModel[] = [
     url: 'https://buildings.reearth.land/tileset.json',
   },
 ];
+
+/**
+ * The examples on offer: none offline (`APP_CONFIG.offline`), since all of
+ * them are on the internet; tilesets in the data folder are offered instead.
+ */
+export const EXAMPLE_MODELS: readonly ExampleModel[] = APP_CONFIG.offline
+  ? []
+  : EXAMPLE_MODELS_ONLINE;

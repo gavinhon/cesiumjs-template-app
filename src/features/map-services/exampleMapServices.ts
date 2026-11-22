@@ -1,3 +1,4 @@
+import { APP_CONFIG } from '@/lib/appConfig';
 import type { MapServiceType } from './mapServiceTypes';
 
 /**
@@ -21,7 +22,7 @@ export interface ExampleMapService {
   maxFeatures?: number;
 }
 
-export const EXAMPLE_MAP_SERVICES: readonly ExampleMapService[] = [
+const EXAMPLE_MAP_SERVICES_ONLINE: readonly ExampleMapService[] = [
   {
     // A scanned 1963 satellite photo, georeferenced — try it at partial
     // opacity over a modern basemap to see the reclaimed coastline.
@@ -71,3 +72,12 @@ export const EXAMPLE_MAP_SERVICES: readonly ExampleMapService[] = [
     url: 'https://services5.arcgis.com/XqaKEQIgV03geG0E/arcgis/rest/services/Parks___Green_Spaces/FeatureServer/6',
   },
 ];
+
+/**
+ * The examples on offer: none offline (`APP_CONFIG.offline`). Every one is
+ * on the internet, and a catalogue of entries that can only fail is worse
+ * than none; datasets in the data folder are offered instead.
+ */
+export const EXAMPLE_MAP_SERVICES: readonly ExampleMapService[] = APP_CONFIG.offline
+  ? []
+  : EXAMPLE_MAP_SERVICES_ONLINE;

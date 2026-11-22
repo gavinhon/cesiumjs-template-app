@@ -1,4 +1,5 @@
 import * as Cesium from 'cesium';
+import { APP_CONFIG } from '@/lib/appConfig';
 
 /**
  * Esri's EGM2008 geoid, served as a tiled elevation service: at each
@@ -12,6 +13,13 @@ const GEOID_URL =
  * One geoid provider for every scene layer, created on first use. Resolves
  * to undefined if the service can't be reached, so scenes still load —
  * just unconverted, the geoid height off.
+ *
+ * Offline (`APP_CONFIG.offline`) it isn't asked at all: the request could
+ * only fail, and on some air-gapped networks it hangs until a proxy times
+ * out, holding up every scene layer behind it. Scenes then load the geoid
+ * height off — about 8 m too low around Singapore. A deployment with its
+ * own ArcGIS Enterprise can publish EGM2008 there and point `GEOID_URL` at
+ * it.
  */
 let geoid: Promise<Cesium.ArcGISTiledElevationTerrainProvider | undefined> | undefined;
 
@@ -40,7 +48,9 @@ export interface LoadedSceneLayer {
  * to the console), and a scene layer in a projected system throws.
  */
 export async function loadI3sSceneLayer(url: string, name: string): Promise<LoadedSceneLayer> {
-  geoid ??= Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(GEOID_URL).catch(() => undefined);
+  geoid ??= APP_CONFIG.offline
+    ? Promise.resolve(undefined)
+    : Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(GEOID_URL).catch(() => undefined);
 
   let provider: Cesium.I3SDataProvider;
   try {

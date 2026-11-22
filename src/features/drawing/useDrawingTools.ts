@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import { MAP_COLORS } from '@/cesium/mapColors';
 import { createMapLabelLayer, type MapLabelLayer } from '@/cesium/mapLabels';
@@ -217,8 +217,14 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const featuresRef = useRef<DrawnFeature[]>([]);
   const selectedIdRef = useRef<string | null>(null);
-  featuresRef.current = features;
-  selectedIdRef.current = selectedId;
+  // Kept current in a layout effect, not by assigning during render: React
+  // may render without committing (StrictMode, concurrent rendering), and a
+  // render-time write would leak a value that never reached the screen. A
+  // layout effect runs right after commit, before any input event can.
+  useLayoutEffect(() => {
+    featuresRef.current = features;
+    selectedIdRef.current = selectedId;
+  });
 
   /** Label ids per feature, keyed by feature id — see the label sync effect. */
   const featureLabelIdsRef = useRef<Map<string, string>>(new Map());
@@ -1487,9 +1493,12 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
   useEffect(() => {
     if (!viewer) return;
     const canvas = viewer.scene.canvas;
-    canvas.style.cursor = activeTool === 'none' ? '' : 'crosshair';
+    // setProperty rather than assigning `style.cursor`: the canvas belongs
+    // to the viewer passed in, and the React linter treats assigning into a
+    // hook argument as mutating it.
+    canvas.style.setProperty('cursor', activeTool === 'none' ? '' : 'crosshair');
     return () => {
-      canvas.style.cursor = '';
+      canvas.style.removeProperty('cursor');
     };
   }, [viewer, activeTool]);
 
