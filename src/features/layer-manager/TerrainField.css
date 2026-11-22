@@ -2,12 +2,3 @@
 .terrain-field__error {
   color: var(--danger);
 }
-
-/* A convenience under the picker, so at the compact height rather than
-   the field's own. */
-.terrain-field__zoom {
-  width: 100%;
-  height: var(--control-height-sm);
-  margin-top: 8px;
-  box-shadow: none;
-}

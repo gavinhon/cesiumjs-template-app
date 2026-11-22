@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 import { SelectField } from '@/ui/Field';
 import { useBottomSheet } from '@/ui/useBottomSheet';
 import { LayerLegend } from './LayerLegend';
@@ -14,15 +22,19 @@ interface LayerListProps {
   /**
    * The imagery the user added, in Cesium's own order: **index 0 is the
    * bottom**. Shown reversed, topmost first, as every layer list reads.
-   * The basemap isn't in it — it's chosen from the map tile, not stacked.
+   * The basemap isn't in it: it's `basemapLayer`, always last and never
+   * dragged.
    */
   imagery: LayerEntry[];
+  /** The basemap's own row; `null` for the moment before the viewer exists. */
+  basemapLayer: LayerEntry | null;
   /** Puts imagery layer `id` where layer `toId` is now, the rest shifting. */
   onMoveImagery: (id: string, toId: string) => void;
   /** 3D Tiles, I3S and vector data: in the scene, but not in the imagery stack. */
   sceneData: LayerEntry[];
-  /** For the phone sheet's Map section; a wide screen uses the map tile. */
+  /** Which basemap the basemap row shows — swapped from its "…". */
   basemap: BasemapChoice;
+  /** The terrain row: the globe's surface, the bottom of everything. */
   terrain: TerrainChoice;
 }
 
@@ -34,16 +46,20 @@ interface DragState {
 }
 
 /**
- * What's on the map, top-right: a short list of the layers you added, each
- * with the controls you reach for while looking at the map — show/hide,
- * opacity, draw order — and the rest one click away under "…".
+ * What's on the map, top-right, topmost first: the layers you added, then
+ * the basemap and the terrain they sit on — every layer the map has, each
+ * with the controls you reach for while looking at the map (show/hide,
+ * draw order) on its row and the rest one click away under "…".
  *
- * Minimal on purpose. It hides while nothing's been added, collapses to a
- * one-line chip, and leaves basemap and terrain to the map tile
- * (`BasemapSwitcher`), so it's never more than the data you brought in.
- * There is no toolbar button for it: the chip *is* the way back in. On a
- * phone it's a bottom sheet opened from the rail instead, carrying the
- * basemap and terrain choices too, since the tile is hidden there.
+ * Minimal on purpose: it collapses to a one-line chip, and it's always in
+ * the same place — never empty, since the basemap and terrain are always
+ * there — so there's no toolbar button for it; the chip *is* the way in.
+ * On a phone it's a bottom sheet opened from the rail instead.
+ *
+ * The basemap and terrain rows are listed but fixed: the basemap is
+ * swapped (from its "…", or the map tile bottom-left), not removed or
+ * dragged; terrain is one slot, so its eye switches to the bare ellipsoid
+ * and back, and its "…" picks which terrain.
  *
  * **Why only imagery can be dragged.** Raster imagery is painted onto the
  * globe in a fixed sequence, so "above" and "below" are real: a layer
@@ -59,11 +75,14 @@ export function LayerList({
   imagery,
   onMoveImagery,
   sceneData,
+  basemapLayer,
   basemap,
   terrain,
 }: LayerListProps) {
   const { sheetRef, detent, grabberProps } = useBottomSheet<HTMLElement>('half');
-  const count = imagery.length + sceneData.length;
+  const added = imagery.length + sceneData.length;
+  // Every row: what you added, the basemap, and terrain.
+  const count = added + (basemapLayer ? 1 : 0) + 1;
   // Cesium's collection is bottom-first; a layer list reads top-down.
   const topDown = [...imagery].reverse();
 
@@ -134,12 +153,7 @@ export function LayerList({
     onMoveImagery(id, destination.id);
   }
 
-  const className = [
-    'layer-list',
-    open ? 'layer-list--open' : null,
-    count === 0 ? 'layer-list--empty' : null,
-    `layer-list--sheet-${detent}`,
-  ]
+  const className = ['layer-list', open ? 'layer-list--open' : null, `layer-list--sheet-${detent}`]
     .filter(Boolean)
     .join(' ');
 
@@ -172,11 +186,11 @@ export function LayerList({
       </button>
 
       <div id="layer-list-body" className="layer-list__body">
-        {count === 0 && (
-          <p className="layer-list__empty">Nothing added yet. Add data brings some in.</p>
+        {added === 0 && (
+          <p className="layer-list__empty">Add data puts your layers here, above these.</p>
         )}
 
-        {topDown.length > 0 && (
+        {(topDown.length > 0 || basemapLayer) && (
           <section className="layer-list__section">
             <h2 className="layer-list__heading">Imagery</h2>
             <ol className="layer-list__rows">
@@ -205,6 +219,9 @@ export function LayerList({
                   }}
                 />
               ))}
+              {basemapLayer && (
+                <LayerRow entry={basemapLayer} extra={<BasemapField basemap={basemap} />} />
+              )}
             </ol>
           </section>
         )}
@@ -220,7 +237,12 @@ export function LayerList({
           </section>
         )}
 
-        <MapSection basemap={basemap} terrain={terrain} />
+        <section className="layer-list__section">
+          <h2 className="layer-list__heading">Terrain</h2>
+          <ol className="layer-list__rows">
+            <TerrainRow terrain={terrain} />
+          </ol>
+        </section>
       </div>
     </aside>
   );
@@ -242,6 +264,10 @@ interface LayerRowProps {
   dragging?: boolean;
   /** Where the dragged row would land, drawn as a line on this row's edge. */
   dropEdge?: 'above' | 'below' | null;
+  /** A control only this row has, in its details — the basemap or terrain picker. */
+  extra?: ReactNode;
+  /** No eye to press: terrain with no tileset to switch to. */
+  toggleDisabled?: boolean;
 }
 
 /**
@@ -249,7 +275,15 @@ interface LayerRowProps {
  * zoom and remove in the details "…" opens. The first line is what you use
  * while comparing layers on the map; the rest is occasional.
  */
-function LayerRow({ entry, grip, rowRef, dragging, dropEdge }: LayerRowProps) {
+function LayerRow({
+  entry,
+  grip,
+  rowRef,
+  dragging,
+  dropEdge,
+  extra,
+  toggleDisabled,
+}: LayerRowProps) {
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const className = [
@@ -290,6 +324,7 @@ function LayerRow({ entry, grip, rowRef, dragging, dropEdge }: LayerRowProps) {
           type="button"
           className="layer-list__icon-button"
           onClick={entry.onToggleVisibility}
+          disabled={toggleDisabled}
           aria-pressed={entry.visible}
           aria-label={entry.visible ? `Hide ${entry.name}` : `Show ${entry.name}`}
           title={entry.visible ? 'Hide' : 'Show'}
@@ -299,7 +334,7 @@ function LayerRow({ entry, grip, rowRef, dragging, dropEdge }: LayerRowProps) {
 
         <span
           className="layer-list__name"
-          title={`${entry.name} — double-click to zoom to it`}
+          title={entry.onZoomTo ? `${entry.name} — double-click to zoom to it` : entry.name}
           onDoubleClick={entry.onZoomTo}
         >
           {entry.name}
@@ -316,7 +351,7 @@ function LayerRow({ entry, grip, rowRef, dragging, dropEdge }: LayerRowProps) {
           aria-expanded={expanded}
           aria-controls={detailsId}
           aria-label={`${entry.name} options`}
-          title="Opacity, legend and more"
+          title="More"
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
             <circle cx="6" cy="12" r="1.7" />
@@ -347,24 +382,31 @@ function LayerRow({ entry, grip, rowRef, dragging, dropEdge }: LayerRowProps) {
               </span>
             </label>
           )}
+          {extra}
           {entry.detail}
           {entry.legend && <LayerLegend load={entry.legend} />}
-          <div className="layer-list__actions">
-            <button
-              type="button"
-              className="control control-button layer-list__action"
-              onClick={entry.onZoomTo}
-            >
-              Zoom to
-            </button>
-            <button
-              type="button"
-              className="control control-button layer-list__action"
-              onClick={entry.onRemove}
-            >
-              Remove
-            </button>
-          </div>
+          {(entry.onZoomTo || entry.onRemove) && (
+            <div className="layer-list__actions">
+              {entry.onZoomTo && (
+                <button
+                  type="button"
+                  className="control control-button layer-list__action"
+                  onClick={entry.onZoomTo}
+                >
+                  Zoom to
+                </button>
+              )}
+              {entry.onRemove && (
+                <button
+                  type="button"
+                  className="control control-button layer-list__action"
+                  onClick={entry.onRemove}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </li>
@@ -372,14 +414,44 @@ function LayerRow({ entry, grip, rowRef, dragging, dropEdge }: LayerRowProps) {
 }
 
 /**
- * Basemap and terrain, for the phone sheet only — on a wide screen the map
- * tile in the bottom-left holds them, and CSS hides this.
+ * The terrain as a row like any other: its eye switches between the
+ * terrain and the bare ellipsoid, its "…" picks which terrain.
+ *
+ * Terrain is one slot, not a stack (see `useTerrain`), so "hidden" means
+ * "no terrain selected" — and showing it again needs to know which one to
+ * bring back. That's the last one selected, remembered here; "adjust state
+ * when a value changes" during render, like App's drawing selection.
  */
-function MapSection({ basemap, terrain }: { basemap: BasemapChoice; terrain: TerrainChoice }) {
+function TerrainRow({ terrain }: { terrain: TerrainChoice }) {
+  const [lastId, setLastId] = useState(terrain.selectedId ?? terrain.options[0]?.id ?? null);
+  if (terrain.selectedId !== null && terrain.selectedId !== lastId) setLastId(terrain.selectedId);
+
+  const shown = terrain.options.find((option) => option.id === (terrain.selectedId ?? lastId));
+  const entry: LayerEntry = {
+    id: 'terrain',
+    // While switched off the row keeps the terrain's name, dimmed like any
+    // hidden layer, so the eye says what it will bring back.
+    name: shown?.name ?? 'No terrain',
+    // The one format CesiumTerrainProvider reads, which every terrain here is.
+    kind: 'QUANTIZED MESH',
+    visible: terrain.selectedId !== null,
+    onToggleVisibility: () => terrain.onSelect(terrain.selectedId === null ? lastId : null),
+    onZoomTo: terrain.selectedId === null ? undefined : terrain.onZoomTo,
+  };
+  return (
+    <LayerRow
+      entry={entry}
+      extra={<TerrainField terrain={terrain} />}
+      toggleDisabled={lastId === null}
+    />
+  );
+}
+
+/** Which basemap, in the basemap row's details. */
+function BasemapField({ basemap }: { basemap: BasemapChoice }) {
   const formId = useId();
   return (
-    <section className="layer-list__section layer-list__map">
-      <h2 className="layer-list__heading">Map</h2>
+    <div className="layer-list__field">
       <SelectField
         formId={formId}
         fieldId="basemap"
@@ -393,8 +465,7 @@ function MapSection({ basemap, terrain }: { basemap: BasemapChoice; terrain: Ter
           </option>
         ))}
       </SelectField>
-      <TerrainField terrain={terrain} />
-    </section>
+    </div>
   );
 }
 

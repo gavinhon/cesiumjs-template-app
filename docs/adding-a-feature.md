@@ -286,7 +286,7 @@ build-time scan find it rather than asking the user to type its URL:
 
 Not everything fits the panel shape. The drawing tools are a hook plus a
 floating toolbar, with no form and no list; terrain is a hook whose only UI
-is a picker under the map tile. That's fine — the parts that
+is a row in the layer list. That's fine — the parts that
 still apply are: **one folder under `src/features/`, one hook that owns all
 the Cesium interaction, and shared `.control` classes for the buttons.**
 Skip the rest.

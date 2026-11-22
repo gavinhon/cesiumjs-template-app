@@ -12,14 +12,11 @@ const ELLIPSOID = '';
 
 /**
  * Which surface the globe is drawn on: a terrain tileset, or the bare
- * ellipsoid. A choice, not a row with a toggle — terrain is one slot.
+ * ellipsoid — in the terrain row's details in the layer list. A choice,
+ * not a list: terrain is one slot.
  *
- * Shown in two places, one per layout: the basemap tile's menu on a wide
- * screen, and the phone's layer sheet, where that tile is hidden. One
- * component, so the two can't drift apart.
- *
- * Always shown, even with nothing to choose, so the hint can say where
- * terrain would come from.
+ * Shown even with nothing to choose, so the hint can say where terrain
+ * would come from.
  */
 export function TerrainField({ terrain }: TerrainFieldProps) {
   const formId = useId();
@@ -51,15 +48,6 @@ export function TerrainField({ terrain }: TerrainFieldProps) {
           </option>
         ))}
       </SelectField>
-      {selected && (
-        <button
-          type="button"
-          className="control control-button terrain-field__zoom"
-          onClick={terrain.onZoomTo}
-        >
-          Zoom to extent
-        </button>
-      )}
     </div>
   );
 }

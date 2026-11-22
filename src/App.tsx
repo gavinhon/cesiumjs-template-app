@@ -131,9 +131,9 @@ function App() {
   // manager renders. Doing it here is what keeps that feature from
   // importing the others — see src/features/layer-manager/layerManagerTypes.ts.
   //
-  // The basemap is left out: it's chosen from the map tile, not stacked,
-  // so the list holds only what you added. (It stays at the bottom of the
-  // stack — moveImagery never puts anything under it.)
+  // The basemap gets a row of its own (`basemapEntry`): listed, shown or
+  // hidden and faded like the rest, but swapped rather than removed, and
+  // never dragged — moveImagery never puts anything under it.
   const imageryEntries = useMemo<LayerEntry[]>(
     () =>
       mapServices.imagery
@@ -154,6 +154,21 @@ function App() {
         })),
     [mapServices],
   );
+
+  const baseImagery = mapServices.imagery.find((layer) => !layer.removable);
+  const basemapEntry: LayerEntry | null = baseImagery
+    ? {
+        id: baseImagery.id,
+        name: baseImagery.name,
+        kind: baseImagery.kind,
+        visible: baseImagery.visible,
+        onToggleVisibility: () => mapServices.toggleVisibility(baseImagery.id),
+        opacity: {
+          value: baseImagery.alpha,
+          onChange: (alpha: number) => mapServices.setAlpha(baseImagery.id, alpha),
+        },
+      }
+    : null;
 
   // 3D Tiles and WFS vectors share a section: neither is part of the
   // imagery draw order, so neither can be dragged.
@@ -300,6 +315,7 @@ function App() {
           )
         }
         sceneData={sceneEntries}
+        basemapLayer={basemapEntry}
         basemap={basemapChoice}
         terrain={terrainChoice}
       />
@@ -368,7 +384,7 @@ function App() {
         <ShareLinkButton getUrl={getShareUrl} disabled={!viewer} />
       </NavigationControls>
       <MapStatusBar viewer={viewer} />
-      <BasemapSwitcher basemap={basemapChoice} terrain={terrainChoice} />
+      <BasemapSwitcher basemap={basemapChoice} />
     </div>
   );
 }

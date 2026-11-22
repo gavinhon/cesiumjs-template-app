@@ -27,9 +27,10 @@ export interface LayerEntry {
   kind: string;
   visible: boolean;
   onToggleVisibility: () => void;
-  onZoomTo: () => void;
-  /** Takes the layer off the map. */
-  onRemove: () => void;
+  /** Absent for the basemap, which covers the whole globe. */
+  onZoomTo?: () => void;
+  /** Takes the layer off the map. Absent for the basemap, which is swapped, not removed. */
+  onRemove?: () => void;
   /** Imagery only: a texture on the globe has one opacity; vector features and models don't. */
   opacity?: { value: number; onChange: (value: number) => void };
   /**

@@ -1,29 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import type { BasemapChoice, TerrainChoice } from './layerManagerTypes';
-import { TerrainField } from './TerrainField';
+import type { BasemapChoice } from './layerManagerTypes';
 import './BasemapSwitcher.css';
 
 interface BasemapSwitcherProps {
   basemap: BasemapChoice;
-  terrain: TerrainChoice;
 }
 
 /**
- * The map tile in the bottom-left corner, the way Google Maps and Google
- * Earth do it: a picture of the current map, which opens a row of pictures
- * of the others, with the terrain choice under them. Choosing between maps
- * is a visual decision, so it's made from previews rather than names in a
- * dropdown.
- *
- * It holds what the map is drawn *on* — basemap and terrain — so the layer
- * list (top-right) holds only what you added on top. On a phone this
- * corner belongs to the navigation row, so the tile hides there and the
- * layer sheet carries both choices instead (see `LayerList`).
+ * The basemap tile in the bottom-left corner, the way Google Maps and
+ * Google Earth do it: a picture of the current map, which opens a row of
+ * pictures of the others. Choosing between maps is a visual decision, so
+ * it's made from previews; the basemap row in the layer list keeps a
+ * dropdown too, and is the way on a phone, where this corner belongs to
+ * the navigation row and the tile hides.
  *
  * The thumbnails are real tiles of the area the app opens on, fetched from
  * each basemap's own service (see `Basemap.thumbnail`).
  */
-export function BasemapSwitcher({ basemap, terrain }: BasemapSwitcherProps) {
+export function BasemapSwitcher({ basemap }: BasemapSwitcherProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const current = basemap.options.find((option) => option.id === basemap.selectedId);
@@ -61,37 +55,39 @@ export function BasemapSwitcher({ basemap, terrain }: BasemapSwitcherProps) {
         title={`Basemap: ${current.name}`}
       >
         <Thumbnail option={current} />
-        <span className="basemap-switcher__caption">Map</span>
+        <span className="basemap-switcher__caption">Basemap</span>
       </button>
 
       {open && (
-        <div id="basemap-switcher-options" className="control basemap-switcher__menu">
-          <div className="basemap-switcher__options" role="radiogroup" aria-label="Basemap">
-            {basemap.options.map((option) => {
-              const selected = option.id === basemap.selectedId;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  className={
-                    selected
-                      ? 'basemap-switcher__option basemap-switcher__option--selected'
-                      : 'basemap-switcher__option'
-                  }
-                  onClick={() => {
-                    basemap.onSelect(option.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Thumbnail option={option} />
-                  <span className="basemap-switcher__name">{option.name}</span>
-                </button>
-              );
-            })}
-          </div>
-          <TerrainField terrain={terrain} />
+        <div
+          id="basemap-switcher-options"
+          className="control basemap-switcher__options"
+          role="radiogroup"
+          aria-label="Basemap"
+        >
+          {basemap.options.map((option) => {
+            const selected = option.id === basemap.selectedId;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                className={
+                  selected
+                    ? 'basemap-switcher__option basemap-switcher__option--selected'
+                    : 'basemap-switcher__option'
+                }
+                onClick={() => {
+                  basemap.onSelect(option.id);
+                  setOpen(false);
+                }}
+              >
+                <Thumbnail option={option} />
+                <span className="basemap-switcher__name">{option.name}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

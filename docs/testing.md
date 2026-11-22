@@ -113,7 +113,7 @@ the Singapore terrain in `public/`.
 | #   | Do                                                                          | Expect                                                                                         |
 | --- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | T1  | Add data → add any dataset                                                  | Add data stays open on the left; the layer list (top-right) expands with the new layer         |
-| T1b | Collapse the layer list from its header, then remove every layer            | It folds to an "On the map" chip; with nothing left it disappears                              |
+| T1b | Collapse the layer list from its header, then remove every added layer      | It folds to an "On the map" chip; the basemap and terrain rows remain                          |
 | T1c | Add two imagery layers, then drag the lower one above the other by its grip | An orange line shows where it will land; on release the map redraws in the new order           |
 | T1d | Focus a grip with Tab and press ↑ / ↓                                       | The layer moves one place per key and keeps focus                                              |
 | T2  | Add data → type `rail` in the filter                                        | Only the rail layers remain, under "Features — points, lines and areas"                        |
@@ -121,7 +121,7 @@ the Singapore terrain in `public/`.
 | T4  | Right rail → Measure and analyse                                            | A menu of four named tools with hints; picking one arms it and its icon lights the menu button |
 | T5  | Bottom-left basemap tile → pick OpenStreetMap (grey)                        | The map switches; the tile shows the grey thumbnail; it hides while a left panel is open       |
 | T6  | Draw a line across Bukit Timah, finish, select it in Drawings               | "Ground profile" shows the hill (~150 m peak); hovering moves a marker along the line          |
-| T7  | Map tile → Terrain → None, then reselect the line                           | The profile says to choose a terrain instead of drawing a flat line                            |
+| T7  | Layer list → terrain row's eye off, then reselect the line                  | The profile says to choose a terrain instead of drawing a flat line                            |
 
 ### Phone layout
 
@@ -134,7 +134,7 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 | M2  | Tap Menu, then Add data                                                 | The menu closes; the panel rises as a half-height sheet with a grab handle and a ×       |
 | M3  | Tap the sheet's ×                                                       | The sheet slides down; the map does not scroll or jump                                   |
 | M4  | Add a dataset from the Add data sheet                                   | Add data closes; the layer sheet rises with the new layer listed                         |
-| M4b | Tap the layers button at the top of the rail                            | The layer sheet opens with Map (basemap and terrain) under the layers                    |
+| M4b | Tap the layers button at the top of the rail                            | The layer sheet opens, ending with the basemap and terrain rows                          |
 | M5  | Arm the line tool and tap two points                                    | The hint shows Undo and Finish instead of key hints; Finish keeps the line               |
 | M6  | Add Rail stations and tap a station                                     | Its attribute card docks to the bottom, full width, instead of floating over the station |
 | M6b | Drag a sheet's grab bar down, then tap it twice                         | It snaps to peek; taps step it to half, then full                                        |
@@ -179,7 +179,8 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 | L2  | Add data → Map service → WMS → `https://ahocevar.com/geoserver/wms` → Look up layers | A picklist of layers; choosing one fills the display name                                                                                                                    |
 | L3  | Add that WMS layer                                                                   | It draws over the base map and the camera flies to its extent                                                                                                                |
 | L4  | Add a WMS layer, then drag it below every other imagery layer                        | It sits under them but stays above the basemap — the basemap is never covered from below                                                                                     |
-| L5  | Map tile → Terrain → None                                                            | Terrain flattens and the hillshade turns off; choosing the DTM again restores both                                                                                           |
+| L5  | Layer list → terrain row's eye off, then on                                          | Terrain flattens and the hillshade turns off; turning it on restores the same terrain                                                                                        |
+| L5b | Layer list → basemap row's "…" → fade it to 30%, then swap it to OpenStreetMap       | The basemap fades; the new one keeps 30% and stays at the bottom of the list                                                                                                 |
 | L6  | Switch to 2D                                                                         | The map stays over the same place and is as bright as in 3D                                                                                                                  |
 | L7  | Drop a new `.geojson` into `public/` while the dev server runs                       | The page reloads and the file is offered in the Add data catalogue                                                                                                           |
 | L8  | Add the BIM model from the public/ list                                              | Its row reads "On terrain · Raised … m"; zoomed in, its ground floor meets the street                                                                                        |

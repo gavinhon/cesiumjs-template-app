@@ -33,11 +33,6 @@
   width: 264px;
 }
 
-/* Nothing added: nothing to show. The map tile covers basemap and terrain. */
-.layer-list--empty {
-  display: none;
-}
-
 .layer-list__header {
   display: flex;
   align-items: center;
@@ -272,10 +267,10 @@
   box-shadow: none;
 }
 
-/* Basemap and terrain live in the map tile on a wide screen — this copy is
-   the phone's (see the compact rules below). */
-.layer-list__map {
-  display: none;
+/* A picker in a row's details (basemap, terrain) spans the details. */
+.layer-list__details .field,
+.layer-list__details .terrain-field {
+  align-self: stretch;
 }
 
 /* Only phones have a grabber. */
@@ -294,8 +289,7 @@
  * 640px must match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts.
  */
 @media (max-width: 640px) {
-  .layer-list,
-  .layer-list--empty {
+  .layer-list {
     top: auto;
     right: 8px;
     bottom: 8px;
@@ -340,14 +334,6 @@
   /* The header closes the sheet downwards, so its chevron points down. */
   .layer-list--open .layer-list__chevron {
     transform: rotate(180deg);
-  }
-
-  .layer-list__map {
-    display: block;
-  }
-
-  .layer-list__map .field + .terrain-field {
-    margin-top: 12px;
   }
 
   .layer-list__grabber {

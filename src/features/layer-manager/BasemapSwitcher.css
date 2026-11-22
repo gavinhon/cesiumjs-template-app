@@ -53,28 +53,16 @@
   color: var(--ink);
 }
 
-/* The open menu, rising to the right of the tile: the row of basemaps,
-   then terrain under it. */
-.basemap-switcher__menu {
+/* The open row of choices, rising to the right of the tile. */
+.basemap-switcher__options {
   position: absolute;
   bottom: 0;
   left: calc(100% + 8px);
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 6px 6px 10px;
+  gap: 6px;
+  padding: 6px;
   border-radius: var(--radius-md);
   backdrop-filter: blur(16px);
-}
-
-.basemap-switcher__options {
-  display: flex;
-  gap: 6px;
-}
-
-/* Inset to line up with the thumbnails' own 4px padding. */
-.basemap-switcher__menu .terrain-field {
-  padding: 0 4px;
 }
 
 .basemap-switcher__option {
@@ -141,7 +129,7 @@
 }
 
 /* On a phone this corner belongs to the navigation row and attribution;
-   the layer sheet's Map section is the way to switch there. 640px must
+   the basemap row in the layer sheet is the way to switch there. 640px must
    match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
 @media (max-width: 640px) {
   .basemap-switcher {

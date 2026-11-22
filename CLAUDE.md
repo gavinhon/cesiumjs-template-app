@@ -220,14 +220,11 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   viewshed) each open a labelled menu to the left; the menu button shows
   the armed tool's icon, lit. Escape closes an open menu before it can
   disarm the tool. Add a tool to `TOOL_GROUPS` in `DrawingToolbar.tsx`.
-- **The map tile picks what the map is drawn on.** `BasemapSwitcher`
-  (bottom-left) shows each basemap's `thumbnail` — one real tile of
-  `INITIAL_VIEW` from that basemap's own service (`src/lib/slippyTile.ts`)
-  — with the terrain choice (`TerrainField`) under them. It hides on
-  phones and whenever a side panel covers its corner; on a phone the layer
-  sheet carries the same two choices instead. The basemap is not in the
-  layer list and can't be removed or dragged — `moveImagery` never puts a
-  layer under it.
+- **The basemap is a picture.** `BasemapSwitcher` (bottom-left) shows each
+  basemap's `thumbnail` — one real tile of `INITIAL_VIEW` from that
+  basemap's own service (`src/lib/slippyTile.ts`) — and hides on phones
+  and whenever a side panel covers its corner; the basemap row's dropdown
+  in the layer list stays as the always-available picker.
 - **Phone sheets have three heights.** `useBottomSheet` (`src/ui`) gives a
   panel, the layer list or the feature card a grabber: drag to peek / half
   / full, or tap to step. Dragging writes `style.height` directly; only the
@@ -284,9 +281,13 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   `ARCGIS MAP` vs `ARCGIS FEATURE` badges, not one `ARCGIS` for both. The
   same catalogue feeds search and shared links. Once loaded, a layer's
   every control is on its row in `LayerList` (top-right, no toolbar
-  button — it hides while empty and collapses to a chip): eye, drag handle
+  button — it's always there, collapsing to a chip): eye, drag handle
   (imagery only, invariant 9) and name on the row; opacity, legend, 3D
-  placement, zoom and remove under its "…". The list expands when
+  placement, zoom and remove under its "…". It lists every layer the map
+  has, so it's never empty: what you added, then the basemap (fade, hide,
+  swap; never removed or dragged — `moveImagery` keeps it at the bottom)
+  and terrain (its eye switches to the ellipsoid and back to the last
+  terrain, its "…" picks one — `TerrainRow`). The list expands when
   something is added. Don't add a second list of loaded layers to a
   panel: that duplication is what this layout removed. A feature-specific
   control reaches the list as `LayerEntry.detail`, rendered by `App`

@@ -23,7 +23,7 @@ CesiumJS, wired up **without** a Cesium ion account.
   visibility toggles, opacity, legends, double-click-to-zoom, and
   drag-to-reorder for imagery that reorders Cesium's real imagery stack, so
   you can uncover a layer hidden underneath another.
-- **Five basemaps** needing no key, switched from the map tile (bottom-left):
+- **Five basemaps** needing no key, switched from the basemap tile (bottom-left) or the layer list:
   OpenStreetMap from openstreetmap.org's own tile servers, the same map in
   grey, Sentinel-2 cloudless satellite imagery over WMS from
   [EOX](https://s2maps.eu) (10 m pixels, non-commercial use only), and
@@ -79,7 +79,7 @@ CesiumJS, wired up **without** a Cesium ion account.
   reloads with it listed.
 - **Local terrain, still without ion.** A script turns an elevation GeoTIFF
   (a DTM or DSM) into a static terrain tileset under `public/terrain/`;
-  the app loads it at startup and the map tile switches between it
+  the app loads it at startup and the layer list's terrain row switches between it
   and the flat ellipsoid. See [Using your own data](#using-your-own-data).
 - **Editable drawings.** Click a shape to select it, then name it, record
   free-form key/value attributes against it, choose which one its on-map
@@ -225,12 +225,12 @@ same-origin — so none of the CORS trouble remote services cause. On top of
 that, the app scans `public/` when the dev server starts (and on every
 build) and offers what it recognises in the right place:
 
-| Put this under `public/`                           | Recognised as | Offered in         |
-| -------------------------------------------------- | ------------- | ------------------ |
-| a folder containing `tileset.json`                 | 3D Tiles      | Add data catalogue |
-| a folder containing a terrain `layer.json`         | terrain       | map tile → Terrain |
-| a folder of image tiles laid out `{z}/{x}/{y}.png` | XYZ imagery   | Add data catalogue |
-| a `.geojson` file                                  | vector data   | Add data catalogue |
+| Put this under `public/`                           | Recognised as | Offered in           |
+| -------------------------------------------------- | ------------- | -------------------- |
+| a folder containing `tileset.json`                 | 3D Tiles      | Add data catalogue   |
+| a folder containing a terrain `layer.json`         | terrain       | layer list → Terrain |
+| a folder of image tiles laid out `{z}/{x}/{y}.png` | XYZ imagery   | Add data catalogue   |
+| a `.geojson` file                                  | vector data   | Add data catalogue   |
 
 The folder layout under `public/` is up to you — `public/tilesets/...` and
 `public/terrain/...` are just tidy conventions. A recognised folder isn't
