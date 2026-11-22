@@ -23,6 +23,13 @@ import type {
  * reloads the page with a fresh scan, so "drop a folder into public/" is
  * the whole workflow.
  *
+ * The Docker image can't know its datasets at build time — they're a host
+ * folder mounted in later — so its container runs `scanPublicFolder` over
+ * that folder at startup instead (`scripts/writeRuntimeConfig.ts`), and
+ * `src/lib/publicDatasets.ts` fetches the result. Keep this file free of
+ * value imports from `vite` or anything else outside Node's standard
+ * library: the container runs it as-is, without node_modules.
+ *
  * **What it recognises** — each maps to one feature that can load it:
  *
  *   | found                                  | kind       | loaded by          |

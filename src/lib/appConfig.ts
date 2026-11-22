@@ -37,6 +37,12 @@ export interface AppConfig {
   datasetCatalogue?: string;
   /** Id of the basemap to start with, if not the default (see `basemaps.ts`). */
   defaultBasemap?: string;
+  /**
+   * Base URL of a Nominatim server of the deployment's own, absolute or
+   * relative to the page. Replaces OneMap and the public Nominatim for
+   * place search, offline or not — see `searchPlaces.ts`.
+   */
+  nominatimUrl?: string;
 }
 
 const DEFAULTS: AppConfig = { offline: false };
@@ -72,6 +78,8 @@ async function loadAppConfig(): Promise<AppConfig> {
         record.datasetCatalogue && { datasetCatalogue: record.datasetCatalogue }),
       ...(typeof record.defaultBasemap === 'string' &&
         record.defaultBasemap && { defaultBasemap: record.defaultBasemap }),
+      ...(typeof record.nominatimUrl === 'string' &&
+        record.nominatimUrl && { nominatimUrl: record.nominatimUrl }),
     };
   } catch {
     return DEFAULTS;

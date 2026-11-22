@@ -22,6 +22,25 @@ The Python tests need the same packages as the script itself
 (`pip install rasterio numpy scipy pyproj pydelatin`). They're kept out of
 `npm run check` so the template works for people who never touch terrain.
 
+### Before every commit
+
+`npm run check` is the gate the GitHub Pages deploy runs before building
+(see `.github/workflows/deploy-pages.yml`), so a commit that fails it is a
+commit that won't deploy — even if `npm run dev` looks fine, because the dev
+server and `npm run build` never check formatting.
+
+A pre-commit hook enforces this. `npm install` switches it on (the `prepare`
+script runs `scripts/installGitHooks.mjs`, which sets git's `core.hooksPath`
+to `.githooks/`), and from then on each `git commit` first runs:
+
+- **Prettier on the staged files** — just those, so someone else's
+  unfinished, unstaged files can't block your commit;
+- **typecheck, lint and the unit tests** on the whole project.
+
+If formatting fails, run `npm run format`, `git add` the files again and
+retry. `git commit --no-verify` skips the hook for one commit, but the
+deploy will still run the same checks.
+
 ## What the automated tests cover
 
 | Test file                                               | Covers                                                                                                                                                                                         |

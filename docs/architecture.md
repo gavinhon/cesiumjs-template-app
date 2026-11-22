@@ -207,6 +207,16 @@ Because the catalog is data baked into the bundle, it's a constant rather
 than state. In dev, the plugin watches `public/` and reloads the page when a
 dataset appears or disappears, so the constant is never stale for long.
 
+The Docker image is the exception that proves the rule: its datasets are a
+host folder mounted in after the image was built, so the scan can't run at
+build time. The container runs the same `scanPublicFolder` when it starts
+(`scripts/writeRuntimeConfig.ts`) and writes `datasets.json`;
+`app-config.json` tells the app to fetch that instead of using the baked-in
+list. `publicDatasets.ts` does the fetch with a top-level `await`, so the
+result is still a constant by the time any feature reads it. The same
+`app-config.json` carries the deployment's one offline switch — see
+[deployment-docker.md](deployment-docker.md#how-it-works).
+
 ## Terrain is one slot, not a layer
 
 The globe has exactly one surface, so the terrain provider is a single

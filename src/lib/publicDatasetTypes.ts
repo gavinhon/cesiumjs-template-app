@@ -1,11 +1,14 @@
 /**
- * What the build-time scan of `public/` reports finding — see
- * `vite-plugins/publicDatasetCatalog.ts`, which produces these, and
- * `./publicDatasets.ts`, which hands them to the app.
+ * What the scan of the datasets folder reports finding — see
+ * `vite-plugins/publicDatasetCatalog.ts`, which produces these (over
+ * `public/` at build time, or over the mounted data folder when the Docker
+ * container starts), and `./publicDatasets.ts`, which hands them to the app.
  *
  * This file is shared by the Vite plugin (running in Node) and the app
  * (running in the browser), so it must stay free of anything either side
- * can't load: no Cesium, no DOM, no Node built-ins. Types only.
+ * can't load: no Cesium, no DOM, no Node built-ins. Types only — which
+ * also lets the container's copy of the scan run without it, since Node
+ * erases `import type`.
  *
  * Each kind maps onto exactly one feature that knows how to put it on the
  * map, which is what lets each panel offer "the datasets I can load" by

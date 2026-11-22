@@ -1,0 +1,13 @@
+# What `docker build` never sees. Mostly speed (node_modules, .git), but the
+# dataset lines are about correctness: data in the build context would be
+# copied into the image by Vite, which is exactly what mounting /data is
+# meant to avoid. Mirrors the dataset rules in .gitignore.
+node_modules
+dist
+.git
+.claude
+.env
+*.local
+**/__pycache__
+public/*/
+public/**/*.geojson

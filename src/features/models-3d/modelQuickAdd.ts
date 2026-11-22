@@ -1,5 +1,5 @@
 import { CATALOGUE_GROUPS } from '@/lib/catalogueGroups';
-import { publicDatasetsOfKind } from '@/lib/publicDatasets';
+import { datasetLocation, publicDatasetsOfKind } from '@/lib/publicDatasets';
 import type { QuickAddItem } from '@/ui/QuickAddList';
 import { EXAMPLE_MODELS } from './exampleModels';
 import type { ModelConfig } from './modelTypes';
@@ -21,7 +21,7 @@ export const MODEL_QUICK_ADD: readonly { item: QuickAddItem; config: ModelConfig
       id: dataset.id,
       name: dataset.name,
       badge: FORMAT_BADGE['3d-tiles'],
-      source: `public/${dataset.path}`,
+      source: datasetLocation(dataset),
       group: CATALOGUE_GROUPS.models,
     },
     config: { id: dataset.id, name: dataset.name, format: '3d-tiles' as const, url: dataset.url },

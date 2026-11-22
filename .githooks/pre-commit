@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# Runs the same gate the GitHub Pages deploy runs (`npm run check` in
+# .github/workflows/deploy-pages.yml) before a commit is made, so a commit
+# that would fail the deploy fails here instead — on your machine, in
+# seconds, rather than on GitHub after you've pushed.
+#
+# Why this exists: twice, a commit that ran fine locally failed the deploy
+# on formatting alone (a stray blank line, then one over-long line). Local
+# `npm run dev` and `npm run build` never check formatting; the deploy does.
+#
+# What it checks:
+#   1. Prettier, on the files being committed only. Formatting is per file,
+#      and checking just the staged ones means another person's (or tool's)
+#      half-finished, unstaged files can't block your commit.
+#   2. Typecheck, lint and unit tests, on the whole project — those can't be
+#      judged one file at a time.
+#
+# A partially staged file is checked as it is on disk, not as staged.
+#
+# Installed by `npm install` (the `prepare` script runs
+# scripts/installGitHooks.mjs, which points git at this folder). To skip it
+# for one commit in an emergency: `git commit --no-verify` — the deploy will
+# still check.
+
+# A GUI git client may run hooks without node on its PATH. Don't block the
+# commit over a missing tool; say so loudly — the deploy still checks.
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-commit: npm not found on PATH; skipping checks. Run 'npm run check' yourself." >&2
+  exit 0
+fi
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+echo "pre-commit: checking formatting of staged files…"
+# -z / -0 so file names with spaces survive. --ignore-unknown skips files
+# Prettier has no parser for; .prettierignore (public/ data) is honoured for
+# files passed by name.
+if ! git diff --cached --name-only --diff-filter=ACMR -z |
+  xargs -0 npx --no-install prettier --check --ignore-unknown --log-level warn; then
+  echo "" >&2
+  echo "pre-commit: formatting problems above would fail the GitHub Pages deploy." >&2
+  echo "  Fix:  npm run format   then  git add  the files and commit again." >&2
+  exit 1
+fi
+
+echo "pre-commit: typecheck, lint, tests…"
+if ! npm run --silent typecheck || ! npm run --silent lint || ! npm run --silent test; then
+  echo "" >&2
+  echo "pre-commit: the errors above would fail the GitHub Pages deploy." >&2
+  exit 1
+fi
+
+echo "pre-commit: all checks passed."

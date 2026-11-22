@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+#
+# scripts/build_terrain_tiles.py with everything it needs — Python, its
+# packages, and PROJ's EGM2008 geoid grid — baked in, so GeoTIFF → Cesium
+# terrain works on a machine with no internet. See docs/deployment-docker.md.
+#
+# Built on a connected machine, carried over with `docker save`, then:
+#
+#   docker compose run --rm terrain /input/dtm.tif /output/terrain/my-dtm \
+#     --name "My DTM" --attribution "Elevation: whoever made it"
+#
+# where /input is TERRAIN_INPUT_DIR and /output is DATA_DIR from .env.
+
+FROM python:3.12-slim
+
+# The script's dependencies, as wheels: rasterio's bundles its own GDAL,
+# pyproj's its own PROJ. The one thing the GDAL in rasterio's wheel
+# expects from the OS is the expat XML library, which the slim image
+# leaves out — without it `import rasterio` fails on libexpat.so.1.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends libexpat1 \
+  && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir rasterio numpy scipy pyproj pydelatin
+
+# The EGM2008 grid (~80 MB) the default `--vertical-datum egm2008` needs.
+# Left to itself PROJ downloads it from cdn.proj.org on first use — which
+# on an air-gapped machine means never. `pyproj sync` fetches it now, into
+# the user data folder PROJ searches before going to the network.
+RUN pyproj sync --file us_nga_egm08_25 \
+  && python -c "import pyproj, pathlib; d = pathlib.Path(pyproj.datadir.get_user_data_dir()); assert (d / 'us_nga_egm08_25.tif').is_file(), d"
+
+# With the grid on disk, the network is never needed. Turning it off makes
+# a missing grid an immediate, explained error (see the script) rather
+# than a hang until some proxy times out.
+ENV PROJ_NETWORK=OFF
+
+COPY scripts/build_terrain_tiles.py /opt/terrain/build_terrain_tiles.py
+WORKDIR /output
+ENTRYPOINT ["python", "/opt/terrain/build_terrain_tiles.py"]
+CMD ["--help"]

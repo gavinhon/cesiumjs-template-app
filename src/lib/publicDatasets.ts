@@ -50,6 +50,16 @@ function isBasemap(dataset: PublicDataset): dataset is PublicTilePyramidDataset 
 }
 
 /**
+ * Where a dataset lives, as a hint for the catalogue: under `public/` in
+ * dev, or under the mounted data folder (served as `data/`) in Docker —
+ * telling someone to look in `public/` there would send them to the
+ * wrong place.
+ */
+export function datasetLocation(dataset: PublicDataset): string {
+  return `${APP_CONFIG.datasetCatalogue ? 'data' : 'public'}/${dataset.path}`;
+}
+
+/**
  * The datasets of one kind, typed as that kind — so the 3D catalogue
  * gets `PublicTilesetDataset[]` and can read `.url` without narrowing.
  */

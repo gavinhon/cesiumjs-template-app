@@ -1,0 +1,5 @@
+# Shell scripts run inside Linux containers, where a CRLF line ending makes
+# `#!/bin/sh` name an interpreter called "sh" plus a carriage return, which
+# doesn't exist — the container exits the moment it starts. Git on Windows
+# (core.autocrlf) would otherwise check them out with CRLF.
+*.sh text eol=lf

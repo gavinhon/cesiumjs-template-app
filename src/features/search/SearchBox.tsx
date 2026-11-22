@@ -2,10 +2,14 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import * as Cesium from 'cesium';
 import { flyToPoint } from '@/cesium/flyToPoint';
 import { createPlaceMarker, type PlaceMarker } from '@/cesium/placeMarker';
-import { APP_CONFIG } from '@/lib/appConfig';
 import { formatLatLon } from '@/lib/mapReadouts';
 import { parseCoordinateQuery } from './parseCoordinateQuery';
-import { searchNominatim, searchOneMap, type PlaceResult } from './searchPlaces';
+import {
+  AS_YOU_TYPE_SERVICE,
+  ON_REQUEST_SERVICE,
+  type PlaceResult,
+  type PlaceService,
+} from './searchPlaces';
 import type { SearchableDataset } from './searchTypes';
 import './SearchBox.css';
 
@@ -29,24 +33,21 @@ type Row =
   | { kind: 'dataset'; id: string; dataset: SearchableDataset }
   | { kind: 'worldwide'; id: string };
 
-type PlaceSource = 'onemap' | 'osm';
+/** Where places are being looked up, and with what result — tagged by the service asked. */
 type PlaceState =
   | { state: 'idle' }
-  | { state: 'loading'; source: PlaceSource }
-  | { state: 'done'; source: PlaceSource; places: PlaceResult[] }
-  | { state: 'error'; source: PlaceSource; message: string };
+  | { state: 'loading'; service: PlaceService }
+  | { state: 'done'; service: PlaceService; places: PlaceResult[] }
+  | { state: 'error'; service: PlaceService; message: string };
 
-/** Typing pauses this long before OneMap is asked, so a word costs one request, not five. */
+/** Typing pauses this long before a gazetteer is asked, so a word costs one request, not five. */
 const DEBOUNCE_MS = 300;
 const MIN_QUERY = 3;
 
-/**
- * Place search needs OneMap or Nominatim, both on the internet. Offline
- * (`APP_CONFIG.offline`) it's left out entirely — no "Searching…" and no
- * error on every word typed — and the box finds coordinates and datasets,
- * which need no server.
- */
-const PLACE_SEARCH = !APP_CONFIG.offline;
+/** What the box can find: places only when the deployment has a gazetteer (`searchPlaces.ts`). */
+const SEARCH_LABEL = AS_YOU_TYPE_SERVICE
+  ? 'Search places, coordinates or data'
+  : 'Search coordinates or data';
 
 const IDLE: PlaceState = { state: 'idle' };
 
@@ -68,7 +69,9 @@ function isPlaceQuery(text: string): boolean {
  *     in the catalogue. Adding one is a click.
  *  3. **Places**: Singapore addresses and buildings from OneMap as you
  *     type, or anywhere in the world from OpenStreetMap on request
- *     (`searchPlaces.ts` explains why the two behave differently).
+ *     (`searchPlaces.ts` explains why the two behave differently). A
+ *     deployment can swap both for its own Nominatim server, or — offline
+ *     with none — leave places out; `searchPlaces.ts` decides which.
  *
  * Choosing a place or coordinate flies there and drops a pin
  * (`createPlaceMarker`), replacing the previous one.
@@ -100,26 +103,28 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
   // those the places section is simply idle — worked out here, not stored.
   // The stored answer is also dropped in `changeQuery`, the event that made
   // the query ineligible, so it can't flash back when a new word is typed.
-  const eligible = PLACE_SEARCH && !coordinate && trimmed.length >= MIN_QUERY;
+  const eligible = AS_YOU_TYPE_SERVICE !== null && !coordinate && trimmed.length >= MIN_QUERY;
   const places: PlaceState = eligible ? fetchedPlaces : IDLE;
 
-  // OneMap as you type. Each keystroke cancels the previous request, so a
-  // slow early answer can never overwrite a later one. The only state set
-  // here is OneMap's answer (and "loading", once the debounce has elapsed
-  // and the request is really going out) — never a reset, which belongs to
-  // the event that caused it.
+  // The as-you-type gazetteer (OneMap, unless the deployment configured its
+  // own). Each keystroke cancels the previous request, so a slow early
+  // answer can never overwrite a later one. The only state set here is its
+  // answer (and "loading", once the debounce has elapsed and the request is
+  // really going out) — never a reset, which belongs to the event that
+  // caused it.
   useEffect(() => {
     requestRef.current?.abort();
-    if (!eligible) return;
+    const service = AS_YOU_TYPE_SERVICE;
+    if (!eligible || !service) return;
     const controller = new AbortController();
     requestRef.current = controller;
     const timer = window.setTimeout(() => {
-      setPlaces({ state: 'loading', source: 'onemap' });
-      searchOneMap(trimmed, controller.signal).then(
-        (found) => setPlaces({ state: 'done', source: 'onemap', places: found }),
+      setPlaces({ state: 'loading', service });
+      service.search(trimmed, controller.signal).then(
+        (found) => setPlaces({ state: 'done', service, places: found }),
         (error: unknown) => {
           if (controller.signal.aborted) return;
-          setPlaces({ state: 'error', source: 'onemap', message: messageOf(error) });
+          setPlaces({ state: 'error', service, message: messageOf(error) });
         },
       );
     }, DEBOUNCE_MS);
@@ -157,25 +162,27 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
     for (const place of places.places) rows.push({ kind: 'place', id: place.id, place });
   }
   if (
-    PLACE_SEARCH &&
+    ON_REQUEST_SERVICE &&
     !coordinate &&
     trimmed.length >= MIN_QUERY &&
-    !(places.state === 'done' && places.source === 'osm')
+    !(places.state === 'done' && places.service === ON_REQUEST_SERVICE)
   ) {
     rows.push({ kind: 'worldwide', id: 'worldwide' });
   }
   const activeIndex = Math.min(active, rows.length - 1);
 
   function searchWorldwide() {
+    const service = ON_REQUEST_SERVICE;
+    if (!service) return;
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
-    setPlaces({ state: 'loading', source: 'osm' });
-    searchNominatim(trimmed, controller.signal).then(
-      (found) => setPlaces({ state: 'done', source: 'osm', places: found }),
+    setPlaces({ state: 'loading', service });
+    service.search(trimmed, controller.signal).then(
+      (found) => setPlaces({ state: 'done', service, places: found }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        setPlaces({ state: 'error', source: 'osm', message: messageOf(error) });
+        setPlaces({ state: 'error', service, message: messageOf(error) });
       },
     );
   }
@@ -263,8 +270,8 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
       <input
         type="search"
         className="control control-input search-box__input"
-        placeholder={PLACE_SEARCH ? 'Search places, coordinates or data' : 'Search coordinates or data'}
-        aria-label="Search places, coordinates or data"
+        placeholder={SEARCH_LABEL}
+        aria-label={SEARCH_LABEL}
         role="combobox"
         aria-expanded={showList}
         aria-controls={listId}
@@ -295,22 +302,22 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
                 active={index === activeIndex}
                 heading={headingBefore(rows, index, places)}
                 error={row.kind === 'dataset' && addError?.id === row.id ? addError.message : null}
-                worldwideLoading={places.state === 'loading' && places.source === 'osm'}
+                worldwideLoading={
+                  places.state === 'loading' && places.service === ON_REQUEST_SERVICE
+                }
                 onHover={() => setActive(index)}
                 onChoose={() => choose(row)}
               />
             ))}
           </ul>
-          {places.state === 'loading' && places.source === 'onemap' && (
-            <p className="search-box__status">Searching OneMap…</p>
+          {places.state === 'loading' && places.service === AS_YOU_TYPE_SERVICE && (
+            <p className="search-box__status">Searching {places.service.name}…</p>
           )}
           {places.state === 'error' && (
             <p className="search-box__status search-box__status--error">{places.message}</p>
           )}
           {places.state === 'done' && places.places.length === 0 && (
-            <p className="search-box__status">
-              No places found{places.source === 'onemap' ? ' in Singapore' : ''}.
-            </p>
+            <p className="search-box__status">No places found{places.service.scope}.</p>
           )}
         </div>
       )}
@@ -407,10 +414,8 @@ function headingBefore(rows: Row[], index: number, places: PlaceState): string |
     case 'dataset':
       return 'Datasets';
     case 'place':
-      // Both services require credit; this is where it's given.
-      return places.state === 'done' && places.source === 'osm'
-        ? 'Places · © OpenStreetMap contributors'
-        : 'Places · OneMap, Singapore Land Authority';
+      // Every service's terms require credit; this is where it's given.
+      return places.state === 'done' ? `Places · ${places.service.credit}` : null;
     case 'worldwide':
       return null;
     default: {

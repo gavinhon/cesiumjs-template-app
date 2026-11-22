@@ -1,5 +1,5 @@
 import { CATALOGUE_GROUPS } from '@/lib/catalogueGroups';
-import { publicDatasetsOfKind } from '@/lib/publicDatasets';
+import { datasetLocation, publicDatasetsOfKind } from '@/lib/publicDatasets';
 import type { QuickAddItem } from '@/ui/QuickAddList';
 import { EXAMPLE_MAP_SERVICES } from './exampleMapServices';
 import type { MapServiceConfig } from './mapServiceTypes';
@@ -24,7 +24,7 @@ export const MAP_SERVICE_QUICK_ADD: readonly { item: QuickAddItem; config: MapSe
       id: dataset.id,
       name: dataset.name,
       badge: 'XYZ',
-      source: `public/${dataset.path}`,
+      source: datasetLocation(dataset),
       group: CATALOGUE_GROUPS.imagery,
     },
     config: {
@@ -40,7 +40,7 @@ export const MAP_SERVICE_QUICK_ADD: readonly { item: QuickAddItem; config: MapSe
       id: dataset.id,
       name: dataset.name,
       badge: 'GEOJSON',
-      source: `public/${dataset.path}`,
+      source: datasetLocation(dataset),
       group: CATALOGUE_GROUPS.features,
     },
     config: { type: 'geojson' as const, id: dataset.id, name: dataset.name, url: dataset.url },

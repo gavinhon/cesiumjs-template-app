@@ -13,6 +13,10 @@ dist
 dist-ssr
 *.local
 
+# Docker Compose settings for one machine (copy .env.example). Paths and
+# hosts are site-specific, so they stay out of git.
+.env
+
 # Datasets dropped into public/ for the app to offer — 3D Tiles, terrain and
 # imagery tile pyramids, GeoJSON. They're data, often thousands of files and
 # tens of MB, and regenerable from their sources, so they stay out of git.

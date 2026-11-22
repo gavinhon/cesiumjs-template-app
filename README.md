@@ -132,6 +132,18 @@ Datasets in `public/` are gitignored, so the deployed site only has the
 ones you've committed. Large ones (terrain especially) are better hosted
 elsewhere — any CORS-enabled static host — and loaded by URL.
 
+## Deploying offline with Docker
+
+For a network with no internet access, the app runs as a Docker image
+(nginx serving the build) with its datasets in a host folder mounted
+read-only — scanned when the container starts, so adding data needs a
+restart, not a rebuild. `APP_OFFLINE=true` swaps the online basemaps for
+local tile pyramids and hides everything else that needs the internet;
+place search can use your own Nominatim server. A second image runs the
+terrain script with its geoid grid built in.
+[docs/deployment-docker.md](docs/deployment-docker.md) covers building,
+`docker save`/`load`, and running on Windows.
+
 ## Project structure
 
 ```

@@ -61,6 +61,16 @@ unconverted terrain would sit 8 m too low and the sea would be a flat plane
 8 m below where any georeferenced 3D model expects it. `--vertical-datum
 egm2008` (the default) adds the EGM2008 geoid height to every sample. Use
 `--vertical-datum ellipsoid` if your source is already ellipsoidal.
+
+The conversion needs PROJ's EGM2008 grid, `us_nga_egm08_25.tif` (~80 MB).
+By default PROJ downloads it from cdn.proj.org on first use and caches it.
+On a machine without internet, install it beforehand — `pyproj sync
+--file us_nga_egm08_25` on a connected machine, then copy the file into
+the same folder on the offline one (`python -c "import pyproj;
+print(pyproj.datadir.get_user_data_dir())"` prints it) — and set
+`PROJ_NETWORK=OFF` so a missing grid fails at once instead of waiting on
+the network. `Dockerfile.terrain` bakes the grid in and does both;
+docs/deployment-docker.md has the details.
 """
 
 from __future__ import annotations
@@ -68,6 +78,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import struct
 import sys
 import warnings
@@ -249,15 +260,41 @@ class GeoidGrid:
         lats = np.arange(self.north, south - 2 * self.STEP, -self.STEP)
         grid_lon, grid_lat = np.meshgrid(lons, lats)
 
-        # PROJ fetches the EGM2008 grid from its CDN the first time.
-        pyproj.network.set_network_enabled(True)
-        to_ellipsoid = pyproj.Transformer.from_crs("EPSG:4326+3855", "EPSG:4979", always_xy=True)
-        _, _, undulation = to_ellipsoid.transform(grid_lon, grid_lat, np.zeros_like(grid_lon))
+        # PROJ fetches the EGM2008 grid from its CDN the first time — unless
+        # PROJ_NETWORK=OFF says not to (air-gapped machines, where the grid
+        # is installed beforehand). Either way a grid already on disk is
+        # used without touching the network.
+        network = os.environ.get("PROJ_NETWORK", "").upper() != "OFF"
+        pyproj.network.set_network_enabled(network)
+        # Checked through a TransformerGroup, because a plain Transformer
+        # doesn't fail when the grid is missing: PROJ quietly falls back to
+        # a "ballpark" transformation that treats the geoid as the
+        # ellipsoid, every undulation comes out 0.00 m, and the terrain is
+        # written ~8 m low with no error at all — exactly what happens on an
+        # air-gapped machine without the grid. (`only_best=True` ought to
+        # catch this, but doesn't for this compound CRS in PROJ 9.8.)
+        with warnings.catch_warnings():
+            # The group warns about the missing grid itself; the message
+            # below says the same with what to do about it.
+            warnings.simplefilter("ignore", UserWarning)
+            group = pyproj.transformer.TransformerGroup("EPSG:4326+3855", "EPSG:4979", always_xy=True)
+        if group.best_available:
+            _, _, undulation = group.transformers[0].transform(
+                grid_lon, grid_lat, np.zeros_like(grid_lon)
+            )
+        else:
+            undulation = np.array([np.nan])
         if not np.all(np.isfinite(undulation)):
+            how = (
+                "Check your network, or install the grid beforehand"
+                if network
+                else "PROJ_NETWORK=OFF, so install the grid beforehand"
+            )
             sys.exit(
-                "Couldn't compute EGM2008 geoid heights — PROJ probably couldn't "
-                "download its geoid grid. Check your network, or pass "
-                "--vertical-datum ellipsoid if the source is already ellipsoidal."
+                "Couldn't compute EGM2008 geoid heights — PROJ couldn't find its "
+                f"geoid grid, us_nga_egm08_25.tif. {how} (see this script's "
+                "docstring), or pass --vertical-datum ellipsoid if the source is "
+                "already ellipsoidal."
             )
         self.undulation = SourceLevel(
             undulation.astype(np.float32),

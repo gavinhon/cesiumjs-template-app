@@ -28,6 +28,14 @@ npm run build      # tsc -b && vite build
 npm run test:terrain-script   # Python tests for scripts/build_terrain_tiles.py
 ```
 
+`npm run check` is also the GitHub Pages deploy's gate: a commit that fails it —
+formatting included — never reaches the site. A pre-commit hook
+(`.githooks/pre-commit`, switched on by `npm install` via the `prepare`
+script) runs the same checks before each commit: Prettier on the staged
+files, typecheck/lint/tests on the whole project. Local `npm run dev` and
+`npm run build` never check formatting, so don't treat "it runs" as "it
+deploys" — run `npm run format` and `npm run check` before committing.
+
 Unit tests cover the logic (geometry, parsers, the `public/` scan, the
 terrain encoder); map interactions are verified by running the app — see
 [docs/testing.md](docs/testing.md) for both, including the manual checklist.
@@ -45,7 +53,9 @@ src/
   lib/                 shared helpers with no UI or Cesium ties; publicDatasets.ts
   styles/              designTokens.css (tokens) + global.css (reset, .control)
 vite-plugins/          publicDatasetCatalog.ts — scans public/ at build time
-scripts/               build_terrain_tiles.py — GeoTIFF → static Cesium terrain
+docker/                nginx.conf + entrypoint for the Docker image (Dockerfile, Dockerfile.terrain)
+scripts/               build_terrain_tiles.py — GeoTIFF → static Cesium terrain;
+                       writeRuntimeConfig.ts — the scan, at Docker container start
 public/                static files + datasets the scan offers in the panels
 docs/                  README (index), architecture, adding-a-feature, coding-conventions
 ```
@@ -277,7 +287,23 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   It's a constant, not state. A scanned dataset is added under its catalog
   id (`public:<path>`) — that's how `<QuickAddList>` knows it's added.
   `src/lib/publicDatasetTypes.ts` is shared with the Node-side plugin, so it
-  must stay types-only: no Cesium, DOM, or Node imports.
+  must stay types-only: no Cesium, DOM, or Node imports. In Docker the
+  same scan runs at container start over the mounted data folder
+  (`scripts/writeRuntimeConfig.ts`, run as-is by Node's type stripping —
+  so the plugin must keep only `import type` from `vite`), and the app
+  fetches that `datasets.json` instead. Pyramids under `basemaps/` are
+  basemaps (`PUBLIC_BASEMAPS`), not catalogue layers.
+- **Offline is one switch, read where each dependency lives.**
+  `APP_CONFIG` (`src/lib/appConfig.ts`) comes from `app-config.json`,
+  fetched before the app starts and written by the Docker entrypoint; with
+  none (dev, Pages) it's the online defaults. `APP_CONFIG.offline` is
+  checked in `basemaps.ts`, the two `example*.ts` lists, `searchPlaces.ts`
+  and `loadI3sSceneLayer.ts` — nowhere else; add a new internet
+  dependency to that list rather than probing the network. Place search
+  picks its services once in `searchPlaces.ts` (`nominatimUrl` swaps in a
+  deployment's own Nominatim, proxied by the container at `nominatim/`).
+  Fonts are bundled (`src/styles/fonts.css`), never fetched from Google.
+  Guide: [docs/deployment-docker.md](docs/deployment-docker.md).
 - **Terrain is a single slot.** `useTerrain` holds a selection, not a list;
   `null` means `EllipsoidTerrainProvider`. It's applied with
   `scene.setTerrain(new Cesium.Terrain(...))` — Cesium's current API, which
