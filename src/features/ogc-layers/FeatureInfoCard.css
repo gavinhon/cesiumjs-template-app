@@ -25,6 +25,22 @@
   visibility: hidden;
 }
 
+/* Compact layout: docked to the bottom like a panel sheet rather than
+   floating above the tapped point (FeatureInfoCard.tsx stops writing the
+   transform). Under an open panel sheet, as on desktop. 640px must match
+   COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
+@media (max-width: 640px) {
+  .feature-info {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 50vh;
+    max-height: 50dvh;
+  }
+}
+
 .feature-info__header {
   display: flex;
   align-items: flex-start;

@@ -20,13 +20,19 @@ interface PanelProps {
    * layer manager uses `'right'` because its button lives in the right rail.
    */
   side?: 'left' | 'right';
+  /**
+   * Closes the panel from its own header. On a desktop the toolbar button
+   * does the same, but on a phone the panel is a bottom sheet over most of
+   * the screen and that button is folded into a menu — the sheet has to
+   * be dismissible from where the user is looking.
+   */
+  onClose: () => void;
   children: ReactNode;
 }
 
 /**
- * The floating side panel every feature's UI lives in — the OGC layers
- * panel and the 3D Tiles panel are both this component with different
- * children, which is what keeps them visually identical instead of
+ * The floating side panel every feature's UI lives in — Layers, Add data
+ * and Drawings are all this component with different children, which is what keeps them visually identical instead of
  * drifting apart as each grows.
  *
  * Two behaviours worth knowing before you add a third panel:
@@ -40,7 +46,7 @@ interface PanelProps {
  *    to lose work. That means your feature's state hook keeps running
  *    while the panel is hidden; that is intentional.
  */
-export function Panel({ id, title, subtitle, open, side = 'left', children }: PanelProps) {
+export function Panel({ id, title, subtitle, open, side = 'left', onClose, children }: PanelProps) {
   const className = ['panel', `panel--${side}`, open ? null : 'panel--collapsed']
     .filter(Boolean)
     .join(' ');
@@ -48,7 +54,17 @@ export function Panel({ id, title, subtitle, open, side = 'left', children }: Pa
   return (
     <aside id={id} className={className} aria-hidden={!open}>
       <header className="panel__header">
-        <h1>{title}</h1>
+        <div className="panel__title-row">
+          <h1>{title}</h1>
+          <button
+            type="button"
+            className="panel__close"
+            onClick={onClose}
+            aria-label={`Close ${title}`}
+          >
+            ×
+          </button>
+        </div>
         <p>{subtitle}</p>
       </header>
       {children}

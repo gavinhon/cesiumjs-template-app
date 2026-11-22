@@ -2,11 +2,16 @@ import { useId } from 'react';
 import { SelectField } from '@/ui/Field';
 import { Panel } from '@/ui/Panel';
 import { ResourceList, ResourceRow } from '@/ui/ResourceList';
+import { LayerLegend } from './LayerLegend';
 import type { BasemapChoice, LayerEntry, TerrainChoice } from './layerManagerTypes';
 import './LayerManager.css';
 
 interface LayerManagerPanelProps {
   open: boolean;
+  /** Opens the Add data panel — the Layers panel's primary action. */
+  onAddData: () => void;
+  /** Closes the panel from its own header (see `Panel`). */
+  onClose: () => void;
   /**
    * The imagery stack in Cesium's own order: **index 0 is the bottom**,
    * drawn first and covered by everything above it. The list renders this
@@ -102,6 +107,30 @@ function TerrainSection({ terrain }: { terrain: TerrainChoice }) {
   );
 }
 
+/** A row's second line: its kind, then whichever extra control the layer has. */
+function LayerDetails({ entry }: { entry: LayerEntry }) {
+  return (
+    <>
+      <span className="resource-list__badge">{entry.kind}</span>
+      {entry.opacity && (
+        // Opacity is set on the Cesium ImageryLayer itself, letting you
+        // blend a layer over the one beneath instead of only covering it.
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={entry.opacity.value}
+          onChange={(event) => entry.opacity?.onChange(Number(event.target.value))}
+          aria-label={`${entry.name} opacity`}
+          title="Opacity"
+        />
+      )}
+      {entry.detail}
+    </>
+  );
+}
+
 /** A reorder button. Disabled at the ends of the stack rather than hidden, so rows don't jump. */
 function MoveButton({
   direction,
@@ -130,9 +159,11 @@ function MoveButton({
 
 /**
  * A single view of everything currently on the map, whichever feature put
- * it there — the app's base map, OGC imagery, WFS vector data, and 3D
- * Tiles — with visibility toggles, double-click-to-zoom, and draw-order
- * controls.
+ * it there — the app's base map, OGC and ArcGIS imagery, vector data, 3D
+ * Tiles and I3S — and the one place to manage it: visibility, opacity,
+ * draw order, removal, double-click-to-zoom, plus the basemap and terrain.
+ * The panels that add layers don't list them again, so there's never a
+ * second copy of a layer's controls to find or keep in step.
  *
  * **Why only imagery can be reordered.** Raster imagery is painted onto the
  * globe surface in a fixed sequence, so "above" and "below" are real: a
@@ -145,6 +176,8 @@ function MoveButton({
  */
 export function LayerManagerPanel({
   open,
+  onAddData,
+  onClose,
   imagery,
   sceneData,
   basemap,
@@ -156,13 +189,21 @@ export function LayerManagerPanel({
   return (
     <Panel
       id="layer-manager-panel"
-      side="right"
       title="Layers"
-      subtitle="Everything currently in view, topmost first."
+      subtitle="Everything on the map, topmost first."
       open={open}
+      onClose={onClose}
     >
+      <button
+        type="button"
+        className="control control-button control-button--primary layer-manager__add"
+        onClick={onAddData}
+      >
+        Add data
+      </button>
+
       <section className="layer-manager__section">
-        <h2 className="layer-manager__heading">Imagery</h2>
+        <h2 className="layer-manager__heading">Maps and imagery</h2>
         <ResourceList emptyMessage="No imagery layers.">
           {topDownImagery.map((entry, index) => (
             <ResourceRow
@@ -170,8 +211,10 @@ export function LayerManagerPanel({
               name={entry.name}
               visible={entry.visible}
               onToggleVisibility={entry.onToggleVisibility}
+              onRemove={entry.onRemove}
               onZoomTo={entry.onZoomTo}
               zoomHint="Double-click to zoom to this layer"
+              footer={entry.legend && <LayerLegend load={entry.legend} />}
               actions={
                 entry.onMove && (
                   <>
@@ -191,7 +234,7 @@ export function LayerManagerPanel({
                 )
               }
             >
-              <span className="resource-list__badge">{entry.kind}</span>
+              <LayerDetails entry={entry} />
             </ResourceRow>
           ))}
         </ResourceList>
@@ -199,22 +242,24 @@ export function LayerManagerPanel({
       </section>
 
       <section className="layer-manager__section">
-        <h2 className="layer-manager__heading">Scene data</h2>
+        <h2 className="layer-manager__heading">Features and 3D</h2>
         <p className="layer-manager__note">
-          3D Tiles and vector features are drawn by depth, not stacked like imagery, so they have no
-          draw order to change.
+          Features and 3D models are drawn by depth, not stacked like imagery, so they have no draw
+          order to change.
         </p>
-        <ResourceList emptyMessage="No 3D Tiles or vector data loaded.">
+        <ResourceList emptyMessage="No features or 3D models yet. Add data to bring some in.">
           {sceneData.map((entry) => (
             <ResourceRow
               key={entry.id}
               name={entry.name}
               visible={entry.visible}
               onToggleVisibility={entry.onToggleVisibility}
+              onRemove={entry.onRemove}
               onZoomTo={entry.onZoomTo}
               zoomHint="Double-click to zoom to this layer"
+              footer={entry.legend && <LayerLegend load={entry.legend} />}
             >
-              <span className="resource-list__badge">{entry.kind}</span>
+              <LayerDetails entry={entry} />
             </ResourceRow>
           ))}
         </ResourceList>

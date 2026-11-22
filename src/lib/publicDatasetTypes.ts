@@ -21,7 +21,7 @@ interface BaseDataset {
   path: string;
 }
 
-/** A folder holding a `tileset.json` → loaded by the 3D Tiles panel. */
+/** A folder holding a `tileset.json` → a 3D model in the Add data catalogue. */
 export interface PublicTilesetDataset extends BaseDataset {
   kind: '3d-tiles';
   /** URL of the `tileset.json`. */
@@ -42,7 +42,7 @@ export interface PublicTerrainDataset extends BaseDataset {
   attribution?: string;
 }
 
-/** A folder laid out as an image tile pyramid, `{z}/{x}/{y}.png` → an XYZ layer in the OGC panel. */
+/** A folder laid out as an image tile pyramid, `{z}/{x}/{y}.png` → an XYZ layer in the Add data catalogue. */
 export interface PublicTilePyramidDataset extends BaseDataset {
   kind: 'xyz';
   /** URL template with `{z}`, `{x}`, and `{y}` — or `{reverseY}` for a TMS pyramid. */
@@ -51,7 +51,7 @@ export interface PublicTilePyramidDataset extends BaseDataset {
   maximumLevel: number;
 }
 
-/** A `.geojson` file → a vector layer in the OGC panel, alongside WFS. */
+/** A `.geojson` file → a vector layer in the Add data catalogue, drawn like WFS. */
 export interface PublicGeoJsonDataset extends BaseDataset {
   kind: 'geojson';
   url: string;

@@ -1,0 +1,105 @@
+/* The status strip along the bottom-right of the map — see MapStatusBar.tsx.
+   The dark-glass look comes from .control; this file adds layout only. */
+.map-status {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  height: var(--control-height-sm);
+  padding: 0 4px;
+  border-radius: var(--radius-md);
+  /* The data face, with tabular figures so a coordinate updating under a
+     moving mouse doesn't shuffle sideways as its digits change width. */
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.map-status__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-left: 1px solid var(--border);
+}
+
+/* `hidden` must win over the display: flex above. */
+.map-status__item[hidden] {
+  display: none;
+}
+
+.map-status__cursor {
+  display: flex;
+  align-items: center;
+}
+
+.map-status__label {
+  color: var(--muted);
+}
+
+/* The coordinate, as a button so it can be clicked to copy. A fixed
+   minimum width stops the whole strip resizing as the text changes length
+   between hemispheres or formats. */
+.map-status__coords {
+  min-width: 25ch;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: copy;
+}
+
+.map-status__coords:hover {
+  color: var(--accent);
+}
+
+/* The WGS84 / SVY21 switch: a quiet badge, like a list row's type tag. */
+.map-status__format {
+  margin-right: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-variant);
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.045em;
+  cursor: pointer;
+}
+
+.map-status__format:hover {
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+
+/* A cartographer's scale bar: a line with end ticks, its width set from
+   the render loop. */
+.map-status__scale-bar {
+  height: 6px;
+  border: 1px solid var(--ink);
+  border-top: none;
+}
+
+/* No cursor to follow on a touch screen: the coordinate and height under
+   it would only ever read "—". Scale and altitude still apply. */
+@media (hover: none) {
+  .map-status__cursor {
+    display: none;
+  }
+}
+
+/* Compact layout: tighter inset, matching the rail and toolbar. 640px must
+   match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
+@media (max-width: 640px) {
+  .map-status {
+    right: 8px;
+    /* Above the full-width attribution line — see global.css. */
+    bottom: calc(8px + var(--attribution-height, 0px));
+  }
+}

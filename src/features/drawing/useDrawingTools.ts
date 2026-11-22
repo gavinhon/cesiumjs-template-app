@@ -243,6 +243,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     ) => Promise<void>
   >(async () => {});
   const commitInProgressRef = useRef<() => void>(() => {});
+  // The keyboard's Enter and Backspace, for the on-screen buttons a touch
+  // screen gets instead. Set inside the handler effect, like the one above.
+  const undoLastVertexRef = useRef<() => void>(() => {});
   // Which tool owns the shape being drawn. Needed because committing happens
   // *after* `activeTool` has already changed to the tool being switched to.
   const inProgressToolRef = useRef<InProgressTool | null>(null);
@@ -958,6 +961,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         updateMeasureLabel(livePositions());
       }
     }
+    undoLastVertexRef.current = undoLastVertex;
 
     // A translucent marker pinned to wherever the cursor meets the globe,
     // so you can see exactly where a click will land before committing to
@@ -1515,9 +1519,21 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     setSelectedId(null);
   }, [viewer]);
 
+  /**
+   * Finishes the path in progress — Enter, for a touch screen with no keyboard
+   * and an unreliable double-tap. Keeps the shape if it has enough vertices
+   * to be one, exactly as switching tools does.
+   */
+  const finishInProgress = useCallback(() => commitInProgressRef.current(), []);
+
+  /** Removes the last vertex of the path in progress — Backspace, for touch. */
+  const undoInProgress = useCallback(() => undoLastVertexRef.current(), []);
+
   return {
     activeTool,
     setActiveTool,
+    finishInProgress,
+    undoInProgress,
     clearAll,
     features,
     selectedId,

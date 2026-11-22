@@ -128,18 +128,18 @@ both what it is and all it should ever grow into.
 ### Parallel features use parallel names
 
 Two features that do the same job should read the same way. The "add a
-thing, then manage the things you added" features share one set of roles:
+thing to the map" features share one set of roles (what they add is then
+managed in the layer manager, so neither has a list of its own):
 
 | Role                | OGC layers            | 3D Tiles             |
 | ------------------- | --------------------- | -------------------- |
 | Panel shell         | `OgcLayerPanel.tsx`   | `TilesetPanel.tsx`   |
 | Form to add one     | `AddOgcLayerForm.tsx` | `AddTilesetForm.tsx` |
-| List of added ones  | `OgcLayerList.tsx`    | `TilesetList.tsx`    |
 | State + Cesium sync | `useOgcLayers.ts`     | `useTilesets.ts`     |
 | Data model          | `ogcLayerTypes.ts`    | `tilesetTypes.ts`    |
 
-Before this pass those columns read `AddLayerForm` / `TilesetForm` and
-`LayerList` / `TilesetList` — same job, three different naming ideas.
+Before an earlier pass those columns read `AddLayerForm` / `TilesetForm`
+— same job, two different naming ideas.
 Copy the shape above for a new feature; [adding-a-feature.md](adding-a-feature.md)
 walks through it step by step.
 

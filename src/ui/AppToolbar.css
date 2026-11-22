@@ -16,8 +16,6 @@
    and every pixel of chrome is a pixel of map you can't see. */
 .app-toolbar__search {
   width: 220px;
-  height: var(--control-height);
-  border-radius: var(--radius-md);
 }
 
 /* A panel button — same height as the search bar, so the two form one
@@ -25,4 +23,57 @@
 .app-toolbar__button {
   height: var(--control-height);
   border-radius: var(--radius-md);
+}
+
+/* On a wide screen the panel buttons sit in the toolbar row itself:
+   `display: contents` makes the wrapper vanish from layout, so they are
+   flex items of .app-toolbar exactly as if it weren't there. The menu
+   button that folds them away is for the compact layout only. */
+.app-toolbar__panels {
+  display: contents;
+}
+
+.app-toolbar__menu {
+  display: none;
+}
+
+/*
+ * Compact layout: search plus a menu button, the panel buttons in a column
+ * under it. Three uppercase buttons beside a search field need ~560px;
+ * a phone has ~360.
+ *
+ * The toolbar stretches to the right rail (whose measured width App
+ * publishes as --right-rail-width), so the search field takes whatever is
+ * left instead of a fixed 220px. 640px must match COMPACT_LAYOUT_QUERY.
+ */
+@media (max-width: 640px) {
+  .app-toolbar {
+    top: 8px;
+    left: 8px;
+    right: calc(var(--right-rail-width, calc(var(--control-height) + 14px)) + 16px);
+  }
+
+  .app-toolbar__search {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .app-toolbar__menu {
+    display: block;
+  }
+
+  .app-toolbar__panels {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .app-toolbar__panels--open {
+    display: flex;
+  }
 }

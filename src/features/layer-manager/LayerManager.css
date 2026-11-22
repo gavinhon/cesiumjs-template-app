@@ -1,13 +1,12 @@
-/* Square icon button in the right rail, matching the drawing tools' sizing
-   so the whole rail reads as one strip of controls. */
-.layer-manager__button {
-  width: var(--control-height);
+/* The panel's primary action, full width under the title like a form's
+   submit button. Sizing only — the orange outline comes from
+   .control-button--primary. */
+.layer-manager__add {
+  width: 100%;
   height: var(--control-height);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-bottom: 20px;
   border-radius: var(--radius-md);
+  box-shadow: none;
 }
 
 .layer-manager__section + .layer-manager__section {

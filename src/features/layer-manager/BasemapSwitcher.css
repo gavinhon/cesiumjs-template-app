@@ -1,0 +1,138 @@
+/* The basemap tile in the bottom-left corner — see BasemapSwitcher.tsx.
+   Just above Cesium's attribution line, which runs along the very bottom. */
+.basemap-switcher {
+  position: absolute;
+  left: 16px;
+  bottom: 32px;
+  z-index: 20;
+}
+
+/* The closed tile: a picture of the current map with a caption across its
+   foot, the familiar maps-app "layers" square. */
+.basemap-switcher__tile {
+  position: relative;
+  display: block;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--surface-solid);
+  border-radius: var(--radius-md);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.basemap-switcher__tile:hover,
+.basemap-switcher__tile:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.basemap-switcher__tile--open {
+  border-color: var(--accent-line);
+}
+
+.basemap-switcher__tile .basemap-switcher__image {
+  width: 100%;
+  height: 100%;
+}
+
+.basemap-switcher__caption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 2px 0;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+/* The open row of choices, rising to the right of the tile. */
+.basemap-switcher__options {
+  position: absolute;
+  bottom: 0;
+  left: calc(100% + 8px);
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(16px);
+}
+
+.basemap-switcher__option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 76px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.basemap-switcher__option:hover,
+.basemap-switcher__option:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+}
+
+/* Selected: the app's "on" language — an orange edge over a faint tint. */
+.basemap-switcher__option--selected,
+.basemap-switcher__option--selected:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.basemap-switcher__option--selected .basemap-switcher__name {
+  color: var(--accent);
+}
+
+.basemap-switcher__option .basemap-switcher__image {
+  width: 64px;
+  height: 64px;
+  border-radius: 3px;
+}
+
+.basemap-switcher__image {
+  display: block;
+  object-fit: cover;
+  background: var(--surface-variant);
+}
+
+/* OpenStreetMap (grey) is the colour tile drawn without colour, as the
+   map itself is (Cesium's `saturation = 0`). */
+.basemap-switcher__image--grayscale {
+  filter: grayscale(1);
+}
+
+.basemap-switcher__name {
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+/* A left-hand panel reaches down over this corner. Hidden while one is
+   open rather than stacked on top of it: the Layers panel has its own
+   basemap picker, and nothing in Drawings wants the basemap changed. */
+.app:has(.panel--left:not(.panel--collapsed)) .basemap-switcher {
+  display: none;
+}
+
+/* On a phone this corner belongs to the navigation row and attribution;
+   the layer manager's dropdown is the way to switch there. 640px must
+   match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
+@media (max-width: 640px) {
+  .basemap-switcher {
+    display: none;
+  }
+}

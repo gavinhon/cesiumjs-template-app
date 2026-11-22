@@ -206,11 +206,16 @@ export interface ManagedImageryLayer {
   kind: string;
   /** The live Cesium object this entry controls. */
   cesiumLayer: Cesium.ImageryLayer;
+  /**
+   * What it was added from — kept for the legend, which needs the service
+   * type and URL. `null` for the basemap, which has no legend.
+   */
+  config: OgcImageryConfig | null;
   visible: boolean;
   alpha: number;
   /**
    * False for the app's base map, which `CesiumMap` created and which the
-   * OGC panel therefore shouldn't offer to delete.
+   * layer manager therefore doesn't offer to delete.
    */
   removable: boolean;
 }

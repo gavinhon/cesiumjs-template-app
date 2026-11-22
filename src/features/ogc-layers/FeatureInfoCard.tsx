@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { toWindowPosition } from '@/cesium/mapLabels';
+import { COMPACT_LAYOUT_QUERY } from '@/ui/compactLayoutQuery';
 import type { InspectedFeature } from './useFeatureInspector';
 import './FeatureInfoCard.css';
 
@@ -40,7 +41,19 @@ export function FeatureInfoCard({ viewer, feature, onClose }: FeatureInfoCardPro
       toCamera: new Cesium.Cartesian3(),
     };
 
+    // On a phone a 280px card above the tapped point covers most of the
+    // map around it (and the finger is already in the way), so it docks to
+    // the bottom like a sheet instead — FeatureInfoCard.css positions it.
+    // Held once and read per frame: `.matches` on a kept MediaQueryList is
+    // a property read, not a fresh query.
+    const compact = window.matchMedia(COMPACT_LAYOUT_QUERY);
+
     const place = () => {
+      if (compact.matches) {
+        card.classList.remove('feature-info--hidden');
+        card.style.transform = '';
+        return;
+      }
       const point = toWindowPosition(viewer.scene, feature.position, scratch);
       card.classList.toggle('feature-info--hidden', !point);
       if (!point) return;
@@ -63,7 +76,10 @@ export function FeatureInfoCard({ viewer, feature, onClose }: FeatureInfoCardPro
       <header className="feature-info__header">
         <div className="feature-info__heading">
           <h2 className="feature-info__title">{feature.title}</h2>
-          <p className="feature-info__layer">{feature.layerName}</p>
+          {/* A nameless feature is titled with its layer, so don't say it twice. */}
+          {feature.title !== feature.layerName && (
+            <p className="feature-info__layer">{feature.layerName}</p>
+          )}
         </div>
         <button
           type="button"

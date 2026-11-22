@@ -13,7 +13,7 @@ import type { PublicDataset, PublicDatasetKind } from './publicDatasetTypes';
 export const PUBLIC_DATASETS: readonly PublicDataset[] = datasets;
 
 /**
- * The datasets of one kind, typed as that kind — so the 3D Tiles panel
+ * The datasets of one kind, typed as that kind — so the 3D catalogue
  * gets `PublicTilesetDataset[]` and can read `.url` without narrowing.
  */
 export function publicDatasetsOfKind<K extends PublicDatasetKind>(

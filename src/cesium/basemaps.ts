@@ -1,4 +1,6 @@
 import * as Cesium from 'cesium';
+import { tileAt, tileBbox3857 } from '@/lib/slippyTile';
+import { INITIAL_VIEW } from './initialView';
 
 /**
  * The base maps the globe can be drawn with — the bottom of the imagery
@@ -27,7 +29,26 @@ export interface Basemap {
   kind: string;
   /** A fresh layer each time: an `ImageryLayer` belongs to one collection and is destroyed with it. */
   createLayer: () => Cesium.ImageryLayer;
+  /**
+   * A preview for the basemap switcher: one real tile of the area the app
+   * opens on (`INITIAL_VIEW`), from this basemap's own service, so the
+   * picture is what you'll get. `grayscale` mirrors a layer that's drawn
+   * desaturated rather than served that way.
+   */
+  thumbnail: { url: string; grayscale?: boolean };
 }
+
+/** The tile the thumbnails show: central Singapore at zoom 11 (~20 km across). */
+const THUMB = tileAt(INITIAL_VIEW.longitude, INITIAL_VIEW.latitude, 11);
+
+/** An Esri tile-cache thumbnail — their URLs put y before x. */
+function esriThumbnail(service: string): Basemap['thumbnail'] {
+  return {
+    url: `https://services.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/${THUMB.z}/${THUMB.y}/${THUMB.x}`,
+  };
+}
+
+const OSM_THUMBNAIL = `https://tile.openstreetmap.org/${THUMB.z}/${THUMB.x}/${THUMB.y}.png`;
 
 /**
  * A WMS basemap layer, requested in Web Mercator (EPSG:3857).
@@ -72,7 +93,7 @@ function osmStandard(): Cesium.ImageryLayer {
 /**
  * One of Esri's public basemaps, an ArcGIS MapServer with a Web Mercator
  * tile cache — read with the same `ArcGisMapServerImageryProvider` as an
- * ArcGIS service added from the map services panel.
+ * ArcGIS map service added from the Add data panel.
  *
  * These `services.arcgisonline.com` maps answer without a key. Esri asks
  * for "Powered by Esri" plus the data sources on screen; check its terms
@@ -102,7 +123,8 @@ export const BASEMAPS: readonly Basemap[] = [
   {
     id: 'esri-imagery',
     name: 'Esri World Imagery',
-    kind: 'ARCGIS',
+    kind: 'ARCGIS MAP',
+    thumbnail: esriThumbnail('World_Imagery'),
     // Sub-metre aerial imagery in cities, far sharper than Sentinel-2.
     createLayer: () =>
       esriLayer(
@@ -114,12 +136,14 @@ export const BASEMAPS: readonly Basemap[] = [
     id: 'osm',
     name: 'OpenStreetMap',
     kind: 'XYZ',
+    thumbnail: { url: OSM_THUMBNAIL },
     createLayer: osmStandard,
   },
   {
     id: 'osm-grey',
     name: 'OpenStreetMap (grey)',
     kind: 'XYZ',
+    thumbnail: { url: OSM_THUMBNAIL, grayscale: true },
     // The same map drawn without colour. `saturation` is applied by Cesium's
     // globe shader as it draws — the images themselves aren't processed —
     // so it costs nothing and needs no second service.
@@ -133,6 +157,13 @@ export const BASEMAPS: readonly Basemap[] = [
     id: 'satellite',
     name: 'Satellite (Sentinel-2, 10 m)',
     kind: 'WMS',
+    // The same square as the tile thumbnails, asked of the WMS by its extent.
+    thumbnail: {
+      url:
+        'https://tiles.maps.eox.at/wms?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1' +
+        `&LAYERS=s2cloudless-2024_3857&SRS=EPSG:3857&BBOX=${tileBbox3857(THUMB).join(',')}` +
+        '&WIDTH=128&HEIGHT=128&FORMAT=image/jpeg',
+    },
     // EOX's cloud-free Sentinel-2 mosaic. 10 m pixels: clear at city and
     // district scale, soft at street level — there is no sharper satellite
     // imagery available over WMS without a key. EOX licenses the mosaics
@@ -147,7 +178,8 @@ export const BASEMAPS: readonly Basemap[] = [
   {
     id: 'esri-dark-gray',
     name: 'Esri Dark Gray Canvas',
-    kind: 'ARCGIS',
+    kind: 'ARCGIS MAP',
+    thumbnail: esriThumbnail('Canvas/World_Dark_Gray_Base'),
     // A purpose-made dark map, without place labels (Esri publishes those
     // as a separate reference layer, which would cover anything you add).
     createLayer: () =>

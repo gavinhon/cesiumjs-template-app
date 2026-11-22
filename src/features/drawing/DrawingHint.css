@@ -4,7 +4,10 @@
 .drawing-hint {
   position: absolute;
   left: 50%;
-  bottom: 24px;
+  /* On top of the navigation row and status bar in the bottom-right
+     corner (--bottom-right-stack, global.css), so on a narrow window the
+     centred hint can't run into them. */
+  bottom: calc(16px + var(--bottom-right-stack));
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
@@ -28,6 +31,35 @@
   font-size: 11px;
   letter-spacing: 0.03em;
   color: var(--muted);
+}
+
+/* The touch alternative to the key hints: Undo / Finish buttons for a path,
+   a line of text otherwise. Hidden unless the pointer is coarse. */
+.drawing-hint__touch {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* The hint as a whole lets clicks through to the map; its buttons must
+   still catch them. */
+.drawing-hint__touch .control-button {
+  height: var(--control-height);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+@media (pointer: coarse) {
+  .drawing-hint__keys {
+    display: none;
+  }
+
+  .drawing-hint__touch {
+    display: flex;
+  }
 }
 
 /* Stack the two halves once the caption stops fitting on one line. The

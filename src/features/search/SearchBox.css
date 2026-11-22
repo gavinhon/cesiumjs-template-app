@@ -1,0 +1,102 @@
+/* The search box and its results — see SearchBox.tsx. The input and the
+   results card take their glass look from .control. */
+.search-box {
+  position: relative;
+  width: 100%;
+}
+
+.search-box__input {
+  width: 100%;
+  height: var(--control-height);
+  border-radius: var(--radius-md);
+}
+
+/* The results drop below the box, wider than it — a 220px field is too
+   narrow for an address — but never wider than the screen. */
+.search-box__results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(360px, calc(100vw - 16px));
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(16px);
+}
+
+.search-box__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Group headings in the panels' section-label style. */
+.search-box__heading {
+  padding: 8px 8px 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.search-box__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+/* The keyboard/hover row: neutral, like any hover in the app — orange is
+   for state, and a highlighted search result isn't "on". */
+.search-box__row--active {
+  background: var(--surface-hover);
+}
+
+.search-box__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.search-box__title {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-box__subtitle {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-box__row-error,
+.search-box__status--error {
+  color: var(--danger);
+}
+
+.search-box__row-error {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.search-box__status {
+  margin: 0;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}

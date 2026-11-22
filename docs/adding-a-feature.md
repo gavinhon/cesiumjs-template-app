@@ -19,10 +19,13 @@ thing by URL" feature, not because GeoJSON is missing.)
 src/features/geojson/
 ├── geoJsonTypes.ts     the data model — named for the feature, never `types.ts`
 ├── useGeoJson.ts       state + Cesium sync (the heart of the feature)
-├── GeoJsonPanel.tsx    entry point: hook + form + list
-├── AddGeoJsonForm.tsx  add a new one
-└── GeoJsonList.tsx     manage the added ones
+├── GeoJsonPanel.tsx    entry point: quick-add list + form
+└── AddGeoJsonForm.tsx  add a new one
 ```
+
+There's no list of added sources in the folder: once something is on the
+map it's managed in the layer manager, the one place every loaded layer is
+shown, hidden, reordered and removed (step 5).
 
 Everything the feature needs lives here. A feature never imports from
 another feature — if two need the same thing, it moves to `src/ui/` or
@@ -133,20 +136,20 @@ Checklist for this file:
 `GeoJsonPanel.tsx` — the entry point:
 
 ```tsx
-import type * as Cesium from 'cesium';
 import { Panel } from '@/ui/Panel';
-import { useGeoJson } from './useGeoJson';
-import { GeoJsonForm } from './GeoJsonForm';
-import { GeoJsonList } from './GeoJsonList';
+import { AddGeoJsonForm } from './AddGeoJsonForm';
+import type { useGeoJson } from './useGeoJson';
 
 interface GeoJsonPanelProps {
-  viewer: Cesium.Viewer | null;
+  /** The feature's state — the hook is called in App, see step 5. */
+  geoJson: ReturnType<typeof useGeoJson>;
+  disabled: boolean;
   open: boolean;
+  /** Lets App show the new source in the layer manager. */
+  onAdded: () => void;
 }
 
-export function GeoJsonPanel({ viewer, open }: GeoJsonPanelProps) {
-  const { sources, add, remove, toggleVisibility } = useGeoJson(viewer);
-
+export function GeoJsonPanel({ geoJson, disabled, open, onAdded }: GeoJsonPanelProps) {
   return (
     <Panel
       id="geojson-panel"
@@ -154,12 +157,21 @@ export function GeoJsonPanel({ viewer, open }: GeoJsonPanelProps) {
       subtitle="Load GeoJSON features from a URL."
       open={open}
     >
-      <GeoJsonForm onAdd={add} disabled={!viewer} />
-      <GeoJsonList sources={sources} onRemove={remove} onToggleVisibility={toggleVisibility} />
+      <AddGeoJsonForm
+        onAdd={async (config) => {
+          await geoJson.add(config);
+          onAdded();
+        }}
+        disabled={disabled}
+      />
     </Panel>
   );
 }
 ```
+
+Ready-made datasets go in a `<QuickAddList>` above the form, one click
+each — see `OgcLayerPanel.tsx` for one fed by the `public/` scan and a list
+of example services.
 
 `AddGeoJsonForm.tsx` — use `<Field>` / `<SelectField>` from `@/ui/Field`, wrap
 in `<form className="panel-form">`, and give the submit button
@@ -168,18 +180,22 @@ and can fail (like loading a tileset), hold a
 `{ state: 'idle' | 'loading' | 'error' }` union and render the message in a
 `panel-form__status panel-form__status--error` paragraph.
 
-`GeoJsonList.tsx` — use `<ResourceList>` and `<ResourceRow>` from
-`@/ui/ResourceList`. Pass extra per-item controls as `children`; they render
-as a second row.
+If your loaded items need a control nothing else has, don't build a list
+for it: pass it to the layer manager as `LayerEntry.detail` (step 5), the
+way a 3D model's "On terrain" switch (`TilesetPlacementControl`) gets
+there.
 
 ## 5. Register the panel
 
 Two small edits, both mechanical.
 
-Add the id to `PanelId` in [`src/ui/panelIds.ts`](../src/ui/panelIds.ts):
+Add the id to `PanelId` in [`src/ui/panelIds.ts`](../src/ui/panelIds.ts), and
+say which edge it docks to in `PANEL_SIDE`:
 
 ```ts
-export type PanelId = 'ogc-layers' | 'tiles-3d' | 'layers' | 'geojson';
+export type PanelId = 'ogc-layers' | 'tiles-3d' | 'layers' | 'drawings' | 'geojson';
+// …and in PANEL_SIDE:
+  geojson: 'left',
 ```
 
 Then add an entry to `PANELS` in
@@ -194,28 +210,30 @@ const PANELS: { id: PanelId; label: string; controls: string }[] = [
 ];
 ```
 
-In [`src/App.tsx`](../src/App.tsx), render it:
+In [`src/App.tsx`](../src/App.tsx), call the hook and render the panel:
 
 ```tsx
-<GeoJsonPanel viewer={viewer} open={openPanel === 'geojson'} />
+const geoJson = useGeoJson(viewer);
+// …
+<GeoJsonPanel geoJson={geoJson} disabled={!viewer} open={isOpen('geojson')} onAdded={showLayers} />;
 ```
 
 That's the whole integration. Note that you _added_ to each file and
 changed nothing existing — that's the property the structure is designed
 for.
 
-### If another component needs your feature's state
+### Show what you added in the layer manager
 
-Call your hook in `App.tsx` instead of inside your panel, and pass the
-result down — the way `useOgcLayers` and `useTilesets` are, because the
-layer manager lists what they own. Calling the same hook in two components
-creates two React states fighting over one Cesium collection. Don't lift
-until something actually needs it.
+The hook is called in `App.tsx` rather than in your panel because the
+layer manager needs its state too — the way `useOgcLayers` and
+`useTilesets` are. Calling the same hook in two components creates two
+React states fighting over one Cesium collection.
 
-To appear in the layer manager, map your entries to `LayerEntry` in
-`App.tsx` (see `src/features/layer-manager/layerManagerTypes.ts`). Supply `onMove` only
-if your layers live in `viewer.imageryLayers` and therefore have a real
-draw order.
+Map your entries to `LayerEntry` in `App.tsx` (see
+`src/features/layer-manager/layerManagerTypes.ts`): visibility and zoom,
+plus `onRemove`, and `opacity`/`onMove` only if your layers live in
+`viewer.imageryLayers` and therefore have one opacity and a real draw
+order.
 
 ## 6. Verify
 
@@ -246,11 +264,10 @@ build-time scan find it rather than asking the user to type its URL:
 2. Teach `vite-plugins/publicDatasetCatalog.ts` to recognise it — a check in
    `classifyFolder` for a folder-shaped dataset, or the file loop in `scan`
    for a single file.
-3. In your panel, render
-   `<PublicDatasetList datasets={publicDatasetsOfKind('your-kind')} … />`
-   above the form, adding each dataset through the same `add…` function the
-   form uses, with the dataset's `id` as the config id. That id is how the
-   list knows a dataset is already on the map.
+3. In your panel, turn `publicDatasetsOfKind('your-kind')` into
+   `<QuickAddList>` items above the form, adding each dataset through the
+   same `add…` function the form uses, with the dataset's `id` as the config
+   id. That id is how the list knows a dataset is already on the map.
 
 `TilesetPanel.tsx` is the shortest example to copy.
 

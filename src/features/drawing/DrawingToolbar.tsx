@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { DrawingTool } from './useDrawingTools';
 import './DrawingToolbar.css';
 
@@ -6,14 +6,28 @@ interface DrawingToolbarProps {
   activeTool: DrawingTool;
   onSelectTool: (tool: DrawingTool) => void;
   onClear: () => void;
-  is2D: boolean;
-  onToggleSceneMode: () => void;
 }
 
 // Small line-art icons, drawn by hand instead of pulling in an icon library
 // for nine glyphs. `stroke="currentColor"` makes each one pick up whatever
 // color the surrounding button/CSS sets, so hover/active states apply for free.
-const icons: Record<Exclude<DrawingTool, 'none'> | 'clear', ReactNode> = {
+const icons: Record<Exclude<DrawingTool, 'none'> | 'clear' | 'draw', ReactNode> = {
+  // The Draw menu's own icon, shown while none of its tools is armed.
+  draw: (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 20 L5 15 L15.5 4.5 a2.1 2.1 0 0 1 3 3 L8 18 Z" />
+      <line x1="13.5" y1="6.5" x2="16.5" y2="9.5" />
+    </svg>
+  ),
   point: (
     <svg viewBox="0 0 24 24" width="18" height="18">
       <circle cx="12" cy="12" r="5" fill="currentColor" />
@@ -147,101 +161,161 @@ const icons: Record<Exclude<DrawingTool, 'none'> | 'clear', ReactNode> = {
   ),
 };
 
-type ToolEntry = { tool: Exclude<DrawingTool, 'none'>; label: string };
+type ToolEntry = {
+  tool: Exclude<DrawingTool, 'none'>;
+  /** Short name, shown in the menu. */
+  name: string;
+  /** One line under the name: what it does, or how to use it. */
+  hint: string;
+};
 
 /**
- * Two groups, because they answer different questions: the first puts
- * something on the map, the second asks the map something. Grouped, an
- * eight-button strip reads as two short lists instead of one long one.
+ * Two menus, because they answer different questions: the first puts
+ * something on the map, the second asks the map something.
  */
-const TOOL_GROUPS: { name: string; tools: ToolEntry[] }[] = [
+const TOOL_GROUPS: {
+  id: 'draw' | 'analyse';
+  name: string;
+  icon: ReactNode;
+  tools: ToolEntry[];
+}[] = [
   {
+    id: 'draw',
     name: 'Draw',
+    icon: icons.draw,
     tools: [
-      { tool: 'point', label: 'Place a point (shows its elevation)' },
-      { tool: 'line', label: 'Draw a line' },
-      { tool: 'polygon', label: 'Draw a polygon' },
-      { tool: 'label', label: 'Add a text label' },
+      { tool: 'point', name: 'Point', hint: 'Shows its elevation' },
+      { tool: 'line', name: 'Line', hint: 'Click points, double-click to finish' },
+      { tool: 'polygon', name: 'Polygon', hint: 'Click corners, double-click to finish' },
+      { tool: 'label', name: 'Label', hint: 'Text pinned to a place' },
     ],
   },
   {
+    id: 'analyse',
     name: 'Measure and analyse',
+    icon: icons.measure,
     tools: [
-      { tool: 'measure', label: 'Measure distance — 3D and over the ground' },
-      { tool: 'height', label: 'Measure height difference between two points' },
-      { tool: 'line-of-sight', label: 'Line of sight — can one point see another?' },
-      { tool: 'viewshed', label: 'Viewshed — what can be seen from a point' },
+      { tool: 'measure', name: 'Distance', hint: 'In 3D and over the ground' },
+      { tool: 'height', name: 'Height', hint: 'Difference between two points' },
+      { tool: 'line-of-sight', name: 'Line of sight', hint: 'Can one point see another?' },
+      { tool: 'viewshed', name: 'Viewshed', hint: 'What can be seen from a point' },
     ],
   },
 ];
 
 /**
- * The drawing, measurement and analysis tools, as buttons for the right
- * rail.
+ * The drawing, measurement and analysis tools, for the right rail: a
+ * **Draw** button and a **Measure and analyse** button, each opening a
+ * labelled menu of its four tools, then the discard button.
  *
- * Returns a fragment rather than its own wrapper: the 2D/3D toggle, each
- * tool group, and the discard button become separate items of
- * `.app__right-rail`, which is what lets the rail wrap them into a second
- * column on short screens. Inside a wrapper they'd be one tall item, and a
- * flex item can't be split across columns.
+ * This used to be eight icon buttons in two boxes. Icons alone made people
+ * hover each one to learn what it was, and the strip was the tallest thing
+ * on screen. Two menu buttons keep the rail short (it no longer needs to
+ * wrap on a laptop) and put a name and a one-line hint beside every tool.
+ * The group button shows the armed tool's icon, lit, so what's armed is
+ * still visible with the menu closed.
  *
- * A small vertical strip of icon buttons on the right edge of the screen —
- * the drawing/measurement equivalent of the OGC layers button on the left.
+ * Returns a fragment rather than its own wrapper: each menu and the
+ * discard button are separate items of `.app__right-rail`, which is what
+ * lets the rail wrap them into a second column on short screens. Inside a
+ * wrapper they'd be one tall item, and a flex item can't be split across
+ * columns.
  *
- * Tool buttons behave like a set of radio buttons: picking one deselects
- * whichever was active before (see `useDrawingTools`, which only ever
- * tracks one `activeTool`). Clicking the already-active tool turns
- * drawing off entirely, handing control of map clicks back to the camera.
+ * Tools behave like radio buttons: picking one disarms whichever was armed
+ * (`useDrawingTools` only ever tracks one `activeTool`). Picking the armed
+ * tool again disarms it, handing map clicks back to the camera.
  */
-export function DrawingToolbar({
-  activeTool,
-  onSelectTool,
-  onClear,
-  is2D,
-  onToggleSceneMode,
-}: DrawingToolbarProps) {
+export function DrawingToolbar({ activeTool, onSelectTool, onClear }: DrawingToolbarProps) {
+  const [openMenu, setOpenMenu] = useState<'draw' | 'analyse' | null>(null);
+
+  // Close on a click anywhere else, or on Escape — the usual menu manners.
+  // Escape is caught before useDrawingTools sees it: with a menu open,
+  // closing the menu is all the user meant, not disarming the tool too.
+  useEffect(() => {
+    if (!openMenu) return;
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest('.drawing-toolbar__menu-wrap')) setOpenMenu(null);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      event.stopImmediatePropagation();
+      setOpenMenu(null);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [openMenu]);
+
   return (
     <>
-      <button
-        type="button"
-        className="control control-button drawing-toolbar__button drawing-toolbar__mode"
-        onClick={onToggleSceneMode}
-        title={is2D ? 'Switch to 3D globe' : 'Switch to 2D map'}
-      >
-        {is2D ? '3D' : '2D'}
-      </button>
-
-      {TOOL_GROUPS.map((group) => (
-        <div
-          key={group.name}
-          className="drawing-toolbar__group"
-          role="group"
-          aria-label={group.name}
-        >
-          {group.tools.map(({ tool, label }) => (
+      {TOOL_GROUPS.map((group) => {
+        const armed = group.tools.find((entry) => entry.tool === activeTool);
+        const open = openMenu === group.id;
+        const menuId = `drawing-menu-${group.id}`;
+        return (
+          <div key={group.id} className="drawing-toolbar__menu-wrap">
             <button
-              key={tool}
               type="button"
               className={
-                activeTool === tool
-                  ? 'control control-button drawing-toolbar__button control-button--active'
-                  : 'control control-button drawing-toolbar__button'
+                armed || open
+                  ? 'control control-button drawing-toolbar__button drawing-toolbar__menu-button control-button--active'
+                  : 'control control-button drawing-toolbar__button drawing-toolbar__menu-button'
               }
-              onClick={() => onSelectTool(activeTool === tool ? 'none' : tool)}
-              aria-pressed={activeTool === tool}
-              aria-label={label}
-              title={label}
+              onClick={() => setOpenMenu(open ? null : group.id)}
+              aria-haspopup="menu"
+              aria-expanded={open}
+              aria-controls={menuId}
+              aria-label={armed ? `${group.name}: ${armed.name} armed` : group.name}
+              title={armed ? `${group.name} — ${armed.name}` : group.name}
             >
-              {icons[tool]}
+              {armed ? icons[armed.tool] : group.icon}
             </button>
-          ))}
-        </div>
-      ))}
+            {open && (
+              <div
+                id={menuId}
+                className="control drawing-toolbar__menu"
+                role="menu"
+                aria-label={group.name}
+              >
+                <p className="drawing-toolbar__menu-heading">{group.name}</p>
+                {group.tools.map(({ tool, name, hint }) => (
+                  <button
+                    key={tool}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={activeTool === tool}
+                    className={
+                      activeTool === tool
+                        ? 'drawing-toolbar__item drawing-toolbar__item--active'
+                        : 'drawing-toolbar__item'
+                    }
+                    onClick={() => {
+                      onSelectTool(activeTool === tool ? 'none' : tool);
+                      setOpenMenu(null);
+                    }}
+                  >
+                    <span className="drawing-toolbar__item-icon">{icons[tool]}</span>
+                    <span className="drawing-toolbar__item-text">
+                      <span className="drawing-toolbar__item-name">{name}</span>
+                      <span className="drawing-toolbar__item-hint">{hint}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       <button
         type="button"
         className="control control-button drawing-toolbar__button"
         onClick={onClear}
+        aria-label="Clear all drawings"
         title="Clear all drawings"
       >
         {icons.clear}

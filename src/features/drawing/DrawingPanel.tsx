@@ -8,6 +8,8 @@ interface DrawingPanelProps {
   /** The drawing feature's state, from `useDrawingTools` — called in `App`. */
   drawing: ReturnType<typeof useDrawingTools>;
   open: boolean;
+  /** Closes the panel from its own header (see `Panel`). */
+  onClose: () => void;
 }
 
 /** Badge text per kind, so a glance at the list says what each row is. */
@@ -31,7 +33,7 @@ const KIND_LABEL = {
  * One selection, two views of it — anything else would leave the two
  * disagreeing about what the user is working on.
  */
-export function DrawingPanel({ drawing, open }: DrawingPanelProps) {
+export function DrawingPanel({ drawing, open, onClose }: DrawingPanelProps) {
   const { features, selectedId, selectedFeature } = drawing;
 
   return (
@@ -40,6 +42,7 @@ export function DrawingPanel({ drawing, open }: DrawingPanelProps) {
       title="Drawings"
       subtitle="Select a shape to name it, add attributes, or drag its vertices."
       open={open}
+      onClose={onClose}
     >
       <ResourceList emptyMessage="Nothing drawn yet. Pick a tool from the right-hand rail.">
         {features.map((feature) => (

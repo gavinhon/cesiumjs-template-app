@@ -80,7 +80,8 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
   );
 
   const addTileset = useCallback(
-    async (config: TilesetConfig) => {
+    // Pass `flyTo: false` when restoring a shared link: its camera is the point.
+    async (config: TilesetConfig, { flyTo = true }: { flyTo?: boolean } = {}) => {
       if (!viewer) return;
 
       if (config.format === 'i3s') {
@@ -101,7 +102,7 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
             credit: null,
           },
         ]);
-        flyToTilesets(viewer, parts);
+        if (flyTo) flyToTilesets(viewer, parts);
         return;
       }
 
@@ -169,7 +170,7 @@ export function useTilesets(viewer: Cesium.Viewer | null) {
         },
       ]);
       if (tileset.boundingSphere.radius < REGIONAL_RADIUS) {
-        flyToTilesets(viewer, [tileset]);
+        if (flyTo) flyToTilesets(viewer, [tileset]);
       } else {
         // A worldwide layer is everywhere at once: flying "to" it would only
         // pull the camera out to space, away from what the user was viewing.

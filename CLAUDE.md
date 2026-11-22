@@ -40,8 +40,8 @@ make it testable (`parseWmsLayers` vs `fetchWmsLayers`).
 src/
   main.tsx, App.tsx    entry + shell (App owns the Viewer and which panel is open)
   cesium/              Viewer creation, initial camera, 2D/3D toggle, mapColors.ts mirror
-  features/<name>/     one per feature: <name>Types + use<Name> + Panel + Add…Form + List
-  ui/                  shared: Panel, Field, ResourceList, AppToolbar, panelIds.ts (PanelId)
+  features/<name>/     one per feature: <name>Types + use<Name> + Panel + Add…Form
+  ui/                  shared: Panel, Field, ResourceList, QuickAddList, AppToolbar, panelIds.ts
   lib/                 shared helpers with no UI or Cesium ties; publicDatasets.ts
   styles/              designTokens.css (tokens) + global.css (reset, .control)
 vite-plugins/          publicDatasetCatalog.ts — scans public/ at build time
@@ -139,7 +139,8 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   colour says what a mark _is_: drawings `--accent` orange, measurements
   `--measure` near-white with a dark `--bg` casing (so they read on light
   streets), analyses `--sight` cyan, blocked sight lines `--danger`, WFS
-  data `--vector` blue.
+  data `--vector` blue, and a place the app marked (your location, a search
+  result) `--location` white — one shared pin, `createPlaceMarker`.
 - **The UI is minimal and dark; orange is a signal, not a surface.** An
   active toggle, the primary button and a selected row are an orange label
   or edge over a faint `--accent-soft` tint — never a solid orange fill,
@@ -159,6 +160,48 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   `DrawingToolbar` returns a fragment — and the right panel's offset comes
   from the rail's measured width (`--right-rail-width`, published by
   `useWidthAsCssVariable` in `App.tsx`), never from a fixed number.
+- **Phones get two switches, keyed to different things.** A coarse
+  pointer (`@media (pointer: coarse)`, in `designTokens.css`) swaps
+  `--control-height` for `--control-height-touch` (44px) — every control at
+  once, so the single rhythm holds. A narrow screen (`max-width: 640px`,
+  `COMPACT_LAYOUT_QUERY` in `src/ui/compactLayoutQuery.ts`) switches layout:
+  panels become bottom sheets, the toolbar folds its panel buttons into a
+  menu, the feature card docks to the bottom, and the drawing hint swaps
+  key hints for Undo / Finish buttons (on a coarse pointer). Media queries
+  can't read a custom property, so the 640px is repeated in each stylesheet
+  that switches — change them together. Every panel takes `onClose`: a
+  sheet must be dismissible from itself.
+- **The bottom-right corner is a stack.** Status bar (cursor coordinate in
+  WGS84 or SVY21, ground height, scale bar, camera altitude), then the
+  navigation row above it (compass, zoom, home, my location, 2D/3D, share
+  link). Its height is `--bottom-right-stack` on `.app` in `global.css`;
+  the rail's max-height, the right panel's bottom and the drawing hint
+  are all calc()'d from it, so add to the corner by updating that one
+  variable. The 2D/3D switch lives here, not in the drawing rail: these
+  buttons move the view, the rail's put things on the map. The status bar
+  and compass update from `postRender` straight into the DOM, never React
+  state. Cesium writes an inline `right: 0` on its credit container on
+  every resize, so the rule keeping attribution clear of the status bar
+  needs `!important` — don't "tidy" it away.
+- **Search finds coordinates, datasets and places.** `parseCoordinateQuery`
+  reads degrees in either order and SVY21 (`src/lib/svy21.ts`, matched to
+  SLA's own coordinates); datasets come from the panels' quick-add
+  catalogues (`OGC_QUICK_ADD`, `TILESET_QUICK_ADD`, mapped in `App`);
+  places come from OneMap as you type and Nominatim only on request —
+  Nominatim's usage policy forbids search-as-you-type. Both must be
+  credited in the results. `AppToolbar` takes the box as a `search` slot
+  because `src/ui` never imports a feature.
+- **The URL fragment is the map's state** (`useMapUrlState`): camera,
+  basemap, terrain, 2D/3D and catalogue layers by id. It's restored once
+  on load (layers added with `flyTo: false`, so the shared view stays)
+  and rewritten with `replaceState` on `camera.moveEnd`. Layers connected
+  by typing a URL are deliberately left out: links shouldn't carry service
+  URLs and ArcGIS tokens around.
+- **Legends come from the service, or from our style.** `LayerEntry.legend`
+  is a loader: WMS `GetLegendGraphic`, ArcGIS `/legend?f=json`
+  (`layerLegend.ts`), and for vector layers the app's own `--vector`
+  swatches for the geometry types loaded — the server's renderer is
+  ignored when we restyle, so its legend would lie.
 - **Text on the map is HTML, not `Entity.label`.** Use
   `createMapLabelLayer` from `src/cesium/mapLabels.ts`.
 - **A finished drawing is a `DrawnFeature`**, not a loose entity — see
@@ -177,18 +220,33 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
 - **Arming a tool is the mode switch.** With a tool armed a map click draws;
   with none armed it selects, and the selected shape gets draggable vertex
   handles. That is what lets one click mean two things without a modifier.
+  With none armed, a click on a WFS / ArcGIS / GeoJSON feature opens its
+  attribute card (`useFeatureInspector` + `<FeatureInfoCard>`, its own
+  `ScreenSpaceEventHandler`); the card is positioned from `postRender`
+  like the map labels, never through React state.
 - **TypeScript is strict.** No `any`, avoid `!`, prefer discriminated
   unions, add `never` exhaustiveness checks on union switches.
-- **Registering a panel** means adding to `PanelId` in `src/ui/panelIds.ts`,
-  an entry in `PANELS` in `src/ui/AppToolbar.tsx` (unless the button lives
-  elsewhere, as the layer manager's does), and one element in `App.tsx` —
-  additive, never editing existing entries.
+- **Registering a panel** means adding to `PanelId` and `PANEL_SIDE` in
+  `src/ui/panelIds.ts`, an entry in `PANELS` in `src/ui/AppToolbar.tsx`
+  (unless the button lives elsewhere, as the layer manager's does), and one
+  element in `App.tsx` — additive, never editing existing entries. `App`
+  keeps one panel open per side, so the layer manager (right) can stay open
+  beside a left panel; under 800px wide, opening one closes the other.
+- **Data panels add; the layer manager manages.** Map Services and 3D Tiles
+  are a `<QuickAddList>` (the `public/` scan plus the examples, one click
+  each, grouped and badged by format) above a "Connect your own" form —
+  nothing else. Once loaded, a layer's every control (show/hide, opacity,
+  draw order, remove, 3D placement) is on its row in the layer manager,
+  which opens when something is added. Don't add a second list of loaded
+  layers to a panel: that duplication is what this layout removed. A
+  feature-specific control reaches the manager as `LayerEntry.detail`,
+  rendered by `App` (see `TilesetPlacementControl`).
 - **Datasets in `public/` come from a build-time scan.** A browser can't
   list a server folder, so `vite-plugins/publicDatasetCatalog.ts` scans
   `public/` and exposes `virtual:public-datasets`; read it via
   `PUBLIC_DATASETS` / `publicDatasetsOfKind()` from `src/lib/publicDatasets.ts`.
   It's a constant, not state. A scanned dataset is added under its catalog
-  id (`public:<path>`) — that's how `<PublicDatasetList>` knows it's added.
+  id (`public:<path>`) — that's how `<QuickAddList>` knows it's added.
   `src/lib/publicDatasetTypes.ts` is shared with the Node-side plugin, so it
   must stay types-only: no Cesium, DOM, or Node imports.
 - **Terrain is a single slot.** `useTerrain` holds a selection, not a list;

@@ -59,6 +59,7 @@
   --measure: #f5f1ea; /* near-white — measurements, so they read as not-a-drawing */
   --vector: #5b9dff; /* blue — WFS features, complementary to the accent */
   --sight: #22d3ee; /* cyan — what an observer can see: line-of-sight and viewshed results */
+  --location: #ffffff; /* white — a place the app put there: your location, a search result */
 
   /* Just enough to lift a card off a bright street map — OSM is mostly
      near-white, and without any shadow a dark card's edge blurs into it. */
@@ -83,6 +84,23 @@
    * into extra columns — see .app__right-rail.) */
   --control-height: 34px;
   --control-height-sm: 30px; /* compact grid rows, e.g. attribute key/value */
+  --control-height-touch: 44px; /* --control-height on a coarse pointer, below */
+}
+
+/*
+ * Fingers, not a mouse. 34px is a comfortable mouse target and a frustrating
+ * finger one; 44px is the size both Apple's and Google's guidelines settle
+ * on. Swapping the one token, rather than adding per-component touch sizes,
+ * keeps every control on a single rhythm at either size — and the panel
+ * offsets calc()'d from it follow automatically.
+ *
+ * Keyed to the pointer, not the screen width: a tablet in landscape is wide
+ * but still touched, and a narrow desktop window is still clicked.
+ */
+@media (pointer: coarse) {
+  :root {
+    --control-height: var(--control-height-touch);
+  }
 }
 
 /*

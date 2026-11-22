@@ -49,6 +49,11 @@ interface ResourceRowProps {
    */
   actions?: ReactNode;
   /**
+   * A full-width block under the rows — a layer's legend. Rendered only
+   * when provided.
+   */
+  footer?: ReactNode;
+  /**
    * Optional second row of per-resource controls (e.g. a type badge and an
    * opacity slider). Rendered only when provided.
    */
@@ -71,6 +76,7 @@ export function ResourceRow({
   selected = false,
   onSelect,
   actions,
+  footer,
   children,
 }: ResourceRowProps) {
   return (
@@ -114,6 +120,7 @@ export function ResourceRow({
         </span>
       </div>
       {children && <div className="resource-list__row">{children}</div>}
+      {footer}
     </li>
   );
 }

@@ -13,8 +13,6 @@ import type { OgcServiceType } from './ogcLayerTypes';
  */
 export interface ExampleMapService {
   id: string;
-  /** Picker heading this example is listed under. */
-  group: string;
   type: OgcServiceType;
   /** Becomes the display name. */
   name: string;
@@ -23,43 +21,35 @@ export interface ExampleMapService {
   maxFeatures?: number;
 }
 
-const ARCGIS_IMAGERY = 'ArcGIS MapServer (imagery)';
-const ARCGIS_VECTOR = 'ArcGIS FeatureServer (vector)';
-
 export const EXAMPLE_MAP_SERVICES: readonly ExampleMapService[] = [
   {
     // A scanned 1963 satellite photo, georeferenced — try it at partial
     // opacity over a modern basemap to see the reclaimed coastline.
     id: 'sg-1963-satellite',
-    group: ARCGIS_IMAGERY,
     type: 'arcgis-map',
     name: 'Singapore 1963 satellite photo',
     url: 'https://tiles.arcgis.com/tiles/qN3V93cYGMKQCOxL/arcgis/rest/services/Singapore_1963_Satellite_Photo/MapServer',
   },
   {
     id: 'sg-1839-map',
-    group: ARCGIS_IMAGERY,
     type: 'arcgis-map',
     name: 'Map of Singapore, 1839',
     url: 'https://tiles.arcgis.com/tiles/Ue34o2qxc9h430hV/arcgis/rest/services/1839_Map_of_Singapore_and_its_Environs/MapServer',
   },
   {
     id: 'sg-population-density',
-    group: ARCGIS_IMAGERY,
     type: 'arcgis-map',
     name: 'Population density',
     url: 'https://tiles.arcgis.com/tiles/nGt4QxSblgDfeJn9/arcgis/rest/services/Singapore_Population_Density_6class/MapServer',
   },
   {
     id: 'sg-tourist-attractions',
-    group: ARCGIS_VECTOR,
     type: 'arcgis-feature',
     name: 'Tourist attractions',
     url: 'https://services2.arcgis.com/j80Jz20at6Bi0thr/arcgis/rest/services/Tourist_Attractions/FeatureServer/0',
   },
   {
     id: 'sg-rail-lines',
-    group: ARCGIS_VECTOR,
     type: 'arcgis-feature',
     name: 'Rail lines',
     url: 'https://services2.arcgis.com/j80Jz20at6Bi0thr/arcgis/rest/services/Rail_Lines/FeatureServer/0',
@@ -68,7 +58,6 @@ export const EXAMPLE_MAP_SERVICES: readonly ExampleMapService[] = [
   },
   {
     id: 'sg-rail-stations',
-    group: ARCGIS_VECTOR,
     type: 'arcgis-feature',
     name: 'Rail stations',
     url: 'https://services2.arcgis.com/j80Jz20at6Bi0thr/arcgis/rest/services/Rail_Stations/FeatureServer/0',
@@ -77,7 +66,6 @@ export const EXAMPLE_MAP_SERVICES: readonly ExampleMapService[] = [
     // Stored in SVY21, Singapore's own grid: the server reprojects it to
     // lon/lat because the query asks for `outSR=4326`.
     id: 'sg-parks',
-    group: ARCGIS_VECTOR,
     type: 'arcgis-feature',
     name: 'Parks & green spaces',
     url: 'https://services5.arcgis.com/XqaKEQIgV03geG0E/arcgis/rest/services/Parks___Green_Spaces/FeatureServer/6',

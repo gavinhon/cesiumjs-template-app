@@ -51,7 +51,14 @@ export function pickSurface(
       const toGround = Cesium.Cartesian3.distance(camera.positionWC, onGround);
       const toDepth = Cesium.Cartesian3.distance(camera.positionWC, inDepth);
       const margin = Math.max(2, toGround * 0.01);
-      if (Math.abs(toDepth - toGround) > margin) return Cesium.Cartesian3.clone(inDepth);
+      // A buried tileset sits metres to tens of metres under the terrain,
+      // never kilometres. A depth hit that far behind the ground is a stale
+      // or empty depth buffer — the first frames before the globe has
+      // drawn return points ~100 km underground — not geometry to trust.
+      const buriedTooDeep = toDepth - toGround > Math.max(1000, toGround * 0.05);
+      if (Math.abs(toDepth - toGround) > margin && !buriedTooDeep) {
+        return Cesium.Cartesian3.clone(inDepth);
+      }
     }
   }
 

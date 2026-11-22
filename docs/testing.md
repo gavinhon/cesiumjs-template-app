@@ -75,6 +75,35 @@ the Singapore terrain in `public/`.
 | S3  | Shrink the window to about 400 px tall       | The right rail wraps into a second column; no button is off-screen                             |
 | S4  | With the rail wrapped, open the Layers panel | The panel sits 16 px clear of both rail columns                                                |
 
+### Navigation, status bar, search and links
+
+| #   | Do                                                                        | Expect                                                                                       |
+| --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| N1  | Move the mouse over Bukit Timah                                           | Status bar shows its coordinate and a ground height of a few tens of metres                  |
+| N2  | Click WGS84 in the status bar                                             | Switches to SVY21 (E … N …); clicking the coordinate copies it                               |
+| N3  | Zoom in and out with the mouse                                            | The scale bar keeps a round length (1, 2 or 5 × 10ⁿ) and the camera altitude follows         |
+| N4  | Tilt and rotate the view, then press the compass                          | Turns back to north about the centre of the screen, keeping the tilt                         |
+| N5  | Search `E 31059.5 N 29543.4` and press Enter                              | Flies to Marina Bay Sands and drops a white pin                                              |
+| N6  | Search `rail`                                                             | Rail lines and Rail stations under Datasets; OneMap places below; Search worldwide last      |
+| N7  | Choose Search worldwide for `eiffel tower`                                | OpenStreetMap results, credited in the heading; choosing one flies to Paris                  |
+| N8  | Add a dataset, move the camera, copy the share link, open it in a new tab | Same view, basemap and layers; the camera doesn't fly off to the layer                       |
+| N9  | Open the Layers panel with Population density added                       | Its classes (Highest … Lowest) appear under the row; a vector layer shows Points/Lines/Areas |
+
+### Phone layout
+
+Use the browser's device emulation (a phone preset, which also makes the
+pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
+
+| #   | Do                                                    | Expect                                                                                   |
+| --- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| M1  | Load the page at 375 × 812                            | Search and a Menu button top-left, the rail top-right; every control 44 px tall          |
+| M2  | Tap Menu, then Map Services                           | The menu closes; the panel rises as a bottom sheet with a grab handle and a ×            |
+| M3  | Tap the sheet's ×                                     | The sheet slides down; the map does not scroll or jump                                   |
+| M4  | Open Map Services, then the Layers button in the rail | Map Services closes; Layers takes the sheet                                              |
+| M5  | Arm the line tool and tap two points                  | The hint shows Undo and Finish instead of key hints; Finish keeps the line               |
+| M6  | Add Rail stations and tap a station                   | Its attribute card docks to the bottom, full width, instead of floating over the station |
+| M7  | Widen the window past 640 px with a mouse             | Side panels and the full toolbar return; controls go back to 34 px                       |
+
 ### Drawing
 
 | #   | Do                                                             | Expect                                                                              |
@@ -118,14 +147,19 @@ the Singapore terrain in `public/`.
 | L7  | Drop a new `.geojson` into `public/` while the dev server runs             | The page reloads and the file is offered in the Map Services panel                                                                                                           |
 | L8  | Add the BIM model from the public/ list                                    | Its row reads "On terrain · Raised … m"; zoomed in, its ground floor meets the street                                                                                        |
 | L9  | With a model on terrain, set Terrain to None, then back                    | The row's offset changes with each switch and the model follows the surface                                                                                                  |
-| L10 | Untick "On terrain" on a model                                             | It returns to its authored height; the row reads "Authored height"                                                                                                           |
+| L10 | Layers panel → untick "On terrain" on a model                              | It returns to its authored height; the row reads "Authored height"                                                                                                           |
 | L11 | Layers panel → Basemap → grey, then satellite, then back                   | Each map replaces the last; the credit line at bottom left changes to match                                                                                                  |
 | L12 | Add an XYZ layer, then change the basemap                                  | The added layer stays on top of the new basemap                                                                                                                              |
-| L13 | Map Services → Example → each ArcGIS example in turn → Add layer           | Each one draws over Singapore; the camera flies to each                                                                                                                      |
+| L13 | Map Services → each ArcGIS example in the list → Add                       | Each one draws over Singapore; the camera flies to each                                                                                                                      |
 | L14 | Type an ArcGIS FeatureServer URL with type "ArcGIS MapServer" → Add        | An error asking for a URL ending in /MapServer; nothing is added                                                                                                             |
 | L15 | Type "ArcGIS FeatureServer / layer" + a FeatureServer URL → Look up        | A picklist of the service's layers                                                                                                                                           |
 | L16 | Layers panel → Basemap → Esri World Imagery, then Esri Dark Gray Canvas    | Each draws, with "Powered by Esri" and its sources in the credit line                                                                                                        |
-| L17 | 3D Tiles → Example dataset → each I3S example → Add tileset                | Each loads lit (not black, at any hour), the camera flies to it, its row reads "I3S · Georeferenced (I3S)"                                                                   |
-| L20 | 3D Tiles → Example dataset → Re:Earth Buildings                            | Buildings appear across Singapore with grey (not black) shaded walls; the camera doesn't move; the row reads "Too large to move"; its credit shows bottom left until removed |
+| L17 | 3D Tiles → each I3S example in the list → Add                              | Each loads lit (not black, at any hour), the camera flies to it, its row reads "I3S · Georeferenced (I3S)"                                                                   |
 | L18 | 3D Tiles → paste any `…/SceneServer/layers/0` URL                          | Format switches to I3S by itself                                                                                                                                             |
 | L19 | Add an I3S URL for a service that doesn't exist                            | "The server answered: …" under the form; the app keeps running                                                                                                               |
+| L20 | 3D Tiles → Re:Earth Buildings in the examples list → Add                   | Buildings appear across Singapore with grey (not black) shaded walls; the camera doesn't move; the row reads "Too large to move"; its credit shows bottom left until removed |
+| L21 | Add an ArcGIS point or line example, then click one of its features        | It's highlighted and a card shows its name and attributes; `OBJECTID` / `Shape__…` fields aren't listed                                                                      |
+| L22 | With the card open, click empty map; then reopen it and press Escape       | The card closes each time                                                                                                                                                    |
+| L23 | With the card open, arm a drawing tool or hide the feature's layer         | The card closes; with a tool armed, clicking a feature draws instead of opening a card                                                                                       |
+| L24 | With a data panel open, add anything from it                               | The Layers panel opens beside it, with the new layer listed; the data panel stays open                                                                                       |
+| L25 | Layers panel → drag a layer's opacity, then × to remove it                 | The layer fades, then leaves the map; its quick-add button reads "Add" again                                                                                                 |

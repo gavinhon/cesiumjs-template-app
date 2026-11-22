@@ -63,12 +63,12 @@ const KIND_LABEL: Record<OgcLayerConfig['type'], string> = {
   xyz: 'XYZ',
   wfs: 'WFS',
   geojson: 'GEOJSON',
-  'arcgis-map': 'ARCGIS',
-  'arcgis-feature': 'ARCGIS',
+  'arcgis-map': 'ARCGIS MAP',
+  'arcgis-feature': 'ARCGIS FEATURE',
 };
 
 /**
- * Owns everything the OGC panel can put on the globe, and keeps it in sync
+ * Owns every map service and file layer the app can put on the globe, and keeps it in sync
  * with Cesium.
  *
  * Two collections, because OGC services come in two flavours (see
@@ -114,6 +114,7 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
           name: DEFAULT_BASEMAP.name,
           kind: DEFAULT_BASEMAP.kind,
           cesiumLayer: baseLayer,
+          config: null,
           visible: baseLayer.show,
           alpha: baseLayer.alpha,
           removable: false,
@@ -133,7 +134,8 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
    * silently isn't there.
    */
   const addLayer = useCallback(
-    async (config: OgcLayerConfig) => {
+    // Pass `flyTo: false` when restoring a shared link: its camera is the point.
+    async (config: OgcLayerConfig, { flyTo = true }: { flyTo?: boolean } = {}) => {
       if (!viewer) return;
 
       if (config.type === 'wfs' || config.type === 'geojson' || config.type === 'arcgis-feature') {
@@ -151,9 +153,10 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
         ]);
         // Unlike imagery, a loaded data source always knows where its
         // features are, so flying to it is unconditionally useful.
-        viewer.flyTo(dataSource).catch(() => {
-          // See flyToImagery.
-        });
+        if (flyTo)
+          viewer.flyTo(dataSource).catch(() => {
+            // See flyToImagery.
+          });
         return;
       }
 
@@ -166,6 +169,7 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
           name: config.name,
           kind: KIND_LABEL[config.type],
           cesiumLayer,
+          config,
           visible: true,
           alpha: 1,
           removable: true,
@@ -176,7 +180,7 @@ export function useOgcLayers(viewer: Cesium.Viewer | null) {
       // described at `flyToImagery`, a provider that doesn't know its extent
       // reports the whole world, and flying to that every time someone adds
       // a global overlay would throw away wherever they were looking.
-      if (isRegional(provider.rectangle)) {
+      if (flyTo && isRegional(provider.rectangle)) {
         viewer.flyTo(cesiumLayer).catch(() => {
           // See flyToImagery.
         });

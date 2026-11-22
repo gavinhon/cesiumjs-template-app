@@ -57,6 +57,15 @@ body {
   position: relative;
   width: 100%;
   height: 100%;
+  /*
+   * Closed panels are slid off-screen, not removed (they stay mounted), and
+   * a bottom sheet slid down or a right panel slid right leaves overflow
+   * past the viewport's edge. `overflow: hidden` on #root hides the
+   * scrollbar but still lets the browser scroll programmatically — tapping
+   * a button near the edge scrolled the whole app, map and all, up by the
+   * sheet's height. `clip` makes this a non-scrolling box, so nothing can.
+   */
+  overflow: clip;
 }
 
 /* The right-hand rail of icon buttons: the layer manager button, then the
@@ -87,9 +96,62 @@ body {
    * `--right-rail-width` in Panel.css.
    */
   flex-wrap: wrap-reverse;
-  max-height: calc(100vh - 32px);
+  /* It must also stop short of the navigation row and status bar stacked
+     in the bottom-right corner below it — see --bottom-right-stack. */
+  max-height: calc(100vh - 32px - var(--bottom-right-stack));
   /* The dynamic unit excludes mobile browser chrome that `vh` counts. */
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100dvh - 32px - var(--bottom-right-stack));
+}
+
+/*
+ * The height of what's stacked in the bottom-right corner: the status bar,
+ * a gap, the navigation row (a control plus its group's 6px padding and
+ * 1px border each side), and a gap above it. The rail stops above it and
+ * the drawing hint sits on top of it, so both follow if a control height
+ * changes — including the switch to touch sizes.
+ */
+.app {
+  --bottom-right-stack: calc(var(--control-height-sm) + 8px + var(--control-height) + 14px + 8px);
+}
+
+/* Cesium's attribution line (bottom-left) must stay readable — OSM and
+   Esri require it — so it wraps short of the status bar rather than
+   running under it. The bar's width is measured: see MapStatusBar.
+
+   `!important` because Cesium's Viewer writes `right: 0` as an *inline*
+   style on this container every time it resizes (Viewer.resize, making
+   room for the timeline widget we don't use), and nothing in a stylesheet
+   beats an inline style otherwise. */
+.app .cesium-viewer-bottom {
+  right: calc(var(--map-status-width, 0px) + 32px) !important;
+}
+
+/* Compact layout: a tighter inset, matching the toolbar's, because on a
+   phone every 8px of chrome is a noticeable slice of the map. 640px must
+   match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
+@media (max-width: 640px) {
+  .app__right-rail {
+    top: 8px;
+    right: 8px;
+    max-height: calc(100vh - 16px - var(--bottom-right-stack));
+    max-height: calc(100dvh - 16px - var(--bottom-right-stack));
+  }
+
+  /* Too narrow for the attribution beside the status bar: squeezed into
+     ~150px it wraps to four lines and runs into the navigation row. So on
+     a phone it takes the full width at the very bottom (up to three lines of
+     Cesium's 10px credit text), and the corner stack sits above it. */
+  .app {
+    --attribution-height: 48px;
+    --bottom-right-stack: calc(
+      var(--control-height-sm) + 8px + var(--control-height) + 14px + 8px +
+        var(--attribution-height)
+    );
+  }
+
+  .app .cesium-viewer-bottom {
+    right: 8px !important;
+  }
 }
 
 /* Form controls (checkboxes, radios, range sliders) are drawn by the OS/

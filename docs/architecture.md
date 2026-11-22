@@ -196,7 +196,7 @@ public/  ──scan──▶  vite-plugins/publicDatasetCatalog.ts
 ```
 
 Each panel filters by kind and passes the result to the shared
-`<PublicDatasetList>`, which adds a dataset through the feature's existing
+`<QuickAddList>`, which adds a dataset through the feature's existing
 `add…` function. Nothing about loading is new: a scanned 3D Tiles folder is
 added exactly as if you'd typed its URL into the form. The only difference
 is the id — a scanned dataset is added under its catalog id (`public:<path>`)

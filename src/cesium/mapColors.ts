@@ -57,6 +57,13 @@ export const MAP_COLORS = {
    */
   casing: Cesium.Color.fromCssColorString('#0a0a0b'),
   /**
+   * --location: a place the app marked rather than the user drew — your
+   * position, a search result. Pure white with a dark casing, a step
+   * brighter than --measure, so it reads as a pin dropped on the map
+   * rather than as part of any measurement or dataset.
+   */
+  location: Cesium.Color.fromCssColorString('#ffffff'),
+  /**
    * --danger: the blocked half of a line of sight, and its obstruction.
    *
    * The same pink-red the UI uses for "remove", and for the same reason:

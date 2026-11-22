@@ -9,7 +9,6 @@ import type {
   WfsVersion,
 } from './ogcLayerTypes';
 import { featureLayerUrl, urlNamesLayer } from './arcGisRest';
-import { EXAMPLE_MAP_SERVICES } from './exampleMapServices';
 import { fetchArcGisServiceLayers } from './fetchArcGisServiceLayers';
 import { fetchWmsLayers } from './fetchWmsLayers';
 import { fetchWfsFeatureTypes } from './fetchWfsFeatureTypes';
@@ -73,17 +72,6 @@ const LAYER_FIELD_LABEL: Partial<Record<OgcServiceType, string>> = {
   'arcgis-feature': 'Layer id',
 };
 
-/** `<select>` values are strings; this one is the "pick one" prompt. */
-const NO_EXAMPLE = '';
-
-/** The example picker's headings, each with its examples, in list order. */
-const EXAMPLE_GROUPS = [...new Set(EXAMPLE_MAP_SERVICES.map((example) => example.group))].map(
-  (group) => ({
-    group,
-    examples: EXAMPLE_MAP_SERVICES.filter((example) => example.group === group),
-  }),
-);
-
 /**
  * Form for connecting to a new OGC service.
  *
@@ -107,8 +95,12 @@ const EXAMPLE_GROUPS = [...new Set(EXAMPLE_MAP_SERVICES.map((example) => example
  *
  * WMS, WFS and ArcGIS feature layers additionally offer a lookup, so you
  * can pick a real identifier off the server instead of having to already
- * know it. The example picker at the top fills the form with a free public
- * service, for trying a type out.
+ * know it.
+ *
+ * The display name comes last: it's optional, and a lookup fills it in, so
+ * it shouldn't be the first thing asked for. Ready-made services don't go
+ * through this form at all — the panel's quick-add list adds them in one
+ * click.
  */
 export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
   const formId = useId();
@@ -125,7 +117,6 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
   const [wfsVersion, setWfsVersion] = useState<WfsVersion>('2.0.0');
   const [maxFeatures, setMaxFeatures] = useState('1000');
   const [token, setToken] = useState('');
-  const [exampleId, setExampleId] = useState(NO_EXAMPLE);
   const [lookup, setLookup] = useState<Lookup>({ status: 'idle' });
   const [submit, setSubmit] = useState<Submit>({ status: 'idle' });
   // The selected layer's real extent, if known from the capabilities lookup
@@ -175,19 +166,6 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
     if (!name.trim() && selected) {
       setName(selected.title);
     }
-  }
-
-  /** Fills the form from one of `EXAMPLE_MAP_SERVICES`. */
-  function handleSelectExample(id: string) {
-    setExampleId(id);
-    const example = EXAMPLE_MAP_SERVICES.find((entry) => entry.id === id);
-    if (!example) return;
-    setType(example.type);
-    setName(example.name);
-    setUrl(example.url);
-    setLayerName('');
-    setMaxFeatures(String(example.maxFeatures ?? 1000));
-    resetLookup();
   }
 
   /**
@@ -247,7 +225,6 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
       // Reset the entered values but keep the selected service type (and
       // any token), so adding several layers of the same kind in a row
       // stays quick.
-      setExampleId(NO_EXAMPLE);
       setName('');
       setUrl('');
       setLayerName('');
@@ -264,26 +241,6 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
 
   return (
     <form className="panel-form" onSubmit={handleSubmit}>
-      <SelectField
-        formId={formId}
-        fieldId="example"
-        label="Example service"
-        value={exampleId}
-        onChange={(e) => handleSelectExample(e.target.value)}
-        hint="Free public Singapore services that fill in the form below, to try each type."
-      >
-        <option value={NO_EXAMPLE}>Choose an example…</option>
-        {EXAMPLE_GROUPS.map(({ group, examples }) => (
-          <optgroup key={group} label={group}>
-            {examples.map((example) => (
-              <option key={example.id} value={example.id}>
-                {example.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </SelectField>
-
       <SelectField
         formId={formId}
         fieldId="type"
@@ -303,15 +260,6 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
         <option value="arcgis-map">ArcGIS MapServer (imagery)</option>
         <option value="arcgis-feature">ArcGIS FeatureServer / layer (vector)</option>
       </SelectField>
-
-      <Field
-        formId={formId}
-        fieldId="name"
-        label="Display name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="My layer"
-      />
 
       {type !== 'xyz' && (
         <Field
@@ -503,6 +451,15 @@ export function AddOgcLayerForm({ onAdd, disabled }: AddOgcLayerFormProps) {
           hint="Must contain {z}/{x}/{y} placeholders."
         />
       )}
+
+      <Field
+        formId={formId}
+        fieldId="name"
+        label="Display name (optional)"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="My layer"
+      />
 
       {submit.status === 'error' && (
         <p className="panel-form__status panel-form__status--error">{submit.message}</p>

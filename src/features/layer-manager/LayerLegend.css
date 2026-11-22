@@ -1,0 +1,104 @@
+/* A layer's legend under its row — see LayerLegend.tsx. */
+.layer-legend {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+/* The fold toggle, in the panel's small mono label style so it reads as a
+   section of the row, not as content. */
+.layer-legend__summary {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.layer-legend__summary:hover {
+  color: var(--ink);
+}
+
+/* A long classified legend scrolls inside the row rather than pushing
+   every other layer off the panel. */
+.layer-legend__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  margin: 6px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  list-style: none;
+}
+
+.layer-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.layer-legend__group {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Server symbols are drawn for a white map page; at their own size on a
+   faint light tile they read on the dark panel without being recoloured. */
+.layer-legend__image {
+  flex-shrink: 0;
+  max-width: 120px;
+  max-height: 120px;
+  padding: 2px;
+  border-radius: 3px;
+  background: var(--ink);
+}
+
+.layer-legend__label {
+  overflow-wrap: anywhere;
+}
+
+.layer-legend__note {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.layer-legend__note--error {
+  color: var(--danger);
+}
+
+/* The app's own vector style, as vectorFeatureStyle.ts draws it: a 7px dot,
+   a 2px line, a 25% fill. */
+.layer-legend__swatch {
+  flex-shrink: 0;
+  width: 16px;
+  height: 12px;
+}
+
+.layer-legend__swatch--point {
+  width: 7px;
+  height: 7px;
+  margin: 0 4.5px;
+  border-radius: 50%;
+  background: var(--vector);
+}
+
+.layer-legend__swatch--line {
+  height: 2px;
+  background: var(--vector);
+}
+
+.layer-legend__swatch--polygon {
+  border: 1px solid var(--vector);
+  background: color-mix(in srgb, var(--vector) 25%, transparent);
+}

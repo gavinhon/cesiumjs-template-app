@@ -16,9 +16,9 @@ CesiumJS, wired up **without** a Cesium ion account.
   (ArcGIS Server, Enterprise and Online): MapServer imagery, cached or
   dynamic, and FeatureServer or MapServer layers as vector data, with an
   optional token for secured services. It can look up a server's real layer
-  names, feature types and extents, and an example picker fills the form
-  with free public Singapore services on ArcGIS Online, so you can try them without finding
-  endpoints first.
+  names, feature types and extents. Free public Singapore services on
+  ArcGIS Online are listed at the top, one click each, so you can try them
+  without finding endpoints first.
 - **A layer manager** listing everything currently on the map (the base map
   included), with visibility toggles, double-click-to-zoom, and draw-order
   controls that reorder Cesium's real imagery stack so you can uncover a
@@ -47,7 +47,7 @@ CesiumJS, wired up **without** a Cesium ion account.
   ellipsoid heights with Esri's public EGM2008 geoid service and left at
   their georeferenced position. A tileset wider than a city (a worldwide
   buildings layer) is left where it's authored, and the camera stays put.
-  An example picker, grouped by format, offers public Singapore datasets:
+  A one-click list, grouped by format, offers public Singapore datasets:
   HDB blocks, building shells and a single development as I3S, and
   worldwide OSM buildings
   ([Re:Earth Buildings](https://buildings.reearth.land/)) as 3D Tiles.
@@ -153,8 +153,8 @@ src/
 ├── ui/                   shared, feature-agnostic building blocks
 │   ├── Panel.tsx           the floating side-panel shell every feature uses
 │   ├── Field.tsx           labeled input/select rows
-│   ├── ResourceList.tsx    the "things added to the map" list
-│   ├── PublicDatasetList.tsx  the "already in public/" one-click list
+│   ├── ResourceList.tsx    list rows: the layer manager's, the drawings'
+│   ├── QuickAddList.tsx    the one-click "ready to add" list atop a data panel
 │   ├── AppToolbar.tsx      top-left toolbar + its panel registry
 │   └── panelIds.ts         PanelId — every panel the app can open
 ├── lib/                  small shared helpers with no UI or Cesium ties
@@ -183,9 +183,8 @@ of them:
 src/features/ogc-layers/
 ├── ogcLayerTypes.ts          the data model: what the *user* configured
 ├── useOgcLayers.ts           state + Cesium sync — the heart of the feature
-├── OgcLayerPanel.tsx         entry point; composes the form and the list
+├── OgcLayerPanel.tsx         entry point; the quick-add list and the form
 ├── AddOgcLayerForm.tsx       add a new layer
-├── OgcLayerList.tsx          manage the layers already added
 ├── createImageryProvider.ts  turns a WMS/WMTS/XYZ/ArcGIS config into imagery
 ├── createVectorDataSource.ts turns a WFS/ArcGIS/GeoJSON config into features
 ├── fetchWmsLayers.ts         ask a WMS server what layers it serves

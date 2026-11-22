@@ -1,0 +1,76 @@
+/* The Add data panel's tabs and catalogue filter — see AddDataPanel.tsx.
+   The panel shell, quick-add list and forms bring their own styles. */
+
+/* A segmented strip: the tabs share one box, the selected one marked the
+   app's "on" way — an orange label over a faint tint, never a fill. */
+.add-data__tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-variant);
+}
+
+.add-data__tab {
+  flex: 1;
+  height: calc(var(--control-height) - 6px);
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.add-data__tab:hover,
+.add-data__tab:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.add-data__tab--active,
+.add-data__tab--active:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* The same field look as <Field>'s inputs, for a field with no label of
+   its own (its placeholder and aria-label say what it filters). */
+.add-data__filter {
+  width: 100%;
+  height: var(--control-height);
+  margin-bottom: 14px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-variant);
+  color: var(--ink);
+  font: 400 13px/1.4 var(--font);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.add-data__filter::placeholder {
+  color: var(--muted);
+}
+
+.add-data__filter:focus {
+  border-color: var(--accent-line);
+}
+
+.add-data__empty,
+.add-data__formats {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
