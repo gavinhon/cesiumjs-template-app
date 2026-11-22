@@ -1,0 +1,33 @@
+/* A 3D model's placement, on its row in the layer manager — see
+   ModelPlacementControl.tsx. Takes the rest of the row after the badge. */
+.model-placement-control {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* A plain label-wrapped checkbox, since it's a two-state setting rather
+   than an action. */
+.model-placement-control__switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* What the switch did — "Raised 12.9 m", "Underground" — kept quiet; it's
+   there to explain a model that moved, or one that didn't. */
+.model-placement-control__note {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--muted);
+}

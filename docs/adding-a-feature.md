@@ -9,8 +9,8 @@ Read [architecture.md](architecture.md) first if you haven't — particularly
 the rule that a feature's hook must update React state and Cesium together.
 
 We'll use a hypothetical **GeoJSON** feature as the running example. (The
-real app already loads `.geojson` files found in `public/`, through the OGC
-feature — the example stays because it's the simplest possible "add a
+real app already loads `.geojson` files found in `public/`, through the
+map-services feature — the example stays because it's the simplest possible "add a
 thing by URL" feature, not because GeoJSON is missing.)
 
 ## 1. Create the folder
@@ -50,7 +50,7 @@ export interface GeoJsonConfig {
 ```
 
 If your feature supports several variants, use a discriminated union with a
-`type` tag, the way `OgcLayerConfig` does. It gives you exhaustiveness
+`type` tag, the way `MapServiceConfig` does. It gives you exhaustiveness
 checking in the factory that consumes it.
 
 ## 3. Write the state hook (`useGeoJson.ts`)
@@ -170,8 +170,8 @@ export function GeoJsonPanel({ geoJson, disabled, open, onAdded }: GeoJsonPanelP
 ```
 
 Ready-made datasets go in a `<QuickAddList>` above the form, one click
-each — see `OgcLayerPanel.tsx` for one fed by the `public/` scan and a list
-of example services.
+each — see `mapServiceQuickAdd.ts` for one fed by the `public/` scan and a
+list of example services, and `AddDataPanel.tsx` for where it is shown.
 
 `AddGeoJsonForm.tsx` — use `<Field>` / `<SelectField>` from `@/ui/Field`, wrap
 in `<form className="panel-form">`, and give the submit button
@@ -182,7 +182,7 @@ and can fail (like loading a tileset), hold a
 
 If your loaded items need a control nothing else has, don't build a list
 for it: pass it to the layer manager as `LayerEntry.detail` (step 5), the
-way a 3D model's "On terrain" switch (`TilesetPlacementControl`) gets
+way a 3D model's "On terrain" switch (`ModelPlacementControl`) gets
 there.
 
 ## 5. Register the panel
@@ -193,7 +193,7 @@ Add the id to `PanelId` in [`src/ui/panelIds.ts`](../src/ui/panelIds.ts), and
 say which edge it docks to in `PANEL_SIDE`:
 
 ```ts
-export type PanelId = 'ogc-layers' | 'tiles-3d' | 'layers' | 'drawings' | 'geojson';
+export type PanelId = 'map-services' | 'models-3d' | 'layers' | 'drawings' | 'geojson';
 // …and in PANEL_SIDE:
   geojson: 'left',
 ```
@@ -204,11 +204,19 @@ match the `id` you gave `<Panel>`:
 
 ```ts
 const PANELS: { id: PanelId; label: string; controls: string }[] = [
-  { id: 'ogc-layers', label: 'Map Services', controls: 'ogc-layers-panel' },
-  { id: 'tiles-3d', label: '3D Tiles', controls: 'tiles-3d-panel' },
+  { id: 'layers', label: 'Layers', controls: 'layer-manager-panel' },
+  { id: 'add-data', label: 'Add data', controls: 'add-data-panel' },
+  { id: 'drawings', label: 'Drawings', controls: 'drawings-panel' },
   { id: 'geojson', label: 'GeoJSON', controls: 'geojson-panel' },
 ];
 ```
+
+> **Adding a data source? You may not need a panel.** Map services and 3D
+> models both plug into the one Add data panel: export your one-click
+> datasets as a quick-add list (like `MAP_SERVICE_QUICK_ADD`, grouped by
+> `CATALOGUE_GROUPS`) and/or pass your connect form to `AddDataPanel` as a
+> `ConnectTab` in `App.tsx`. A panel of its own is for a feature that does
+> something other than add data — like Drawings.
 
 In [`src/App.tsx`](../src/App.tsx), call the hook and render the panel:
 
@@ -225,8 +233,8 @@ for.
 ### Show what you added in the layer manager
 
 The hook is called in `App.tsx` rather than in your panel because the
-layer manager needs its state too — the way `useOgcLayers` and
-`useTilesets` are. Calling the same hook in two components creates two
+layer manager needs its state too — the way `useMapServices` and
+`useModels` are. Calling the same hook in two components creates two
 React states fighting over one Cesium collection.
 
 Map your entries to `LayerEntry` in `App.tsx` (see

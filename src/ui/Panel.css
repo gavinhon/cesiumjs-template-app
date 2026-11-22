@@ -125,6 +125,11 @@
   color: var(--ink);
 }
 
+/* Only phones have a grabber; see the compact layout below. */
+.panel__grabber {
+  display: none;
+}
+
 /* --- Compact layout: the panel as a bottom sheet ----------------------
  *
  * On a phone a 320px side panel would cover the whole map at full height.
@@ -143,9 +148,6 @@
     bottom: 8px;
     width: auto;
     max-width: none;
-    max-height: 60vh;
-    /* The dynamic unit excludes mobile browser chrome that `vh` counts. */
-    max-height: 60dvh;
     /* Above the right rail (20): the sheet spans the full width, so the
        rail's lower buttons would otherwise sit on top of its contents. The
        sheet is the thing being used; the rail's top stays visible above it. */
@@ -158,16 +160,67 @@
     transform: translateY(100%);
   }
 
-  /* The conventional grab handle, so the card reads as a sheet that can be
-     put away. Decorative: the close button is what dismisses it. */
-  .panel::before {
+  /* Three resting heights, dragged between with the grabber (useBottomSheet,
+     whose snapping uses the same numbers — change both together). Peek
+     shows the title row; half leaves the top of the map; full stops below
+     the toolbar. `dvh` excludes the mobile browser chrome `vh` counts. */
+  .panel--sheet-peek {
+    height: 128px;
+  }
+
+  .panel--sheet-half {
+    height: 50vh;
+    height: 50dvh;
+  }
+
+  .panel--sheet-full {
+    height: calc(100vh - var(--control-height) - 24px);
+    height: calc(100dvh - var(--control-height) - 24px);
+  }
+
+  .panel--left,
+  .panel--right {
+    transition:
+      transform 0.2s ease,
+      opacity 0.2s ease,
+      visibility 0.2s ease,
+      height 0.2s ease;
+  }
+
+  /* The grab handle: a real button, so it can be dragged, tapped or
+     pressed with a keyboard to change the height. Sticky, so it stays at
+     the top as the sheet's content scrolls under it. */
+  .panel__grabber {
+    position: sticky;
+    top: -16px;
+    z-index: 1;
+    display: block;
+    width: calc(100% + 32px);
+    height: 28px;
+    margin: -16px -16px 4px;
+    padding: 0;
+    border: none;
+    background: inherit;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .panel__grabber::before {
     content: '';
     display: block;
     width: 36px;
     height: 4px;
-    margin: -8px auto 12px;
+    margin: 0 auto;
     border-radius: 2px;
     background: var(--border-strong);
+  }
+
+  .panel__grabber:focus-visible {
+    outline: none;
+  }
+
+  .panel__grabber:focus-visible::before {
+    background: var(--accent-line);
   }
 
   /* Bigger target for a thumb, in step with the touch control height. */
@@ -195,7 +248,6 @@
   padding-bottom: 0;
   border-bottom: none;
 }
-
 
 /* Sizing only — the orange label and edge come from `.control-button--primary`. */
 .panel-form__submit {

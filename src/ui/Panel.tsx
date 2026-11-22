@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useBottomSheet } from './useBottomSheet';
 import './Panel.css';
 
 interface PanelProps {
@@ -47,12 +48,22 @@ interface PanelProps {
  *    while the panel is hidden; that is intentional.
  */
 export function Panel({ id, title, subtitle, open, side = 'left', onClose, children }: PanelProps) {
-  const className = ['panel', `panel--${side}`, open ? null : 'panel--collapsed']
+  // On a phone the panel is a bottom sheet that can be dragged between
+  // three heights; on a wider screen the grabber is hidden and the
+  // `panel--sheet-*` class has no rules, so none of this applies.
+  const sheet = useBottomSheet<HTMLElement>('half');
+  const className = [
+    'panel',
+    `panel--${side}`,
+    `panel--sheet-${sheet.detent}`,
+    open ? null : 'panel--collapsed',
+  ]
     .filter(Boolean)
     .join(' ');
 
   return (
-    <aside id={id} className={className} aria-hidden={!open}>
+    <aside ref={sheet.sheetRef} id={id} className={className} aria-hidden={!open}>
+      <button type="button" className="panel__grabber" {...sheet.grabberProps} />
       <header className="panel__header">
         <div className="panel__title-row">
           <h1>{title}</h1>

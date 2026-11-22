@@ -23,13 +23,13 @@ deliberate, explicit sync.
 │         │  viewer passed down                                │ owns     │
 │         ▼                                                    ▼          │
 │  ┌─────────────────┐  ┌─────────────────┐          ┌──────────────────┐ │
-│  │ useOgcLayers    │  │ useTilesets     │   ...    │ Cesium.Viewer    │ │
+│  │ useMapServices    │  │ useModels     │   ...    │ Cesium.Viewer    │ │
 │  │  React list ────┼──┼─► mutates ──────┼──────────┤  imageryLayers   │ │
 │  │  of layers      │  │  Cesium         │          │  scene.primitives│ │
 │  └────────┬────────┘  └────────┬────────┘          │  entities        │ │
 │           │ renders            │ renders           └──────────────────┘ │
 │           ▼                    ▼                                        │
-│    <OgcLayerPanel>      <TilesetPanel>                                  │
+│    <LayerManagerPanel>  <AddDataPanel>  (via App)                       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -53,8 +53,8 @@ Two consequences you must respect:
 
 ### 2. Every feature owns its Cesium objects through one hook
 
-A feature that puts things on the map has a hook — `useOgcLayers`,
-`useTilesets`, `useDrawingTools` — and that hook is the _only_ place that
+A feature that puts things on the map has a hook — `useMapServices`,
+`useModels`, `useDrawingTools` — and that hook is the _only_ place that
 touches the corresponding Cesium collection.
 
 The hook holds a React state array whose entries pair the user's config
@@ -62,7 +62,7 @@ with the live Cesium object:
 
 ```ts
 interface ManagedLayer {
-  config: OgcLayerConfig; // what the user asked for (serialisable)
+  config: MapServiceConfig; // what the user asked for (serialisable)
   cesiumLayer: Cesium.ImageryLayer; // the live object (not serialisable)
   visible: boolean;
   alpha: number;
@@ -72,7 +72,7 @@ interface ManagedLayer {
 **Invariant: every action performs the Cesium side effect _and_ updates the
 React array, in the same function.** If you only do one, the panel and the
 globe disagree, and that class of bug is miserable to track down. Look at
-`removeLayer` in [`useOgcLayers.ts`](../src/features/ogc-layers/useOgcLayers.ts):
+`removeLayer` in [`useMapServices.ts`](../src/features/map-services/useMapServices.ts):
 it removes from `viewer.imageryLayers` and filters the state array together.
 
 #### The exception: non-idempotent Cesium calls
@@ -94,12 +94,12 @@ outside it.**
 
 #### When two components need the same feature state
 
-A feature hook must be called in exactly one place. Two `useOgcLayers()`
+A feature hook must be called in exactly one place. Two `useMapServices()`
 calls means two independent React states mutating one Cesium collection,
 and neither would see the other's changes.
 
-The layer manager needs the same layers the OGC panel manages, so
-`useOgcLayers` and `useTilesets` are called in `App.tsx` and their state is
+The layer manager shows the same layers the Add data panel adds, so
+`useMapServices` and `useModels` are called in `App.tsx` and their state is
 passed down. A feature only used by its own panel keeps its hook inside
 that panel — don't lift pre-emptively.
 
@@ -191,8 +191,9 @@ public/  ──scan──▶  vite-plugins/publicDatasetCatalog.ts
                            │
           ┌────────────────┼──────────────────┐
           ▼                ▼                  ▼
-   3D Tiles panel     OGC panel         useTerrain
+   modelQuickAdd    mapServiceQuickAdd       useTerrain
    ('3d-tiles')       ('xyz','geojson') ('terrain')
+          └──── Add data catalogue ───┘
 ```
 
 Each panel filters by kind and passes the result to the shared
@@ -237,7 +238,7 @@ Terrain changes things that sit on it:
   read its comment before changing how clicks become positions.
 - **Vector data is clamped** (`clampToGround`), so GeoJSON and WFS drape
   over the terrain instead of floating at height zero inside it.
-- **3D Tiles are set on the terrain** (`src/features/tiles-3d/placeTilesetOnTerrain.ts`).
+- **3D Tiles are set on the terrain** (`src/features/models-3d/placeTilesetOnTerrain.ts`).
   A tileset carries its own heights, and most BIM exports and CityGML
   conversions are authored for flat ground at 0 — while the real ground
   here is 10–20 m above the ellipsoid. Left alone they sit sunk into it

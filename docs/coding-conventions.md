@@ -27,18 +27,18 @@ inside; `presentation.ts` makes you open the file to find out.
 
 ### The patterns
 
-| Kind of file                 | Pattern                     | Example                    |
-| ---------------------------- | --------------------------- | -------------------------- |
-| React component              | `PascalCase.tsx`            | `OgcLayerPanel.tsx`        |
-| Stylesheet for a component   | same name as the component  | `OgcLayerPanel.css`        |
-| React hook                   | `useSubject.ts`             | `useOgcLayers.ts`          |
-| Module with one main export  | named after that export     | `createImageryProvider.ts` |
-| Module grouping related code | named for the group         | `capabilitiesXml.ts`       |
-| Type-only module             | `<subject>Types.ts`         | `ogcLayerTypes.ts`         |
-| Feature folder               | `kebab-case`                | `src/features/ogc-layers/` |
-| Vite plugin                  | named after its export      | `publicDatasetCatalog.ts`  |
-| Python script                | `snake_case.py`, verb-first | `build_terrain_tiles.py`   |
-| Documentation                | `kebab-case.md`             | `docs/adding-a-feature.md` |
+| Kind of file                 | Pattern                     | Example                      |
+| ---------------------------- | --------------------------- | ---------------------------- |
+| React component              | `PascalCase.tsx`            | `AddDataPanel.tsx`           |
+| Stylesheet for a component   | same name as the component  | `AddDataPanel.css`           |
+| React hook                   | `useSubject.ts`             | `useMapServices.ts`          |
+| Module with one main export  | named after that export     | `createImageryProvider.ts`   |
+| Module grouping related code | named for the group         | `capabilitiesXml.ts`         |
+| Type-only module             | `<subject>Types.ts`         | `mapServiceTypes.ts`         |
+| Feature folder               | `kebab-case`                | `src/features/map-services/` |
+| Vite plugin                  | named after its export      | `publicDatasetCatalog.ts`    |
+| Python script                | `snake_case.py`, verb-first | `build_terrain_tiles.py`     |
+| Documentation                | `kebab-case.md`             | `docs/adding-a-feature.md`   |
 
 Python follows Python's own convention rather than this repo's TypeScript
 one, because that's what anyone opening a `.py` file expects. Scripts are
@@ -51,8 +51,8 @@ module-level constants (`INITIAL_VIEW`, `MAP_COLORS`, `PANELS`).
 
 ### One exported component per file, named after the file
 
-`OgcLayerPanel.tsx` exports `OgcLayerPanel`, and its props interface is
-`OgcLayerPanelProps` declared directly above it. Named exports everywhere
+`AddDataPanel.tsx` exports `AddDataPanel`, and its props interface is
+`AddDataPanelProps` declared directly above it. Named exports everywhere
 except `App.tsx`, which uses a default export because that is Vite's entry
 convention.
 
@@ -93,8 +93,8 @@ So a type module carries its subject:
 | Instead of                        | We use                                        |
 | --------------------------------- | --------------------------------------------- |
 | `features/drawing/types.ts`       | `features/drawing/drawingTypes.ts`            |
-| `features/ogc-layers/types.ts`    | `features/ogc-layers/ogcLayerTypes.ts`        |
-| `features/tiles-3d/types.ts`      | `features/tiles-3d/tilesetTypes.ts`           |
+| `features/map-services/types.ts`  | `features/map-services/mapServiceTypes.ts`    |
+| `features/models-3d/types.ts`     | `features/models-3d/modelTypes.ts`            |
 | `features/layer-manager/types.ts` | `features/layer-manager/layerManagerTypes.ts` |
 
 The same rule caught `ui/Toolbar.tsx` sitting alongside
@@ -110,9 +110,14 @@ It is now `ui/panelIds.ts`, named for the `PanelId` union it exports.
 ### Name for the domain, not for the framework or the position
 
 Name things for what they _are_, not for where they sit. `Sidebar.tsx`
-became `OgcLayerPanel.tsx` for this reason: once a second panel existed,
+became a named panel for this reason: once a second panel existed,
 "sidebar" described a position two files shared and told you nothing about
-either.
+either. The same rule renamed the data features by what they hold:
+`ogc-layers` (which also loads ArcGIS, XYZ and GeoJSON) became
+`map-services`, and `tiles-3d` (which also loads I3S) became `models-3d`,
+with `useTilesets`/`TilesetConfig` becoming `useModels`/`ModelConfig`. Names
+that really are about one format keep it: `placeTilesetOnTerrain.ts` reads
+a 3D Tiles `tileset.json`, `loadI3sSceneLayer.ts` loads I3S.
 
 `features/drawing/FeatureEditor.tsx` had the opposite problem — it used
 "feature" in the GIS sense while every other occurrence of the word in this
@@ -128,15 +133,16 @@ both what it is and all it should ever grow into.
 ### Parallel features use parallel names
 
 Two features that do the same job should read the same way. The "add a
-thing to the map" features share one set of roles (what they add is then
-managed in the layer manager, so neither has a list of its own):
+thing to the map" features share one set of roles (both are shown in the
+Add data panel and managed in the layer manager, so neither has a panel or
+list of its own):
 
-| Role                | OGC layers            | 3D Tiles             |
-| ------------------- | --------------------- | -------------------- |
-| Panel shell         | `OgcLayerPanel.tsx`   | `TilesetPanel.tsx`   |
-| Form to add one     | `AddOgcLayerForm.tsx` | `AddTilesetForm.tsx` |
-| State + Cesium sync | `useOgcLayers.ts`     | `useTilesets.ts`     |
-| Data model          | `ogcLayerTypes.ts`    | `tilesetTypes.ts`    |
+| Role                | Map services            | 3D models          |
+| ------------------- | ----------------------- | ------------------ |
+| One-click entries   | `mapServiceQuickAdd.ts` | `modelQuickAdd.ts` |
+| Form to add one     | `AddMapServiceForm.tsx` | `AddModelForm.tsx` |
+| State + Cesium sync | `useMapServices.ts`     | `useModels.ts`     |
+| Data model          | `mapServiceTypes.ts`    | `modelTypes.ts`    |
 
 Before an earlier pass those columns read `AddLayerForm` / `TilesetForm`
 — same job, two different naming ideas.
@@ -149,9 +155,9 @@ A stylesheet is named after the component that imports it and sits beside it
 (`Panel.tsx` / `Panel.css`), and only that component imports it.
 
 There are two deliberate exceptions, both feature-internal.
-`layer-manager/LayerManager.css` holds a single `.layer-manager` block shared
-by `LayerManagerPanel` and `LayerManagerButton`, so it is named for the block
-rather than for either component. `DrawingPanel.css` also carries the
+`layer-manager/LayerManager.css` holds the `.layer-manager` block used by
+`LayerManagerPanel` (it was once shared with a rail button), so it is named
+for the block rather than the component. `DrawingPanel.css` also carries the
 `.drawn-feature-editor` block, because that editor only ever renders inside
 that panel.
 
@@ -162,7 +168,7 @@ together, or searching for a class stops leading you to the component.
 ## Imports
 
 - Cross-directory imports use the `@/` alias: `import { Panel } from '@/ui/Panel'`.
-- Imports _within_ a feature folder stay relative: `import { useTilesets } from './useTilesets'`.
+- Imports _within_ a feature folder stay relative: `import { useModels } from './useModels'`.
 - Never reach into another feature. Shared code moves to `src/ui/` or `src/lib/`.
 - Use `import type` for type-only imports — `verbatimModuleSyntax` is on, so
   the compiler will tell you when you've got it wrong.
@@ -184,7 +190,7 @@ imported **before** `@/App` — see the CSS section below for why.
 - **Avoid `!`.** It's a promise to the compiler you can't keep. The
   exception is the `getElementById('root')!` in `main.tsx`, where the
   element is in `index.html`.
-- **Prefer discriminated unions over optional-field soup.** `OgcLayerConfig`
+- **Prefer discriminated unions over optional-field soup.** `MapServiceConfig`
   and the `{ status: 'idle' | 'loading' | 'error' | 'success' }` form state
   are the models to copy. They make impossible states unrepresentable.
 - **Add an exhaustiveness check** when switching on a union tag:

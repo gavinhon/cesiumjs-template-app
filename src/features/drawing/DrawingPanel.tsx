@@ -1,12 +1,16 @@
+import type * as Cesium from 'cesium';
 import { Panel } from '@/ui/Panel';
 import { ResourceList, ResourceRow } from '@/ui/ResourceList';
 import { DrawnFeatureEditor } from './DrawnFeatureEditor';
+import { ElevationProfile } from './ElevationProfile';
 import type { useDrawingTools } from './useDrawingTools';
 import './DrawingPanel.css';
 
 interface DrawingPanelProps {
   /** The drawing feature's state, from `useDrawingTools` — called in `App`. */
   drawing: ReturnType<typeof useDrawingTools>;
+  /** For the elevation profile, which samples the viewer's terrain. */
+  viewer: Cesium.Viewer | null;
   open: boolean;
   /** Closes the panel from its own header (see `Panel`). */
   onClose: () => void;
@@ -33,7 +37,7 @@ const KIND_LABEL = {
  * One selection, two views of it — anything else would leave the two
  * disagreeing about what the user is working on.
  */
-export function DrawingPanel({ drawing, open, onClose }: DrawingPanelProps) {
+export function DrawingPanel({ drawing, viewer, open, onClose }: DrawingPanelProps) {
   const { features, selectedId, selectedFeature } = drawing;
 
   return (
@@ -83,6 +87,19 @@ export function DrawingPanel({ drawing, open, onClose }: DrawingPanelProps) {
           }
         />
       )}
+
+      {/* Lines and distance measurements get a ground profile: they're the
+          two kinds that trace a route across the land. */}
+      {viewer &&
+        selectedFeature &&
+        (selectedFeature.kind === 'line' || selectedFeature.kind === 'measure') &&
+        selectedFeature.positions.length >= 2 && (
+          <ElevationProfile
+            key={selectedFeature.id}
+            viewer={viewer}
+            positions={selectedFeature.positions}
+          />
+        )}
     </Panel>
   );
 }

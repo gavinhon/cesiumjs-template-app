@@ -25,7 +25,7 @@ export interface MapStateRestorers {
  * with the same data.
  *
  * Restoring runs once, when `ready` first becomes true. `ready` exists
- * because the basemap switch acts on the imagery stack `useOgcLayers`
+ * because the basemap switch acts on the imagery stack `useMapServices`
  * adopts from the Viewer one render *after* the Viewer appears; switching
  * before then would find no basemap to replace.
  *

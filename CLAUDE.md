@@ -12,7 +12,7 @@ tiles, the same in grey, Sentinel-2 satellite over WMS, Esri World Imagery
 — the default, first in `BASEMAPS` — and Dark Gray Canvas) and the plain WGS84 ellipsoid. Basemaps stay keyless;
 OSM is not served via a WMS re-render because the free ones watermark
 street-level zooms. Switching one replaces the bottom imagery layer in place
-(`setBasemap` in `useOgcLayers`), so user layers keep their order above it.
+(`setBasemap` in `useMapServices`), so user layers keep their order above it.
 
 It is a template other people will fork and learn from, so clarity and
 consistency matter more here than they would in an app shipped once.
@@ -74,7 +74,7 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
    the `setState` updater: StrictMode double-invokes updaters in dev, so
    `imageryLayers.raise()` inside one moves the layer two positions. Setting
    `.show`/`.alpha` or removing survives being run twice; reordering does
-   not. See `moveImagery` in `useOgcLayers.ts`.
+   not. See `moveImagery` in `useMapServices.ts`.
 3. **The Viewer is created exactly once**, in a `useEffect` in
    `CesiumMap.tsx`, guarded against StrictMode's double-invoke. Don't add
    changing dependencies to that effect.
@@ -88,10 +88,10 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
 6. **UI floats over the map**, absolutely positioned with a `z-index`.
    Never lay out beside the canvas — resizing it forces Cesium to rebuild
    its render buffer and re-pick LOD tiles.
-7. **A feature hook is called in exactly one place.** Two `useOgcLayers()`
+7. **A feature hook is called in exactly one place.** Two `useMapServices()`
    calls would be two React states mutating one Cesium collection. When
-   more than one component needs a feature's state (the layer manager needs
-   the OGC panel's), the hook moves up to `App.tsx` and the state is passed
+   more than one component needs a feature's state (the layer manager shows
+   what Add data adds), the hook moves up to `App.tsx` and the state is passed
    down as props.
 8. **Only the discard button removes finished drawings.** Switching tools
    _commits_ the shape in progress (if it has enough vertices to be one)
@@ -121,7 +121,7 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
 - **File naming.** A module with one main export is named after it
   (`createImageryProvider.ts`, `fetchWmsLayers.ts`, `cancelCameraInertia.ts`);
   a module grouping several is named for the group, specifically enough to
-  be unique repo-wide (`ogcLayerTypes.ts`, `capabilitiesXml.ts`,
+  be unique repo-wide (`mapServiceTypes.ts`, `capabilitiesXml.ts`,
   `drawnFeaturePresentation.ts`). Components are `PascalCase.tsx` exporting
   the identically-named component, with `FooProps` above it and `Foo.css`
   beside it whose BEM block is `.foo`. Parallel features use parallel names:
@@ -186,7 +186,7 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
 - **Search finds coordinates, datasets and places.** `parseCoordinateQuery`
   reads degrees in either order and SVY21 (`src/lib/svy21.ts`, matched to
   SLA's own coordinates); datasets come from the panels' quick-add
-  catalogues (`OGC_QUICK_ADD`, `TILESET_QUICK_ADD`, mapped in `App`);
+  catalogues (`MAP_SERVICE_QUICK_ADD`, `MODEL_QUICK_ADD`, mapped in `App`);
   places come from OneMap as you type and Nominatim only on request —
   Nominatim's usage policy forbids search-as-you-type. Both must be
   credited in the results. `AppToolbar` takes the box as a `search` slot
@@ -202,6 +202,27 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   (`layerLegend.ts`), and for vector layers the app's own `--vector`
   swatches for the geometry types loaded — the server's renderer is
   ignored when we restyle, so its legend would lie.
+- **The rail holds two tool menus and discard.** Draw (point, line,
+  polygon, label) and Measure and analyse (distance, height, line of sight,
+  viewshed) each open a labelled menu to the left; the menu button shows
+  the armed tool's icon, lit. Escape closes an open menu before it can
+  disarm the tool. Add a tool to `TOOL_GROUPS` in `DrawingToolbar.tsx`.
+- **The basemap is a picture.** `BasemapSwitcher` (bottom-left) shows each
+  basemap's `thumbnail` — one real tile of `INITIAL_VIEW` from that
+  basemap's own service (`src/lib/slippyTile.ts`) — and hides on phones
+  and whenever a left panel covers its corner; the Layers panel's dropdown
+  stays as the always-available picker.
+- **Phone sheets have three heights.** `useBottomSheet` (`src/ui`) gives a
+  panel or the feature card a grabber: drag to peek / half / full, or tap
+  to step. Dragging writes `style.height` directly; only the resting
+  detent is state. The pixel heights in `detentHeights()` must match the
+  `--sheet-*` classes in `Panel.css` and `FeatureInfoCard.css`.
+- **Lines and distance measurements get a ground profile.** Selecting one
+  shows `ElevationProfile` in Drawings: 128 samples along the geodesic
+  (`profileGeometry.ts`) through `sampleTerrainMostDetailed` — the
+  terrain, not the clicked roofs. It says so when no terrain is loaded
+  instead of drawing a flat line, and hovering moves a `--measure` marker
+  on the map through an entity, not state.
 - **Text on the map is HTML, not `Entity.label`.** Use
   `createMapLabelLayer` from `src/cesium/mapLabels.ts`.
 - **A finished drawing is a `DrawnFeature`**, not a loose entity — see
@@ -227,20 +248,28 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
 - **TypeScript is strict.** No `any`, avoid `!`, prefer discriminated
   unions, add `never` exhaustiveness checks on union switches.
 - **Registering a panel** means adding to `PanelId` and `PANEL_SIDE` in
-  `src/ui/panelIds.ts`, an entry in `PANELS` in `src/ui/AppToolbar.tsx`
-  (unless the button lives elsewhere, as the layer manager's does), and one
-  element in `App.tsx` — additive, never editing existing entries. `App`
-  keeps one panel open per side, so the layer manager (right) can stay open
-  beside a left panel; under 800px wide, opening one closes the other.
-- **Data panels add; the layer manager manages.** Map Services and 3D Tiles
-  are a `<QuickAddList>` (the `public/` scan plus the examples, one click
-  each, grouped and badged by format) above a "Connect your own" form —
-  nothing else. Once loaded, a layer's every control (show/hide, opacity,
+  `src/ui/panelIds.ts`, an entry in `PANELS` in `src/ui/AppToolbar.tsx`, and
+  one element in `App.tsx` — additive, never editing existing entries. `App`
+  keeps one panel open per side: Layers and Drawings dock left, Add data
+  right, so you add on one side and watch it arrive on the other; under
+  800px wide, opening one closes the other. A new _data source_ usually
+  needs no panel at all — it feeds the Add data catalogue and/or adds a
+  connect tab (next bullet).
+- **Add data adds; Layers manages.** `AddDataPanel` is a catalogue tab — one
+  `<QuickAddList>` of every feature's quick-add entries (`MAP_SERVICE_QUICK_ADD`,
+  `MODEL_QUICK_ADD`), grouped by what the data _is_ (`CATALOGUE_GROUPS`:
+  maps and imagery, features, 3D buildings and models) with the format as
+  a badge — plus a connect tab per protocol family (Map service; 3D service
+  for 3D Tiles and I3S), each holding that feature's form. `App` assembles
+  it, since features can't import each other. Name things by content or by
+  the real format: never "3D Tiles" for something that also takes I3S, and
+  `ARCGIS MAP` vs `ARCGIS FEATURE` badges, not one `ARCGIS` for both. The
+  same catalogue feeds search and shared links. Once loaded, a layer's every control (show/hide, opacity,
   draw order, remove, 3D placement) is on its row in the layer manager,
   which opens when something is added. Don't add a second list of loaded
   layers to a panel: that duplication is what this layout removed. A
   feature-specific control reaches the manager as `LayerEntry.detail`,
-  rendered by `App` (see `TilesetPlacementControl`).
+  rendered by `App` (see `ModelPlacementControl`).
 - **Datasets in `public/` come from a build-time scan.** A browser can't
   list a server folder, so `vite-plugins/publicDatasetCatalog.ts` scans
   `public/` and exposes `virtual:public-datasets`; read it via
@@ -262,15 +291,16 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   feature layers return vector features and produce a `GeoJsonDataSource`
   for `viewer.dataSources`, as do static GeoJSON files (`GeoJsonFileConfig`,
   which only the `public/` scan creates). The config union is split
-  accordingly (`OgcImageryConfig` vs `OgcVectorConfig`) so
+  accordingly (`ImageryServiceConfig` vs `VectorServiceConfig`) so
   `createImageryProvider` can't be handed something it can't render.
-  ArcGIS lives in the `ogc-layers` feature (shown as "Map Services") rather
-  than its own, because one hook must own the whole imagery stack.
+  ArcGIS lives in the `map-services` feature (the "Map service" tab of Add
+  data) rather than its own, because one hook must own the whole imagery
+  stack.
 - **ArcGIS reports errors as HTTP 200** with an `{"error": …}` body. Fetch
   ArcGIS JSON through `fetchArcGisJson`, which checks for it; Cesium's
   provider doesn't, and draws a silently blank layer instead. Example
   endpoints for the add forms live in `exampleMapServices.ts` and
-  `exampleTilesets.ts` — each must answer without a key, send CORS
+  `exampleModels.ts` — each must answer without a key, send CORS
   headers, and cover Singapore, where the app is focused. ArcGIS Online's
   public catalogue search finds candidates:
   `https://www.arcgis.com/sharing/rest/search?q=singapore type:"Scene Service"&f=json`.
@@ -353,7 +383,7 @@ non-obvious prop.
   sits 8 m low. The terrain script converts via EGM2008 by default.
 - **3D Tiles keep their own heights unless moved.** A model authored for
   flat ground (BIM exports, the 1965 tilesets in `public/`) sits below real
-  terrain. `useTilesets` moves each one onto the terrain with
+  terrain. `useModels` moves each one onto the terrain with
   `tileset.modelMatrix` (see `placeTilesetOnTerrain.ts`) and re-seats them
   on `scene.terrainProviderChanged`. Never set `modelMatrix` anywhere else.
   The base height comes from `tileset.json`'s bounding volume, read

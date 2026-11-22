@@ -33,8 +33,9 @@ CesiumJS, wired up **without** a Cesium ion account.
   them commercially. Each provider's credit is shown on the
   map, as their terms require; add your own basemaps in
   `src/cesium/basemaps.ts`.
-- **A 3D Tiles panel** for loading tilesets (buildings, point clouds,
-  photogrammetry) from a `tileset.json` URL: a remote service, an
+- **3D buildings and models** — 3D Tiles and Esri I3S — from the **Add data**
+  panel: one-click from its catalogue, or by URL under its "3D service" tab.
+  3D Tiles load from a `tileset.json` URL: a remote service, an
   S3/CloudFront bucket, or a dataset dropped under this app's `public/`.
   Models are set on the terrain automatically — BIM and city models are
   usually authored for flat ground at height 0, which real terrain rarely
@@ -42,22 +43,22 @@ CesiumJS, wired up **without** a Cesium ion account.
   surface), which keep their authored depth. Each has an "On terrain"
   switch; a dataset can also declare
   `"extras": { "placement": "as-authored" }` in its `tileset.json`.
-  The same panel loads Esri **I3S scene layers** (ArcGIS `SceneServer`
+  **I3S scene layers** (ArcGIS `SceneServer`
   meshes, 3D objects and building layers), corrected from sea-level to
   ellipsoid heights with Esri's public EGM2008 geoid service and left at
   their georeferenced position. A tileset wider than a city (a worldwide
   buildings layer) is left where it's authored, and the camera stays put.
-  A one-click list, grouped by format, offers public Singapore datasets:
+  The catalogue offers public Singapore datasets, badged by format:
   HDB blocks, building shells and a single development as I3S, and
   worldwide OSM buildings
   ([Re:Earth Buildings](https://buildings.reearth.land/)) as 3D Tiles.
-- **Drawing tools**: place points (each shows its elevation), draw lines
-  and polygons, drop text labels — plus a 2D/3D toggle, since the tools
-  work in both. Live previews throughout: a marker showing where the next
+- **Drawing tools**, from the **Draw** menu on the right rail: place points
+  (each shows its elevation), draw lines and polygons, drop text labels.
+  Selecting a line shows its **ground profile** along the terrain. Live previews throughout: a marker showing where the next
   click lands, rubber-band edges to the cursor, a dot on each placed vertex,
   Backspace to undo one, Esc to abandon. Nothing is persisted; a reload
   clears it.
-- **3D measurement and analysis**, in a second group on the right rail.
+- **3D measurement and analysis**, from the **Measure and analyse** menu.
   Every click lands on whatever is under the cursor — terrain or a 3D Tiles
   rooftop — so measurements are genuinely 3D:
   - **Distance** along a path, in true 3D length. Where the path climbs
@@ -145,8 +146,9 @@ src/
 │   ├── cancelCameraInertia.ts  stops the globe gliding after a custom drag
 │   └── useSceneMode.ts         the 2D/3D toggle
 ├── features/             one folder per feature; each owns its own state + UI
-│   ├── ogc-layers/         Map Services panel: OGC + ArcGIS imagery and vectors
-│   ├── tiles-3d/           3D Tiles datasets and I3S scene layers
+│   ├── add-data/           Add data: the catalogue and the connect-by-URL tabs
+│   ├── map-services/         map services: OGC, ArcGIS, XYZ and GeoJSON layers
+│   ├── models-3d/           3D Tiles datasets and I3S scene layers
 │   ├── terrain/            which elevation surface the globe uses
 │   ├── layer-manager/      one list of everything on the map, with draw order
 │   └── drawing/            point/line/polygon/measure/label tools
@@ -180,11 +182,11 @@ Every feature has the same shape, so once you can read one you can read all
 of them:
 
 ```
-src/features/ogc-layers/
-├── ogcLayerTypes.ts          the data model: what the *user* configured
-├── useOgcLayers.ts           state + Cesium sync — the heart of the feature
-├── OgcLayerPanel.tsx         entry point; the quick-add list and the form
-├── AddOgcLayerForm.tsx       add a new layer
+src/features/map-services/
+├── mapServiceTypes.ts          the data model: what the *user* configured
+├── useMapServices.ts           state + Cesium sync — the heart of the feature
+├── mapServiceQuickAdd.ts    its one-click entries in the Add data catalogue
+├── AddMapServiceForm.tsx       add a new layer
 ├── createImageryProvider.ts  turns a WMS/WMTS/XYZ/ArcGIS config into imagery
 ├── createVectorDataSource.ts turns a WFS/ArcGIS/GeoJSON config into features
 ├── fetchWmsLayers.ts         ask a WMS server what layers it serves
@@ -196,7 +198,7 @@ src/features/ogc-layers/
 
 Filenames are unique across the whole repo and say what is inside them, so a
 name in an editor tab or a search result identifies its file without the
-directory around it. `AddTilesetForm.tsx` and `tilesetTypes.ts` are the 3D
+directory around it. `AddModelForm.tsx` and `modelTypes.ts` are the 3D
 Tiles feature's equivalents of the two above. The full standard is in
 [docs/coding-conventions.md](docs/coding-conventions.md#file-and-folder-naming);
 [docs/adding-a-feature.md](docs/adding-a-feature.md) is the recipe for
@@ -207,14 +209,14 @@ building a new one.
 Anything you put under `public/` is served by the app at the same path,
 same-origin — so none of the CORS trouble remote services cause. On top of
 that, the app scans `public/` when the dev server starts (and on every
-build) and offers what it recognises in the right panel:
+build) and offers what it recognises in the right place:
 
 | Put this under `public/`                           | Recognised as | Offered in              |
 | -------------------------------------------------- | ------------- | ----------------------- |
-| a folder containing `tileset.json`                 | 3D Tiles      | 3D Tiles panel          |
+| a folder containing `tileset.json`                 | 3D Tiles      | Add data catalogue      |
 | a folder containing a terrain `layer.json`         | terrain       | layer manager → Terrain |
-| a folder of image tiles laid out `{z}/{x}/{y}.png` | XYZ imagery   | Map Services panel      |
-| a `.geojson` file                                  | vector data   | Map Services panel      |
+| a folder of image tiles laid out `{z}/{x}/{y}.png` | XYZ imagery   | Add data catalogue      |
+| a `.geojson` file                                  | vector data   | Add data catalogue      |
 
 The folder layout under `public/` is up to you — `public/tilesets/...` and
 `public/terrain/...` are just tidy conventions. A recognised folder isn't
@@ -283,7 +285,7 @@ when.
 
 Source files are commented to explain _why_, not just _what_ —
 [src/cesium/CesiumMap.tsx](src/cesium/CesiumMap.tsx) and
-[src/features/ogc-layers/](src/features/ogc-layers) are the best places to
+[src/features/map-services/](src/features/map-services) are the best places to
 start reading.
 
 ## Branching into your own app

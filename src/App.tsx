@@ -18,20 +18,20 @@ import type {
 } from '@/features/layer-manager/layerManagerTypes';
 import { MapStatusBar } from '@/features/map-status/MapStatusBar';
 import { NavigationControls } from '@/features/navigation/NavigationControls';
-import { FeatureInfoCard } from '@/features/ogc-layers/FeatureInfoCard';
-import { AddOgcLayerForm } from '@/features/ogc-layers/AddOgcLayerForm';
-import { legendLoaderFor } from '@/features/ogc-layers/layerLegend';
-import { OGC_QUICK_ADD } from '@/features/ogc-layers/ogcQuickAdd';
-import { useFeatureInspector } from '@/features/ogc-layers/useFeatureInspector';
-import { useOgcLayers } from '@/features/ogc-layers/useOgcLayers';
+import { FeatureInfoCard } from '@/features/map-services/FeatureInfoCard';
+import { AddMapServiceForm } from '@/features/map-services/AddMapServiceForm';
+import { legendLoaderFor } from '@/features/map-services/layerLegend';
+import { MAP_SERVICE_QUICK_ADD } from '@/features/map-services/mapServiceQuickAdd';
+import { useFeatureInspector } from '@/features/map-services/useFeatureInspector';
+import { useMapServices } from '@/features/map-services/useMapServices';
 import { SearchBox } from '@/features/search/SearchBox';
 import { ShareLinkButton } from '@/features/share-link/ShareLinkButton';
 import { useMapUrlState } from '@/features/share-link/useMapUrlState';
 import type { SearchableDataset } from '@/features/search/searchTypes';
-import { AddTilesetForm } from '@/features/tiles-3d/AddTilesetForm';
-import { TILESET_QUICK_ADD } from '@/features/tiles-3d/tilesetQuickAdd';
-import { TilesetPlacementControl } from '@/features/tiles-3d/TilesetPlacementControl';
-import { useTilesets } from '@/features/tiles-3d/useTilesets';
+import { AddModelForm } from '@/features/models-3d/AddModelForm';
+import { MODEL_QUICK_ADD } from '@/features/models-3d/modelQuickAdd';
+import { ModelPlacementControl } from '@/features/models-3d/ModelPlacementControl';
+import { useModels } from '@/features/models-3d/useModels';
 import { useTerrain } from '@/features/terrain/useTerrain';
 import { AppToolbar } from '@/ui/AppToolbar';
 import { PANEL_SIDE, type PanelId } from '@/ui/panelIds';
@@ -43,7 +43,7 @@ import { useWidthAsCssVariable } from '@/ui/useWidthAsCssVariable';
  * not put in links (see src/features/share-link/mapUrlState.ts).
  */
 const CATALOGUE_IDS = new Set(
-  [...OGC_QUICK_ADD, ...TILESET_QUICK_ADD].map((entry) => entry.item.id),
+  [...MAP_SERVICE_QUICK_ADD, ...MODEL_QUICK_ADD].map((entry) => entry.item.id),
 );
 
 /**
@@ -89,8 +89,8 @@ function App() {
   // called in two components would be two independent copies of the state,
   // both mutating one Cesium collection — so shared feature state moves up
   // to the composition root.
-  const ogcLayers = useOgcLayers(viewer);
-  const tilesets = useTilesets(viewer);
+  const mapServices = useMapServices(viewer);
+  const models = useModels(viewer);
   const terrain = useTerrain(viewer);
 
   // The right rail wraps into extra columns on short screens; the right
@@ -104,7 +104,7 @@ function App() {
 
   // Clicking a WFS / ArcGIS / GeoJSON feature shows its attributes — but
   // only with no drawing tool armed, when a click isn't drawing something.
-  const featureInspector = useFeatureInspector(viewer, ogcLayers.vectors, activeTool === 'none');
+  const featureInspector = useFeatureInspector(viewer, mapServices.vectors, activeTool === 'none');
 
   // Clicking a shape on the globe should show you its attributes, not just
   // highlight it — otherwise selection looks like it did nothing whenever
@@ -121,62 +121,62 @@ function App() {
   // importing the others — see src/features/layer-manager/layerManagerTypes.ts.
   const imageryEntries = useMemo<LayerEntry[]>(
     () =>
-      ogcLayers.imagery.map((layer) => ({
+      mapServices.imagery.map((layer) => ({
         id: layer.id,
         name: layer.name,
         kind: layer.kind,
         visible: layer.visible,
-        onToggleVisibility: () => ogcLayers.toggleVisibility(layer.id),
-        onZoomTo: () => ogcLayers.zoomToLayer(layer.id),
-        onMove: (direction: 'up' | 'down') => ogcLayers.moveImagery(layer.id, direction),
+        onToggleVisibility: () => mapServices.toggleVisibility(layer.id),
+        onZoomTo: () => mapServices.zoomToLayer(layer.id),
+        onMove: (direction: 'up' | 'down') => mapServices.moveImagery(layer.id, direction),
         // The basemap is swapped with the picker, never removed.
-        onRemove: layer.removable ? () => ogcLayers.removeLayer(layer.id) : undefined,
+        onRemove: layer.removable ? () => mapServices.removeLayer(layer.id) : undefined,
         opacity: {
           value: layer.alpha,
-          onChange: (alpha: number) => ogcLayers.setAlpha(layer.id, alpha),
+          onChange: (alpha: number) => mapServices.setAlpha(layer.id, alpha),
         },
         legend: layer.config ? legendLoaderFor(layer.config) : undefined,
       })),
-    [ogcLayers],
+    [mapServices],
   );
 
   // 3D Tiles and WFS vectors share a section: neither is part of the
   // imagery draw order, so neither gets reorder controls (no `onMove`).
   const sceneEntries = useMemo<LayerEntry[]>(
     () => [
-      ...tilesets.tilesets.map((entry) => ({
+      ...models.models.map((entry) => ({
         id: entry.config.id,
         name: entry.config.name,
         kind: entry.config.format === 'i3s' ? 'I3S' : '3D TILES',
         visible: entry.visible,
-        onToggleVisibility: () => tilesets.toggleVisibility(entry.config.id),
-        onZoomTo: () => tilesets.zoomToTileset(entry.config.id),
-        onRemove: () => tilesets.removeTileset(entry.config.id),
+        onToggleVisibility: () => models.toggleVisibility(entry.config.id),
+        onZoomTo: () => models.zoomToModel(entry.config.id),
+        onRemove: () => models.removeModel(entry.config.id),
         detail: (
-          <TilesetPlacementControl
+          <ModelPlacementControl
             format={entry.config.format}
             placement={entry.placement}
             offset={entry.offset}
             reason={entry.reason}
             placeable={entry.footprint !== null}
-            onChange={(placement) => void tilesets.setPlacement(entry.config.id, placement)}
+            onChange={(placement) => void models.setPlacement(entry.config.id, placement)}
           />
         ),
       })),
-      ...ogcLayers.vectors.map((layer) => ({
+      ...mapServices.vectors.map((layer) => ({
         id: layer.id,
         name: layer.name,
         kind: layer.kind,
         visible: layer.visible,
-        onToggleVisibility: () => ogcLayers.toggleVisibility(layer.id),
-        onZoomTo: () => ogcLayers.zoomToLayer(layer.id),
-        onRemove: () => ogcLayers.removeLayer(layer.id),
+        onToggleVisibility: () => mapServices.toggleVisibility(layer.id),
+        onZoomTo: () => mapServices.zoomToLayer(layer.id),
+        onRemove: () => mapServices.removeLayer(layer.id),
         // Drawn in the app's own style, whatever the server's renderer, so
         // the legend is that style for the geometry types actually loaded.
         legend: () => Promise.resolve(vectorLegend(layer.dataSource)),
       })),
     ],
-    [tilesets, ogcLayers],
+    [models, mapServices],
   );
 
   // Every ready-made dataset, from both features that offer some, with how
@@ -184,17 +184,17 @@ function App() {
   // catalogue, the search box and shared links, so the three always agree.
   // Cheap enough (a dozen-odd entries) to rebuild per render.
   const catalogue: CatalogueEntry[] = [
-    ...OGC_QUICK_ADD.map(({ item, config }) => ({
+    ...MAP_SERVICE_QUICK_ADD.map(({ item, config }) => ({
       item,
       isAdded:
-        ogcLayers.imagery.some((entry) => entry.id === item.id) ||
-        ogcLayers.vectors.some((entry) => entry.id === item.id),
-      add: (options?: { flyTo?: boolean }) => ogcLayers.addLayer(config, options),
+        mapServices.imagery.some((entry) => entry.id === item.id) ||
+        mapServices.vectors.some((entry) => entry.id === item.id),
+      add: (options?: { flyTo?: boolean }) => mapServices.addLayer(config, options),
     })),
-    ...TILESET_QUICK_ADD.map(({ item, config }) => ({
+    ...MODEL_QUICK_ADD.map(({ item, config }) => ({
       item,
-      isAdded: tilesets.tilesets.some((entry) => entry.config.id === item.id),
-      add: (options?: { flyTo?: boolean }) => tilesets.addTileset(config, options),
+      isAdded: models.models.some((entry) => entry.config.id === item.id),
+      add: (options?: { flyTo?: boolean }) => models.addModel(config, options),
     })),
   ];
   const addFromCatalogue = async (id: string) => {
@@ -219,19 +219,19 @@ function App() {
   const getShareUrl = useMapUrlState(
     viewer,
     // The basemap switch needs the imagery stack adopted first — see the hook.
-    ogcLayers.imagery.length > 0,
+    mapServices.imagery.length > 0,
     {
-      basemapId: ogcLayers.basemapId,
+      basemapId: mapServices.basemapId,
       terrainId: terrain.selectedId,
       is2D,
       layerIds: [
-        ...ogcLayers.imagery.map((entry) => entry.id),
-        ...ogcLayers.vectors.map((entry) => entry.id),
-        ...tilesets.tilesets.map((entry) => entry.config.id),
+        ...mapServices.imagery.map((entry) => entry.id),
+        ...mapServices.vectors.map((entry) => entry.id),
+        ...models.models.map((entry) => entry.config.id),
       ].filter((id) => CATALOGUE_IDS.has(id)),
     },
     {
-      setBasemap: ogcLayers.setBasemap,
+      setBasemap: mapServices.setBasemap,
       setTerrain: (id) => void terrain.selectTerrain(id, { flyToIfOffscreen: false }),
       addLayer: async (id) => {
         const entry = catalogue.find((candidate) => candidate.item.id === id);
@@ -244,11 +244,11 @@ function App() {
 
   const basemapChoice = useMemo<BasemapChoice>(
     () => ({
-      options: ogcLayers.basemaps.map(({ id, name, thumbnail }) => ({ id, name, thumbnail })),
-      selectedId: ogcLayers.basemapId,
-      onSelect: ogcLayers.setBasemap,
+      options: mapServices.basemaps.map(({ id, name, thumbnail }) => ({ id, name, thumbnail })),
+      selectedId: mapServices.basemapId,
+      onSelect: mapServices.setBasemap,
     }),
-    [ogcLayers],
+    [mapServices],
   );
 
   const terrainChoice = useMemo<TerrainChoice>(
@@ -295,10 +295,10 @@ function App() {
             label: 'Map service',
             formats: 'OGC WMS, WMTS or WFS, ArcGIS MapServer or FeatureServer, or an XYZ tile URL.',
             form: (
-              <AddOgcLayerForm
+              <AddMapServiceForm
                 disabled={!viewer}
                 onAdd={async (config) => {
-                  await ogcLayers.addLayer(config);
+                  await mapServices.addLayer(config);
                   showLayers();
                 }}
               />
@@ -309,10 +309,10 @@ function App() {
             label: '3D service',
             formats: '3D Tiles (a tileset.json URL) or I3S (an ArcGIS SceneServer layer).',
             form: (
-              <AddTilesetForm
+              <AddModelForm
                 disabled={!viewer}
                 onAdd={async (config) => {
-                  await tilesets.addTileset(config);
+                  await models.addModel(config);
                   showLayers();
                 }}
               />
@@ -322,6 +322,7 @@ function App() {
       />
       <DrawingPanel
         drawing={drawing}
+        viewer={viewer}
         open={isOpen('drawings')}
         onClose={() => showPanel('drawings', false)}
       />

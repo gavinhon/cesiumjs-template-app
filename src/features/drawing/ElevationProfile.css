@@ -1,0 +1,86 @@
+/* A line's ground profile, in the Drawings panel — see ElevationProfile.tsx. */
+.elevation-profile {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.elevation-profile__heading {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.elevation-profile__note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.elevation-profile__note--error {
+  color: var(--danger);
+}
+
+/* Room on the left for the max/min labels, set in the data face. */
+.elevation-profile__chart {
+  position: relative;
+  padding-left: 44px;
+}
+
+.elevation-profile__axis {
+  position: absolute;
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.elevation-profile__axis--max {
+  top: 0;
+}
+
+.elevation-profile__axis--min {
+  bottom: 0;
+}
+
+.elevation-profile__svg {
+  display: block;
+  width: 100%;
+  height: 88px;
+  border-bottom: 1px solid var(--border);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Measurement near-white, as on the map: this is a reading of a measured
+   line, not a drawing (orange) or server data (blue). */
+.elevation-profile__line {
+  fill: none;
+  stroke: var(--measure);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.elevation-profile__area {
+  fill: color-mix(in srgb, var(--measure) 12%, transparent);
+}
+
+.elevation-profile__cursor {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.elevation-profile__readout {
+  margin: 6px 0 0 44px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--measure);
+}

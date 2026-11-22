@@ -1,7 +1,7 @@
 /**
  * A layer's legend, in a shape neutral to whichever feature produced it.
  *
- * Shared because the feature that knows how to *fetch* a legend (ogc-layers:
+ * Shared because the feature that knows how to *fetch* a legend (map-services:
  * it knows WMS and ArcGIS) isn't the one that *shows* it (layer-manager),
  * and features don't import each other. Types only.
  */

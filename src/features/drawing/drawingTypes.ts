@@ -41,7 +41,7 @@ export type LabelSource = 'none' | 'name' | 'measurement' | (string & {});
 /**
  * A shape the user has drawn, once it is finished.
  *
- * Follows the same shape as `ManagedImageryLayer` in the OGC feature: the
+ * Follows the same shape as `ManagedImageryLayer` in map-services: the
  * user-meaningful data (name, attributes) sits alongside the live Cesium
  * objects that draw it, in one React-state record. Anything in here can be
  * edited after the fact — that is the point of the type existing at all,

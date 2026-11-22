@@ -4,7 +4,7 @@ import type { LegendContent } from '@/lib/legendTypes';
 /**
  * The shape the layer manager needs from whatever feature owns a layer.
  *
- * This feature is unusual: it shows layers it doesn't own. The OGC feature
+ * This feature is unusual: it shows layers it doesn't own. The map-services feature
  * owns imagery and WFS vectors, the 3D Tiles feature owns tilesets, and
  * neither may import the other (see docs/coding-conventions.md). So instead of
  * importing their types, the manager declares the *minimum* it needs and
