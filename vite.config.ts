@@ -2,7 +2,10 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import cesium from 'vite-plugin-cesium';
-import { publicDatasetCatalog } from './vite-plugins/publicDatasetCatalog';
+// With its `.ts` extension: Vite plans to load this config natively in
+// Node, which (like scripts/writeRuntimeConfig.ts) resolves only the file
+// name as written. tsconfig.node.json allows the extension for this.
+import { publicDatasetCatalog } from './vite-plugins/publicDatasetCatalog.ts';
 
 // https://vite.dev/config/
 //

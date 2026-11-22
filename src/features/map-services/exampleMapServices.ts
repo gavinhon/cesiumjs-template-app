@@ -14,7 +14,15 @@ import type { MapServiceType } from './mapServiceTypes';
  */
 export interface ExampleMapService {
   id: string;
-  type: MapServiceType;
+  /**
+   * ArcGIS only, because that's all `mapServiceQuickAdd.ts` knows how to
+   * turn into a layer: a feature layer, or else a MapServer. This used to be
+   * any `MapServiceType`, so a WMS entry compiled — and then went out as an
+   * ArcGIS MapServer request and failed when someone clicked Add. To list
+   * WMS, WMTS, WFS or XYZ here, widen this and build the matching config
+   * there (see `mapServiceTypes.ts`).
+   */
+  type: Extract<MapServiceType, 'arcgis-map' | 'arcgis-feature'>;
   /** Becomes the display name. */
   name: string;
   url: string;

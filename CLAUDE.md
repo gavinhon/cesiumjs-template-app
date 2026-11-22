@@ -437,4 +437,7 @@ non-obvious prop.
   `CESIUM_BASE_URL`. Don't hand-roll that.
 - **`public/` holds static data**, including any 3D Tiles datasets dropped
   in for testing. It's excluded from Prettier; don't reformat it. Dataset
-  folders and `.geojson` files in it are gitignored — never commit data.
+  folders and `.geojson` files in it are gitignored — never commit data —
+  with one deliberate exception, `public/terrain/singapore-gem15-dtm`,
+  tracked so clones and the Pages site have real terrain (see `.gitignore`).
+  `*.terrain` is marked binary in `.gitattributes`; keep it that way.

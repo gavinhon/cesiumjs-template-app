@@ -3,3 +3,9 @@
 # doesn't exist — the container exits the moment it starts. Git on Windows
 # (core.autocrlf) would otherwise check them out with CRLF.
 *.sh text eol=lf
+
+# Quantized-mesh terrain tiles are binary. Git usually detects that, but
+# this repo is used with core.autocrlf on Windows, and a tile misread as text
+# would have its bytes "fixed" on checkout — a corrupt tile doesn't error in
+# the browser, it silently stops the terrain refining. Say so explicitly.
+*.terrain binary

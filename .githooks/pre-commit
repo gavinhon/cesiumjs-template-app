@@ -36,11 +36,19 @@ if [ -z "$staged" ]; then
 fi
 
 echo "pre-commit: checking formatting of staged files…"
-# -z / -0 so file names with spaces survive. --ignore-unknown skips files
-# Prettier has no parser for; .prettierignore (public/ data) is honoured for
-# files passed by name.
+# Only the file types Prettier formats, and nothing under public/ (data,
+# which .prettierignore excludes anyway). Filtering here rather than
+# leaving it to Prettier matters on Windows: `npx` runs through cmd.exe,
+# which refuses a command line over ~8,000 characters, and committing a
+# dataset stages thousands of paths. Passing them all made every batch fail
+# with "The command line is too long" — reported as a formatting failure.
+# `-s 7000` keeps each batch under that limit even for a large source
+# change. -z / -0 so file names with spaces survive; --ignore-unknown and
+# .prettierignore still apply to whatever gets through.
 if ! git diff --cached --name-only --diff-filter=ACMR -z |
-  xargs -0 npx --no-install prettier --check --ignore-unknown --log-level warn; then
+  grep -zE '\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|css|md|html|ya?ml)$' |
+  grep -zv '^public/' |
+  xargs -0 -r -s 7000 npx --no-install prettier --check --ignore-unknown --log-level warn; then
   echo "" >&2
   echo "pre-commit: formatting problems above would fail the GitHub Pages deploy." >&2
   echo "  Fix:  npm run format   then  git add  the files and commit again." >&2

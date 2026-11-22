@@ -1,0 +1,147 @@
+{
+  "tilejson": "2.1.0",
+  "name": "Singapore DTM (GEM, 15 m)",
+  "description": "",
+  "version": "1.0.0",
+  "format": "quantized-mesh-1.0",
+  "scheme": "tms",
+  "projection": "EPSG:4326",
+  "tiles": [
+    "{z}/{x}/{y}.terrain?v={version}"
+  ],
+  "extensions": [
+    "octvertexnormals"
+  ],
+  "minzoom": 0,
+  "maxzoom": 14,
+  "bounds": [
+    103.579809,
+    1.139747,
+    104.430087,
+    1.480384
+  ],
+  "attribution": "Elevation: Google GEM 15 m DTM",
+  "available": [
+    [
+      {
+        "startX": 0,
+        "startY": 0,
+        "endX": 1,
+        "endY": 0
+      }
+    ],
+    [
+      {
+        "startX": 3,
+        "startY": 1,
+        "endX": 3,
+        "endY": 1
+      }
+    ],
+    [
+      {
+        "startX": 6,
+        "startY": 2,
+        "endX": 6,
+        "endY": 2
+      }
+    ],
+    [
+      {
+        "startX": 12,
+        "startY": 4,
+        "endX": 12,
+        "endY": 4
+      }
+    ],
+    [
+      {
+        "startX": 25,
+        "startY": 8,
+        "endX": 25,
+        "endY": 8
+      }
+    ],
+    [
+      {
+        "startX": 50,
+        "startY": 16,
+        "endX": 50,
+        "endY": 16
+      }
+    ],
+    [
+      {
+        "startX": 100,
+        "startY": 32,
+        "endX": 101,
+        "endY": 32
+      }
+    ],
+    [
+      {
+        "startX": 201,
+        "startY": 64,
+        "endX": 202,
+        "endY": 65
+      }
+    ],
+    [
+      {
+        "startX": 403,
+        "startY": 129,
+        "endX": 404,
+        "endY": 130
+      }
+    ],
+    [
+      {
+        "startX": 806,
+        "startY": 259,
+        "endX": 809,
+        "endY": 260
+      }
+    ],
+    [
+      {
+        "startX": 1613,
+        "startY": 518,
+        "endX": 1618,
+        "endY": 520
+      }
+    ],
+    [
+      {
+        "startX": 3226,
+        "startY": 1036,
+        "endX": 3236,
+        "endY": 1040
+      }
+    ],
+    [
+      {
+        "startX": 6453,
+        "startY": 2073,
+        "endX": 6472,
+        "endY": 2081
+      }
+    ],
+    [
+      {
+        "startX": 12906,
+        "startY": 4147,
+        "endX": 12944,
+        "endY": 4163
+      }
+    ],
+    [
+      {
+        "startX": 25812,
+        "startY": 8295,
+        "endX": 25889,
+        "endY": 8326
+      }
+    ]
+  ],
+  "verticalDatum": "WGS84 ellipsoid (converted from EGM2008)"
+}

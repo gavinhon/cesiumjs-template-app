@@ -10,6 +10,10 @@ ever: the app's fonts, Cesium's assets and a fallback basemap ship inside
 the image, and everything that would need the internet is switched off by
 one setting.
 
+To replace those internet services with your own — an ArcGIS Enterprise,
+a GeoServer, a tile server on your network — see
+[local-endpoints.md](local-endpoints.md).
+
 | File                                                                | What it is                                                                             |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | [`Dockerfile`](../Dockerfile)                                       | The app: built with Node, served by nginx                                              |

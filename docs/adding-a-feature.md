@@ -272,12 +272,19 @@ build-time scan find it rather than asking the user to type its URL:
 2. Teach `vite-plugins/publicDatasetCatalog.ts` to recognise it — a check in
    `classifyFolder` for a folder-shaped dataset, or the file loop in `scan`
    for a single file.
-3. In your panel, turn `publicDatasetsOfKind('your-kind')` into
-   `<QuickAddList>` items above the form, adding each dataset through the
-   same `add…` function the form uses, with the dataset's `id` as the config
-   id. That id is how the list knows a dataset is already on the map.
+3. In your feature folder, turn `publicDatasetsOfKind('your-kind')` into
+   a `<yourFeature>QuickAdd.ts` list of `{ item, config }` pairs: the
+   `<QuickAddList>` item (name, format badge, a `CATALOGUE_GROUPS` group)
+   and the config your hook's `add…` function takes, with the dataset's
+   `id` as the config id. That id is how the catalogue knows a dataset is
+   already on the map.
+4. In `App.tsx`, spread that list into `catalogue`, saying how to tell an
+   entry is added and how to add it. Features can't import each other, so
+   `App` is where the lists meet; from there one catalogue feeds the Add
+   data panel, the search box and shared links.
 
-`TilesetPanel.tsx` is the shortest example to copy.
+`modelQuickAdd.ts` (in `models-3d`) is the shortest example to copy;
+`mapServiceQuickAdd.ts` shows one list mixing several kinds.
 
 ## Features that aren't panels
 

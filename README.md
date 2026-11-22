@@ -129,8 +129,10 @@ configuration; `vite.config.ts` explains why an absolute sub-path would
 break Cesium's web workers.
 
 Datasets in `public/` are gitignored, so the deployed site only has the
-ones you've committed. Large ones (terrain especially) are better hosted
-elsewhere — any CORS-enabled static host — and loaded by URL.
+ones you've committed — which is the Singapore terrain
+(`public/terrain/singapore-gem15-dtm`, 29 MB), tracked deliberately so the
+site opens on real elevation. Large datasets are better hosted elsewhere —
+any CORS-enabled static host — and loaded by URL.
 
 ## Deploying offline with Docker
 

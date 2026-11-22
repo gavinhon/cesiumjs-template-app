@@ -25,6 +25,16 @@ dist-ssr
 public/*/
 public/**/*.geojson
 
+# The one exception: the Singapore terrain is committed on purpose, so a
+# fresh clone and the GitHub Pages site (which has only what's in git) open
+# on real elevation rather than a smooth ellipsoid. 29 MB of small tiles.
+# Only this folder — any other terrain dropped beside it stays ignored.
+# (Git can't re-include a file whose parent folder is excluded, hence the
+# three steps: un-ignore terrain/, ignore what's in it, un-ignore this one.)
+!public/terrain/
+public/terrain/*/
+!public/terrain/singapore-gem15-dtm/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -95,7 +95,10 @@ export function DrawingPanel({ drawing, viewer, open, onClose }: DrawingPanelPro
         (selectedFeature.kind === 'line' || selectedFeature.kind === 'measure') &&
         selectedFeature.positions.length >= 2 && (
           <ElevationProfile
-            key={selectedFeature.id}
+            // Remounts per feature, like the editor — but a key of its own:
+            // the two are siblings, and siblings sharing a key make React
+            // log an error and may reuse one in place of the other.
+            key={`${selectedFeature.id}:profile`}
             viewer={viewer}
             positions={selectedFeature.positions}
           />
