@@ -1,6 +1,6 @@
 import * as Cesium from 'cesium';
 import { MAP_COLORS } from '@/cesium/mapColors';
-import { EYE_HEIGHT, sampleGroundHeights } from './lineOfSight';
+import { EYE_HEIGHT, sampleGroundHeights, visibleTilesets } from './lineOfSight';
 import { formatDistance } from './measurement';
 
 /**
@@ -19,11 +19,14 @@ import { formatDistance } from './measurement';
  *    far: a point is visible exactly when it rises above everything nearer
  *    on its ray. Uses only public APIs, so it survives Cesium upgrades.
  *
- * The trade-off is that this is a **terrain** viewshed: buildings in
- * 3D Tiles don't cast hidden areas. Sampling every building height costs a
- * GPU render pass per sample, and a viewshed needs a hundred thousand
- * samples. The line-of-sight tool does account for buildings, for a single
- * sight line.
+ * **Buildings count, where there are any.** Terrain is sampled
+ * everywhere; 3D Tiles (`scene.sampleHeightMostDetailed`) only at samples
+ * inside a shown tileset's footprint, because each scene sample costs a
+ * small GPU render and a viewshed has up to `MAX_SAMPLES` of them. For one
+ * building that's hundreds to a few thousand, depending on the spacing. A tileset covering the whole
+ * circle (a city) would mean all of them, so past `MAX_BUILDING_SAMPLES`
+ * the whole grid is coarsened until the building samples fit — a coarser
+ * viewshed that still sees buildings beats an exact one that ignores them.
  *
  * The result is painted into a canvas and draped on the ground, so it
  * follows the terrain like any other imagery would.
@@ -31,6 +34,11 @@ import { formatDistance } from './measurement';
 
 /** Sample budget across the whole viewshed — keeps one analysis around a second. */
 const MAX_SAMPLES = 160_000;
+/**
+ * Budget for the samples that also ask the 3D Tiles for a height — each a
+ * small render, so far fewer than the terrain budget.
+ */
+const MAX_BUILDING_SAMPLES = 12_000;
 /** Pixels across the draped result. More just costs memory: the sampling is the limit. */
 const IMAGE_SIZE = 512;
 /**
@@ -69,6 +77,78 @@ export interface ViewshedResult {
   rectangle: Cesium.Rectangle;
   /** Share of the area within the radius that is visible, 0–1. */
   visibleFraction: number;
+  /** Whether any 3D Tiles stood within the radius and were sampled. */
+  includesBuildings: boolean;
+}
+
+/** A ray grid: how many rays, how many samples on each, how far apart. */
+export interface ViewshedGrid {
+  rays: number;
+  steps: number;
+  spacing: number;
+}
+
+/**
+ * A tileset's footprint in the observer's local frame, in metres east and
+ * north of the observer — its bounding sphere seen from above. Generous
+ * (a sphere encloses more than the model), which only costs a few extra
+ * samples that find no building and keep the terrain height.
+ */
+export interface Footprint {
+  east: number;
+  north: number;
+  radius: number;
+}
+
+/**
+ * The ray grid for a viewshed of `radius` metres within `budget` samples.
+ * Rays sit close enough at the rim that neighbours are about one sample
+ * apart, so the result doesn't fan out into spokes.
+ */
+export function viewshedGrid(radius: number, budget: number, minSpacing = 2): ViewshedGrid {
+  let spacing = Math.max(minSpacing, radius / 150);
+  let rays = Math.min(1440, Math.max(360, Math.round((2 * Math.PI * radius) / spacing)));
+  let steps = Math.ceil(radius / spacing);
+  if (rays * steps > budget) {
+    const shrink = Math.sqrt((rays * steps) / budget);
+    spacing *= shrink;
+    rays = Math.max(360, Math.round(rays / shrink));
+    steps = Math.ceil(radius / spacing);
+  }
+  return { rays, steps, spacing };
+}
+
+/**
+ * Which samples of `grid` fall inside any footprint — the ones worth
+ * asking the 3D Tiles about. Same layout as the heights: ray by ray,
+ * nearest sample first. Pure, so it's tested without a scene.
+ */
+export function samplesInFootprints(grid: ViewshedGrid, footprints: Footprint[]): Uint8Array {
+  const { rays, steps, spacing } = grid;
+  const mask = new Uint8Array(rays * steps);
+  if (footprints.length === 0) return mask;
+  for (let r = 0; r < rays; r++) {
+    const bearing = (r / rays) * 2 * Math.PI;
+    const sin = Math.sin(bearing);
+    const cos = Math.cos(bearing);
+    for (let s = 1; s <= steps; s++) {
+      const east = s * spacing * sin;
+      const north = s * spacing * cos;
+      for (const footprint of footprints) {
+        if (Math.hypot(east - footprint.east, north - footprint.north) <= footprint.radius) {
+          mask[r * steps + (s - 1)] = 1;
+          break;
+        }
+      }
+    }
+  }
+  return mask;
+}
+
+function countMarked(mask: Uint8Array): number {
+  let count = 0;
+  for (const value of mask) count += value;
+  return count;
 }
 
 /**
@@ -123,26 +203,51 @@ export function traceVisibility(
   return { visible, visibleFraction: totalArea > 0 ? visibleArea / totalArea : 0 };
 }
 
+/**
+ * Everything visible from `observer` (raised to eye height) within
+ * `radius` metres, over terrain and the shown 3D Tiles in `viewer`'s scene.
+ *
+ * `exclude` should list the app's own entities, so drawings — and an
+ * earlier viewshed's overlay — aren't sampled as buildings.
+ */
 export async function computeViewshed(
-  terrainProvider: Cesium.TerrainProvider,
+  viewer: Cesium.Viewer,
   observer: Cesium.Cartesian3,
   radius: number,
+  exclude: object[] = [],
 ): Promise<ViewshedResult> {
   const origin = Cesium.Cartographic.fromCartesian(observer);
   const eyeHeight = origin.height + EYE_HEIGHT;
   const scale = metresPerRadian(origin.latitude);
 
-  // Rays close enough at the rim that neighbouring rays are about one
-  // sample apart, so the result doesn't fan out into spokes.
-  let spacing = Math.max(2, radius / 150);
-  let rays = Math.min(1440, Math.max(360, Math.round((2 * Math.PI * radius) / spacing)));
-  let steps = Math.ceil(radius / spacing);
-  if (rays * steps > MAX_SAMPLES) {
-    const shrink = Math.sqrt((rays * steps) / MAX_SAMPLES);
-    spacing *= shrink;
-    rays = Math.max(360, Math.round(rays / shrink));
-    steps = Math.ceil(radius / spacing);
+  // Footprints of the tilesets that reach into the circle, in metres from
+  // the observer.
+  const footprints: Footprint[] = [];
+  for (const tileset of visibleTilesets(viewer.scene)) {
+    const sphere = tileset.boundingSphere;
+    const centre = Cesium.Cartographic.fromCartesian(sphere.center);
+    const footprint = {
+      east: (centre.longitude - origin.longitude) * scale.east,
+      north: (centre.latitude - origin.latitude) * scale.north,
+      radius: sphere.radius,
+    };
+    if (Math.hypot(footprint.east, footprint.north) - footprint.radius <= radius) {
+      footprints.push(footprint);
+    }
   }
+
+  // Coarsen until the building samples fit their budget. A few rounds at
+  // most: each shrinks the spacing by the overshoot.
+  let grid = viewshedGrid(radius, MAX_SAMPLES);
+  let mask = samplesInFootprints(grid, footprints);
+  for (let round = 0; round < 6; round++) {
+    const marked = countMarked(mask);
+    if (marked <= MAX_BUILDING_SAMPLES) break;
+    const shrink = Math.sqrt(marked / MAX_BUILDING_SAMPLES) * 1.05;
+    grid = viewshedGrid(radius, MAX_SAMPLES, grid.spacing * shrink);
+    mask = samplesInFootprints(grid, footprints);
+  }
+  const { rays, steps, spacing } = grid;
 
   // Offsets in a local flat frame around the observer. Exact enough out to
   // tens of kilometres, and the curvature that matters — the ground
@@ -160,7 +265,13 @@ export async function computeViewshed(
       );
     }
   }
-  const ground = await sampleGroundHeights(terrainProvider, samples);
+  const ground = await sampleGroundHeights(
+    viewer.terrainProvider,
+    samples,
+    viewer.scene,
+    exclude,
+    mask,
+  );
   const { visible, visibleFraction } = traceVisibility(ground, rays, steps, spacing, eyeHeight);
 
   // Paint: every pixel inside the circle looks up the ray and sample
@@ -198,7 +309,7 @@ export async function computeViewshed(
   }
   context.putImageData(pixels, 0, 0);
 
-  return { image, rectangle, visibleFraction };
+  return { image, rectangle, visibleFraction, includesBuildings: footprints.length > 0 };
 }
 
 /**
@@ -224,7 +335,12 @@ export function rimPositions(center: Cesium.Cartesian3, radius: number): Cesium.
   return ring;
 }
 
-/** "38% visible · 1.00 km radius" */
-export function describeViewshed(visibleFraction: number, radius: number): string {
-  return `${Math.round(visibleFraction * 100)}% visible · ${formatDistance(radius)} radius`;
+/** "38% visible · 1.00 km radius", plus " · with 3D" when buildings were sampled. */
+export function describeViewshed(
+  visibleFraction: number,
+  radius: number,
+  includesBuildings = false,
+): string {
+  const text = `${Math.round(visibleFraction * 100)}% visible · ${formatDistance(radius)} radius`;
+  return includesBuildings ? `${text} · with 3D` : text;
 }

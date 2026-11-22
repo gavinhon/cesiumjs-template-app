@@ -71,7 +71,8 @@ CesiumJS, wired up **without** a Cesium ion account.
     sight line is cyan where clear and red past the first obstruction —
     terrain or building.
   - **Viewshed**: everything visible from a point within a radius, draped
-    on the terrain — cyan where visible, shaded where hidden.
+    on the ground — cyan where visible, shaded where hidden. Terrain and
+    3D Tiles buildings both hide what's behind them.
 - **Datasets in `public/` show up on their own.** A build-time scan finds
   3D Tiles, terrain, image tile pyramids and GeoJSON files under `public/`
   and lists them in the panel that loads each one — one click to add, no

@@ -1,6 +1,12 @@
 import * as Cesium from 'cesium';
 import { describe, expect, it } from 'vitest';
-import { describeViewshed, rimPositions, traceVisibility } from './viewshed';
+import {
+  describeViewshed,
+  rimPositions,
+  samplesInFootprints,
+  traceVisibility,
+  viewshedGrid,
+} from './viewshed';
 
 const EYE = 1.7;
 
@@ -69,5 +75,37 @@ describe('describeViewshed', () => {
   it('rounds the share to a whole percent and formats the radius', () => {
     expect(describeViewshed(0.224, 876)).toBe('22% visible · 876.0 m radius');
     expect(describeViewshed(1, 1500)).toBe('100% visible · 1.50 km radius');
+  });
+
+  it('says when 3D buildings were part of it', () => {
+    expect(describeViewshed(0.5, 200, true)).toBe('50% visible · 200.0 m radius · with 3D');
+  });
+});
+
+describe('viewshedGrid', () => {
+  it('stays within its sample budget', () => {
+    const { rays, steps } = viewshedGrid(5000, 160_000);
+    expect(rays * steps).toBeLessThanOrEqual(160_000 * 1.02);
+  });
+
+  it('honours a wider minimum spacing, for coarsening', () => {
+    expect(viewshedGrid(300, 160_000, 12).spacing).toBe(12);
+  });
+});
+
+describe('samplesInFootprints', () => {
+  // Four rays (north, east, south, west), five samples 10 m apart.
+  const grid = { rays: 4, steps: 5, spacing: 10 };
+
+  it('marks only the samples under a footprint', () => {
+    // A building 30 m north of the observer, 12 m across.
+    const mask = samplesInFootprints(grid, [{ east: 0, north: 30, radius: 6 }]);
+    // Ray 0 points north: its sample at 30 m (index 2) is inside; 20 m and 40 m are 10 m off.
+    expect(Array.from(mask.slice(0, 5))).toEqual([0, 0, 1, 0, 0]);
+    expect(Array.from(mask.slice(5))).toEqual(new Array(15).fill(0));
+  });
+
+  it('marks nothing without footprints', () => {
+    expect(Array.from(samplesInFootprints(grid, []))).toEqual(new Array(20).fill(0));
   });
 });

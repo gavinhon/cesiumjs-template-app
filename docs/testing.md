@@ -47,7 +47,7 @@ deploy will still run the same checks.
 | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/features/drawing/measurement.test.ts`              | Distance formatting, 3D vs ground distance, the measure and height readouts, the height triangle's corner                                                                                      |
 | `src/features/drawing/lineOfSight.test.ts`              | Clear and blocked sight lines over drawn terrain profiles, the noise tolerance, the target's own ground not counting as a blocker                                                              |
-| `src/features/drawing/viewshed.test.ts`                 | Ray visibility behind walls and past the horizon, area weighting, the rim's radius on the WGS84 ellipsoid, the readout                                                                         |
+| `src/features/drawing/viewshed.test.ts`                 | Ray visibility behind walls and past the horizon, area weighting, the sample grid and which samples fall under a tileset, the rim's radius on the WGS84 ellipsoid, the readout                 |
 | `src/features/drawing/drawnFeaturePresentation.test.ts` | Colour per feature family, label text for every label source, label anchors, selected/hidden styling, depth-fail materials, geometry rewrites while dragging                                   |
 | `src/features/map-services/capabilitiesParsing.test.ts` | WMS 1.1.1/1.3.0 and WFS 1.0/2.0 capabilities parsing, bounding boxes (including missing edges), HTTP and XML errors                                                                            |
 | `src/features/map-services/layerRequests.test.ts`       | WFS GetFeature parameter names per version; the WMS, WMTS and XYZ imagery providers built from a config                                                                                        |
@@ -168,6 +168,7 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 | M4  | Line of sight across Bukit Timah                                    | "Blocked at … of …"; cyan up to the hill, red beyond it                                         |
 | M5  | Line of sight across flat ground                                    | "Visible · …", all cyan                                                                         |
 | M6  | Viewshed on a hilltop, radius about 1 km                            | Cyan where visible, dark where hidden, inside a ring; "N% visible · … radius" in about a second |
+| M6b | Add the BIM model, then a viewshed beside it (radius about 200 m)   | The building casts a dark shadow behind it; the readout ends "· with 3D"                        |
 | M7  | Drag a line-of-sight or viewshed vertex                             | Shows "Analysing…", then the new result                                                         |
 | M8  | Start a measurement; switch to 2D; keep clicking; switch back to 3D | The measurement keeps working in both modes                                                     |
 

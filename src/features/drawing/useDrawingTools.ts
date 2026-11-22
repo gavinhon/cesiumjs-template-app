@@ -893,7 +893,12 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             : `Visible · ${total}`;
         } else {
           const radius = Cesium.Cartesian3.distance(start, end);
-          const result = await computeViewshed(cesiumViewer.terrainProvider, start, radius);
+          const result = await computeViewshed(
+            cesiumViewer,
+            start,
+            radius,
+            cesiumViewer.entities.values,
+          );
           if (!isCurrent()) return;
           overlay = tagPart(
             cesiumViewer.entities.add({
@@ -907,7 +912,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             }),
             'overlay',
           );
-          measurement = describeViewshed(result.visibleFraction, radius);
+          measurement = describeViewshed(result.visibleFraction, radius, result.includesBuildings);
         }
       } catch (error) {
         if (!isCurrent()) return;

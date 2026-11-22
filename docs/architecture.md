@@ -281,12 +281,17 @@ upgrades. The trade-off worth knowing:
 |                               | Line of sight              | Viewshed                         |
 | ----------------------------- | -------------------------- | -------------------------------- |
 | Blocked by terrain            | yes                        | yes                              |
-| Blocked by 3D Tiles buildings | yes (scene height samples) | no — terrain only                |
+| Blocked by 3D Tiles buildings | yes (scene height samples) | yes, inside tileset footprints   |
 | Cost                          | a few hundred samples      | ~100,000 samples, about a second |
 
-A building-aware viewshed needs GPU shadow mapping, which in CesiumJS means
-private `ShadowMap` internals and a custom shader. That's a reasonable
-extension, but it breaks across Cesium releases, so it's not in a template.
+Scene samples are the expensive kind — each is a small GPU render — so the
+viewshed asks the 3D Tiles only at samples inside a shown tileset's
+bounding sphere, and terrain everywhere else. One building costs hundreds
+to a few thousand renders; a city-wide tileset would cost every sample, so
+past a budget (`MAX_BUILDING_SAMPLES`) the whole grid is coarsened instead.
+The alternative, GPU shadow mapping, would be exact and fast, but in
+CesiumJS it means private `ShadowMap` internals and a custom shader that
+break across releases, so it's not in a template.
 
 Analyses are async. A feature shows "Analysing…" until its result arrives,
 and dragging one of its vertices re-runs it; each run is numbered so only
