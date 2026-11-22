@@ -28,14 +28,8 @@ export interface LayerEntry {
   visible: boolean;
   onToggleVisibility: () => void;
   onZoomTo: () => void;
-  /**
-   * Moves this layer through the draw order. Only supplied for imagery
-   * layers — see the note in `LayerManagerPanel` on why 3D Tiles and
-   * vector data don't get reorder controls.
-   */
-  onMove?: (direction: 'up' | 'down') => void;
-  /** Takes the layer off the map. Absent for the basemap, which is swapped, not removed. */
-  onRemove?: () => void;
+  /** Takes the layer off the map. */
+  onRemove: () => void;
   /** Imagery only: a texture on the globe has one opacity; vector features and models don't. */
   opacity?: { value: number; onChange: (value: number) => void };
   /**

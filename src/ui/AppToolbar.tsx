@@ -17,13 +17,12 @@ import './AppToolbar.css';
  * (and "3D Tiles" also loaded I3S).
  */
 const PANELS: { id: PanelId; label: string; controls: string }[] = [
-  { id: 'layers', label: 'Layers', controls: 'layer-manager-panel' },
   { id: 'add-data', label: 'Add data', controls: 'add-data-panel' },
   { id: 'drawings', label: 'Drawings', controls: 'drawings-panel' },
 ];
 
 interface AppToolbarProps {
-  /** Whether a panel is open — in either slot, since Add data opens beside Layers. */
+  /** Whether a panel is open. */
   isOpen: (panel: PanelId) => boolean;
   onTogglePanel: (panel: PanelId) => void;
   /**
@@ -38,8 +37,8 @@ interface AppToolbarProps {
  * side panel. This and the right rail are the app's only chrome besides
  * the map itself and whichever panel is open.
  *
- * Layers and Drawings dock left, one at a time; Add data opens beside
- * whichever is open, so it can stay open next to Layers (see PANEL_SLOT).
+ * Both panels dock left, one at a time. What's on the map has no button:
+ * the layer list top-right is always in view (see `LayerList`).
  */
 export function AppToolbar({ isOpen, onTogglePanel, search }: AppToolbarProps) {
   // Only meaningful in the compact layout, where the panel buttons don't

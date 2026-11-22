@@ -69,8 +69,8 @@ body {
   overflow: clip;
 }
 
-/* The right-hand rail of icon buttons: the layer manager button, then the
-   drawing tools. Features contribute buttons to it without positioning
+/* The right-hand rail of icon buttons: the layer button (phones only),
+   then the drawing tools. Features contribute buttons to it without positioning
    themselves, which is what lets them stack without hard-coded offsets.
    Mirrors the top-left toolbar's 16px corner inset. */
 .app__right-rail {
@@ -93,8 +93,8 @@ body {
    * view don't move. The wrap happens between whole button groups, never
    * inside one, because each group is a single flex item.
    *
-   * The phone toolbar stops short of however wide this ends up — see
-   * `--right-rail-width` in AppToolbar.css.
+   * The layer list and the phone toolbar stop short of however wide this
+   * ends up — see `--right-rail-width` in LayerList.css and AppToolbar.css.
    */
   flex-wrap: wrap-reverse;
   /* It must also stop short of the navigation row and status bar stacked
@@ -236,7 +236,7 @@ select {
 
 /*
  * The two "this one" looks, both dark: `--active` for a toggle that is
- * currently on (toolbar panels, drawing tools, layer manager) and
+ * currently on (toolbar panels, drawing tools, the phone's layer button) and
  * `--primary` for the one committing action in a form. Orange label, orange
  * edge, a faint orange tint behind — enough to find at a glance, without a
  * solid block of colour pulling the eye off the map.

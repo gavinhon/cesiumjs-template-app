@@ -39,7 +39,7 @@
 
 /*
  * Compact layout: search plus a menu button, the panel buttons in a column
- * under it. Three uppercase buttons beside a search field need ~560px;
+ * under it. Two uppercase buttons beside a search field need ~440px;
  * a phone has ~360.
  *
  * The toolbar stretches to the right rail (whose measured width App

@@ -214,21 +214,26 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   (`layerLegend.ts`), and for vector layers the app's own `--vector`
   swatches for the geometry types loaded — the server's renderer is
   ignored when we restyle, so its legend would lie.
-- **The rail holds two tool menus and discard.** Draw (point, line,
+- **The rail holds two tool menus and discard** — and, on phones only, a
+  layer button on top (`LayerListButton`). Draw (point, line,
   polygon, label) and Measure and analyse (distance, height, line of sight,
   viewshed) each open a labelled menu to the left; the menu button shows
   the armed tool's icon, lit. Escape closes an open menu before it can
   disarm the tool. Add a tool to `TOOL_GROUPS` in `DrawingToolbar.tsx`.
-- **The basemap is a picture.** `BasemapSwitcher` (bottom-left) shows each
-  basemap's `thumbnail` — one real tile of `INITIAL_VIEW` from that
-  basemap's own service (`src/lib/slippyTile.ts`) — and hides on phones
-  and whenever a left panel covers its corner; the Layers panel's dropdown
-  stays as the always-available picker.
+- **The map tile picks what the map is drawn on.** `BasemapSwitcher`
+  (bottom-left) shows each basemap's `thumbnail` — one real tile of
+  `INITIAL_VIEW` from that basemap's own service (`src/lib/slippyTile.ts`)
+  — with the terrain choice (`TerrainField`) under them. It hides on
+  phones and whenever a side panel covers its corner; on a phone the layer
+  sheet carries the same two choices instead. The basemap is not in the
+  layer list and can't be removed or dragged — `moveImagery` never puts a
+  layer under it.
 - **Phone sheets have three heights.** `useBottomSheet` (`src/ui`) gives a
-  panel or the feature card a grabber: drag to peek / half / full, or tap
-  to step. Dragging writes `style.height` directly; only the resting
-  detent is state. The pixel heights in `detentHeights()` must match the
-  `--sheet-*` classes in `Panel.css` and `FeatureInfoCard.css`.
+  panel, the layer list or the feature card a grabber: drag to peek / half
+  / full, or tap to step. Dragging writes `style.height` directly; only the
+  resting detent is state. The pixel heights in `detentHeights()` must
+  match the `--sheet-*` classes in `Panel.css`, `LayerList.css` and
+  `FeatureInfoCard.css`.
 - **Lines and distance measurements get a ground profile.** Selecting one
   shows `ElevationProfile` in Drawings: 128 samples along the geodesic
   (`profileGeometry.ts`) through `sampleTerrainMostDetailed` — the
@@ -259,18 +264,16 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   like the map labels, never through React state.
 - **TypeScript is strict.** No `any`, avoid `!`, prefer discriminated
   unions, add `never` exhaustiveness checks on union switches.
-- **Registering a panel** means adding to `PanelId` and `PANEL_SLOT` in
+- **Registering a panel** means adding to `PanelId` in
   `src/ui/panelIds.ts`, an entry in `PANELS` in `src/ui/AppToolbar.tsx`, and
-  one element in `App.tsx` — additive, never editing existing entries. `App`
-  keeps one panel open per slot: Layers and Drawings dock left, Add data
-  opens `'beside'` them (a `:has` rule in `Panel.css` shifts it past an
-  open left panel), so the catalogue sits next to its button and the list
-  it adds to; under
-  800px wide or 500px tall (`SINGLE_PANEL_QUERY` — a phone on its side),
-  opening one closes the other. A new _data source_ usually
+  one element in `App.tsx` — additive, never editing existing entries.
+  Panels dock left, one at a time; the layer list sits top-right, so you
+  add on one side and watch it arrive on the other. Under 800px wide or
+  500px tall (`SINGLE_PANEL_QUERY` — every phone, and a phone on its
+  side), opening a panel collapses the list and vice versa. A new _data source_ usually
   needs no panel at all — it feeds the Add data catalogue and/or adds a
   connect tab (next bullet).
-- **Add data adds; Layers manages.** `AddDataPanel` is a catalogue tab — one
+- **Add data adds; the layer list manages.** `AddDataPanel` is a catalogue tab — one
   `<QuickAddList>` of every feature's quick-add entries (`MAP_SERVICE_QUICK_ADD`,
   `MODEL_QUICK_ADD`), grouped by what the data _is_ (`CATALOGUE_GROUPS`:
   maps and imagery, features, 3D buildings and models) with the format as
@@ -279,12 +282,17 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   it, since features can't import each other. Name things by content or by
   the real format: never "3D Tiles" for something that also takes I3S, and
   `ARCGIS MAP` vs `ARCGIS FEATURE` badges, not one `ARCGIS` for both. The
-  same catalogue feeds search and shared links. Once loaded, a layer's every control (show/hide, opacity,
-  draw order, remove, 3D placement) is on its row in the layer manager,
-  which opens when something is added. Don't add a second list of loaded
-  layers to a panel: that duplication is what this layout removed. A
-  feature-specific control reaches the manager as `LayerEntry.detail`,
-  rendered by `App` (see `ModelPlacementControl`).
+  same catalogue feeds search and shared links. Once loaded, a layer's
+  every control is on its row in `LayerList` (top-right, no toolbar
+  button — it hides while empty and collapses to a chip): eye, drag handle
+  (imagery only, invariant 9) and name on the row; opacity, legend, 3D
+  placement, zoom and remove under its "…". The list expands when
+  something is added. Don't add a second list of loaded layers to a
+  panel: that duplication is what this layout removed. A feature-specific
+  control reaches the list as `LayerEntry.detail`, rendered by `App`
+  (see `ModelPlacementControl`). Dragging moves the row through the DOM
+  from `pointermove` and sets state only when the drop position changes
+  (`dropIndex` in `layerListDrag.ts`); arrow keys on the grip do the same.
 - **Datasets in `public/` come from a build-time scan.** A browser can't
   list a server folder, so `vite-plugins/publicDatasetCatalog.ts` scans
   `public/` and exposes `virtual:public-datasets`; read it via

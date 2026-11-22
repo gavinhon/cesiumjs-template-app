@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import * as Cesium from 'cesium';
 import { BASEMAPS, DEFAULT_BASEMAP } from '@/cesium/basemaps';
+import { moveItem } from '@/lib/moveItem';
 import { createImageryProvider } from './createImageryProvider';
 import { createVectorDataSource } from './createVectorDataSource';
 import type { ManagedImageryLayer, ManagedVectorLayer, MapServiceConfig } from './mapServiceTypes';
@@ -269,12 +270,13 @@ export function useMapServices(viewer: Cesium.Viewer | null) {
   );
 
   /**
-   * Moves an imagery layer one step through the draw order.
+   * Moves an imagery layer to `toIndex` in the draw order — what dropping a
+   * dragged row in the layer list does.
    *
-   * `'up'` means toward the top of the stack (drawn later, covers more);
-   * `'down'` is the reverse. Cesium's `raise`/`lower` move by one position
-   * in `viewer.imageryLayers`, and our `imagery` array is kept in exactly
-   * that order, so the two stay in lockstep.
+   * Indices are Cesium's: 0 is the bottom of the stack, a higher index is
+   * drawn later and covers more. Cesium's `raise`/`lower` move by one
+   * position in `viewer.imageryLayers`, and our `imagery` array is kept in
+   * exactly that order, so the two stay in lockstep.
    *
    * Note the Cesium call happens *outside* the `setImagery` updater. React
    * StrictMode deliberately double-invokes state updater functions in
@@ -285,25 +287,24 @@ export function useMapServices(viewer: Cesium.Viewer | null) {
    * `alpha`, or removing an already-removed layer *is* idempotent.)
    */
   const moveImagery = useCallback(
-    (id: string, direction: 'up' | 'down') => {
+    (id: string, toIndex: number) => {
       if (!viewer) return;
 
       const index = imagery.findIndex((entry) => entry.id === id);
-      if (index === -1) return;
-      const targetIndex = direction === 'up' ? index + 1 : index - 1;
-      if (targetIndex < 0 || targetIndex >= imagery.length) return;
+      // Never to or past the basemap at index 0: the layer list doesn't
+      // show it, so a drop "below everything" means just above it.
+      const floor = imagery[0]?.id === BASE_LAYER_ID ? 1 : 0;
+      if (index === -1 || toIndex < floor || toIndex >= imagery.length || toIndex === index) return;
 
-      const entry = imagery[index];
-      if (direction === 'up') {
-        viewer.imageryLayers.raise(entry.cesiumLayer);
-      } else {
-        viewer.imageryLayers.lower(entry.cesiumLayer);
-      }
+      // One step at a time with raise/lower — the collection's own
+      // reordering calls — rather than removing the layer and re-adding it
+      // at the new index, which would fire layerRemoved/layerAdded as if it
+      // had left the map and come back.
+      const { cesiumLayer } = imagery[index];
+      for (let step = index; step < toIndex; step++) viewer.imageryLayers.raise(cesiumLayer);
+      for (let step = index; step > toIndex; step--) viewer.imageryLayers.lower(cesiumLayer);
 
-      const next = [...imagery];
-      next[index] = next[targetIndex];
-      next[targetIndex] = entry;
-      setImagery(next);
+      setImagery(moveItem(imagery, index, toIndex));
     },
     [viewer, imagery],
   );

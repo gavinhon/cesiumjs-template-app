@@ -87,12 +87,12 @@ the Singapore terrain in `public/`.
 
 ### Startup and layout
 
-| #   | Do                                           | Expect                                                                                         |
-| --- | -------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| S1  | Load the page                                | OpenStreetMap globe over Singapore; terrain loads without moving the camera; no console errors |
-| S2  | Tilt the camera near Bukit Timah             | Relief is visible and hillshaded (lit from the north-west)                                     |
-| S3  | Shrink the window to about 400 px tall       | The right rail wraps into a second column; no button is off-screen                             |
-| S4  | With the rail wrapped, open the Layers panel | The panel sits 16 px clear of both rail columns                                                |
+| #   | Do                                     | Expect                                                                                         |
+| --- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| S1  | Load the page                          | OpenStreetMap globe over Singapore; terrain loads without moving the camera; no console errors |
+| S2  | Tilt the camera near Bukit Timah       | Relief is visible and hillshaded (lit from the north-west)                                     |
+| S3  | Shrink the window to about 400 px tall | The right rail wraps into a second column; no button is off-screen                             |
+| S4  | With the rail wrapped, add a layer     | The layer list sits 16 px clear of both rail columns                                           |
 
 ### Navigation, status bar, search and links
 
@@ -106,37 +106,40 @@ the Singapore terrain in `public/`.
 | N6  | Search `rail`                                                             | Rail lines and Rail stations under Datasets; OneMap places below; Search worldwide last      |
 | N7  | Choose Search worldwide for `eiffel tower`                                | OpenStreetMap results, credited in the heading; choosing one flies to Paris                  |
 | N8  | Add a dataset, move the camera, copy the share link, open it in a new tab | Same view, basemap and layers; the camera doesn't fly off to the layer                       |
-| N9  | Open the Layers panel with Population density added                       | Its classes (Highest … Lowest) appear under the row; a vector layer shows Points/Lines/Areas |
+| N9  | Add Population density, then open its "…" in the layer list               | Its classes (Highest … Lowest) appear under the row; a vector layer shows Points/Lines/Areas |
 
 ### Layers, Add data, tools and profile
 
-| #   | Do                                                            | Expect                                                                                         |
-| --- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| T1  | Toolbar → Layers, then its Add data button                    | Add data opens right beside Layers; adding from the catalogue lists it in Layers next to it    |
-| T1b | Close Layers with Add data still open                         | Add data slides back to the left edge; reopening Layers pushes it aside again                  |
-| T2  | Add data → type `rail` in the filter                          | Only the rail layers remain, under "Features — points, lines and areas"                        |
-| T3  | Add data → 3D service → choose I3S                            | The URL field asks for a scene layer and the button reads "Add scene layer"                    |
-| T4  | Right rail → Measure and analyse                              | A menu of four named tools with hints; picking one arms it and its icon lights the menu button |
-| T5  | Bottom-left basemap tile → pick OpenStreetMap (grey)          | The map switches; the tile shows the grey thumbnail; it hides while a left panel is open       |
-| T6  | Draw a line across Bukit Timah, finish, select it in Drawings | "Ground profile" shows the hill (~150 m peak); hovering moves a marker along the line          |
-| T7  | Layers → Terrain → None, then reselect the line               | The profile says to choose a terrain instead of drawing a flat line                            |
+| #   | Do                                                                          | Expect                                                                                         |
+| --- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| T1  | Add data → add any dataset                                                  | Add data stays open on the left; the layer list (top-right) expands with the new layer         |
+| T1b | Collapse the layer list from its header, then remove every layer            | It folds to an "On the map" chip; with nothing left it disappears                              |
+| T1c | Add two imagery layers, then drag the lower one above the other by its grip | An orange line shows where it will land; on release the map redraws in the new order           |
+| T1d | Focus a grip with Tab and press ↑ / ↓                                       | The layer moves one place per key and keeps focus                                              |
+| T2  | Add data → type `rail` in the filter                                        | Only the rail layers remain, under "Features — points, lines and areas"                        |
+| T3  | Add data → 3D service → choose I3S                                          | The URL field asks for a scene layer and the button reads "Add scene layer"                    |
+| T4  | Right rail → Measure and analyse                                            | A menu of four named tools with hints; picking one arms it and its icon lights the menu button |
+| T5  | Bottom-left basemap tile → pick OpenStreetMap (grey)                        | The map switches; the tile shows the grey thumbnail; it hides while a left panel is open       |
+| T6  | Draw a line across Bukit Timah, finish, select it in Drawings               | "Ground profile" shows the hill (~150 m peak); hovering moves a marker along the line          |
+| T7  | Map tile → Terrain → None, then reselect the line                           | The profile says to choose a terrain instead of drawing a flat line                            |
 
 ### Phone layout
 
 Use the browser's device emulation (a phone preset, which also makes the
 pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 
-| #   | Do                                                                 | Expect                                                                                   |
-| --- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| M1  | Load the page at 375 × 812                                         | Search and a Menu button top-left, the rail top-right; every control 44 px tall          |
-| M2  | Tap Menu, then Layers                                              | The menu closes; the panel rises as a half-height sheet with a grab handle and a ×       |
-| M3  | Tap the sheet's ×                                                  | The sheet slides down; the map does not scroll or jump                                   |
-| M4  | Open Layers, then tap Add data in it                               | Layers closes; Add data takes the sheet                                                  |
-| M5  | Arm the line tool and tap two points                               | The hint shows Undo and Finish instead of key hints; Finish keeps the line               |
-| M6  | Add Rail stations and tap a station                                | Its attribute card docks to the bottom, full width, instead of floating over the station |
-| M6b | Drag a sheet's grab bar down, then tap it twice                    | It snaps to peek; taps step it to half, then full                                        |
-| M7  | Widen the window past 640 px with a mouse                          | Side panels and the full toolbar return; controls go back to 34 px                       |
-| M7b | Turn the phone on its side (812 × 375), open Layers, then Add data | Layers closes: one side panel at a time on a short screen                                |
+| #   | Do                                                                      | Expect                                                                                   |
+| --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| M1  | Load the page at 375 × 812                                              | Search and a Menu button top-left, the rail top-right; every control 44 px tall          |
+| M2  | Tap Menu, then Add data                                                 | The menu closes; the panel rises as a half-height sheet with a grab handle and a ×       |
+| M3  | Tap the sheet's ×                                                       | The sheet slides down; the map does not scroll or jump                                   |
+| M4  | Add a dataset from the Add data sheet                                   | Add data closes; the layer sheet rises with the new layer listed                         |
+| M4b | Tap the layers button at the top of the rail                            | The layer sheet opens with Map (basemap and terrain) under the layers                    |
+| M5  | Arm the line tool and tap two points                                    | The hint shows Undo and Finish instead of key hints; Finish keeps the line               |
+| M6  | Add Rail stations and tap a station                                     | Its attribute card docks to the bottom, full width, instead of floating over the station |
+| M6b | Drag a sheet's grab bar down, then tap it twice                         | It snaps to peek; taps step it to half, then full                                        |
+| M7  | Widen the window past 640 px with a mouse                               | Side panels and the full toolbar return; controls go back to 34 px                       |
+| M7b | Turn the phone on its side (812 × 375), add a layer, then open Add data | The layer list collapses to its chip while Add data is open                              |
 
 ### Drawing
 
@@ -175,19 +178,19 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 | L1  | Add data → Catalogue → add a 3D model from public/                                   | It loads, the camera flies to it, and the button reads "Added"                                                                                                               |
 | L2  | Add data → Map service → WMS → `https://ahocevar.com/geoserver/wms` → Look up layers | A picklist of layers; choosing one fills the display name                                                                                                                    |
 | L3  | Add that WMS layer                                                                   | It draws over the base map and the camera flies to its extent                                                                                                                |
-| L4  | Layers panel → move the WMS layer down below the basemap                             | It disappears under the base map; moving it up brings it back                                                                                                                |
-| L5  | Layers panel → Terrain → None                                                        | Terrain flattens and the hillshade turns off; choosing the DTM again restores both                                                                                           |
+| L4  | Add a WMS layer, then drag it below every other imagery layer                        | It sits under them but stays above the basemap — the basemap is never covered from below                                                                                     |
+| L5  | Map tile → Terrain → None                                                            | Terrain flattens and the hillshade turns off; choosing the DTM again restores both                                                                                           |
 | L6  | Switch to 2D                                                                         | The map stays over the same place and is as bright as in 3D                                                                                                                  |
 | L7  | Drop a new `.geojson` into `public/` while the dev server runs                       | The page reloads and the file is offered in the Add data catalogue                                                                                                           |
 | L8  | Add the BIM model from the public/ list                                              | Its row reads "On terrain · Raised … m"; zoomed in, its ground floor meets the street                                                                                        |
 | L9  | With a model on terrain, set Terrain to None, then back                              | The row's offset changes with each switch and the model follows the surface                                                                                                  |
-| L10 | Layers panel → untick "On terrain" on a model                                        | It returns to its authored height; the row reads "Authored height"                                                                                                           |
-| L11 | Layers panel → Basemap → grey, then satellite, then back                             | Each map replaces the last; the credit line at bottom left changes to match                                                                                                  |
+| L10 | Layer list → a model's "…" → untick "On terrain"                                     | It returns to its authored height; the row reads "Authored height"                                                                                                           |
+| L11 | Map tile → grey, then satellite, then back                                           | Each map replaces the last; the credit line at bottom left changes to match                                                                                                  |
 | L12 | Add an XYZ layer, then change the basemap                                            | The added layer stays on top of the new basemap                                                                                                                              |
 | L13 | Add data → each ArcGIS example in the catalogue → Add                                | Each one draws over Singapore; the camera flies to each                                                                                                                      |
 | L14 | Type an ArcGIS FeatureServer URL with type "ArcGIS MapServer" → Add                  | An error asking for a URL ending in /MapServer; nothing is added                                                                                                             |
 | L15 | Type "ArcGIS FeatureServer / layer" + a FeatureServer URL → Look up                  | A picklist of the service's layers                                                                                                                                           |
-| L16 | Layers panel → Basemap → Esri World Imagery, then Esri Dark Gray Canvas              | Each draws, with "Powered by Esri" and its sources in the credit line                                                                                                        |
+| L16 | Map tile → Esri World Imagery, then Esri Dark Gray Canvas                            | Each draws, with "Powered by Esri" and its sources in the credit line                                                                                                        |
 | L17 | 3D Tiles → each I3S example in the list → Add                                        | Each loads lit (not black, at any hour), the camera flies to it, its row reads "I3S · Georeferenced (I3S)"                                                                   |
 | L18 | 3D Tiles → paste any `…/SceneServer/layers/0` URL                                    | Format switches to I3S by itself                                                                                                                                             |
 | L19 | Add an I3S URL for a service that doesn't exist                                      | "The server answered: …" under the form; the app keeps running                                                                                                               |
@@ -195,5 +198,5 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 | L21 | Add an ArcGIS point or line example, then click one of its features                  | It's highlighted and a card shows its name and attributes; `OBJECTID` / `Shape__…` fields aren't listed                                                                      |
 | L22 | With the card open, click empty map; then reopen it and press Escape                 | The card closes each time                                                                                                                                                    |
 | L23 | With the card open, arm a drawing tool or hide the feature's layer                   | The card closes; with a tool armed, clicking a feature draws instead of opening a card                                                                                       |
-| L24 | With a data panel open, add anything from it                                         | The Layers panel opens beside it, with the new layer listed; the data panel stays open                                                                                       |
-| L25 | Layers panel → drag a layer's opacity, then × to remove it                           | The layer fades, then leaves the map; its quick-add button reads "Add" again                                                                                                 |
+| L24 | With the layer list collapsed, add anything from Add data                            | The list expands with the new layer; Add data stays open                                                                                                                     |
+| L25 | Layer list → a layer's "…" → drag its opacity, then Remove                           | The layer fades, then leaves the map; its quick-add button reads "Add" again                                                                                                 |

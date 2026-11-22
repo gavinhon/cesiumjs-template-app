@@ -44,16 +44,6 @@ interface ResourceRowProps {
   /** Single-click on the name. Omit for lists where rows aren't selectable. */
   onSelect?: () => void;
   /**
-   * Extra controls on the first row, before the remove button — used by the
-   * layer manager for its reorder buttons.
-   */
-  actions?: ReactNode;
-  /**
-   * A full-width block under the rows — a layer's legend. Rendered only
-   * when provided.
-   */
-  footer?: ReactNode;
-  /**
    * Optional second row of per-resource controls (e.g. a type badge and an
    * opacity slider). Rendered only when provided.
    */
@@ -62,9 +52,8 @@ interface ResourceRowProps {
 
 /**
  * One resource in a `<ResourceList>`: a visibility checkbox, a name you can
- * double-click to fly the camera to it, and a remove button — plus optional
- * extra actions, and an optional second row for controls specific to the
- * kind of resource.
+ * double-click to fly the camera to it, and a remove button — plus an
+ * optional second row for controls specific to the kind of resource.
  */
 export function ResourceRow({
   name,
@@ -75,8 +64,6 @@ export function ResourceRow({
   zoomHint,
   selected = false,
   onSelect,
-  actions,
-  footer,
   children,
 }: ResourceRowProps) {
   return (
@@ -106,7 +93,6 @@ export function ResourceRow({
           </span>
         </span>
         <span className="resource-list__actions">
-          {actions}
           {onRemove && (
             <button
               type="button"
@@ -120,7 +106,6 @@ export function ResourceRow({
         </span>
       </div>
       {children && <div className="resource-list__row">{children}</div>}
-      {footer}
     </li>
   );
 }

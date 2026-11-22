@@ -23,7 +23,7 @@ const FIRST_TERRAIN: PublicTerrainDataset | null = PUBLIC_TERRAINS[0] ?? null;
  * **Terrain loads itself.** When `public/` holds a terrain tileset, the
  * first one is selected as soon as the viewer exists — it's the ground the
  * rest of the map sits on, like the base imagery, not an overlay you opt
- * into. Choose "None" in the layer manager to go back to the ellipsoid.
+ * into. Choose "None" under the map tile to go back to the ellipsoid.
  *
  * **Loaded the way Cesium currently recommends:** `scene.setTerrain` with a
  * `Cesium.Terrain` wrapping the provider's promise, rather than awaiting

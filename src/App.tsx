@@ -10,7 +10,8 @@ import { DrawingToolbar } from '@/features/drawing/DrawingToolbar';
 import { DrawingHint } from '@/features/drawing/DrawingHint';
 import { DrawingPanel } from '@/features/drawing/DrawingPanel';
 import { BasemapSwitcher } from '@/features/layer-manager/BasemapSwitcher';
-import { LayerManagerPanel } from '@/features/layer-manager/LayerManagerPanel';
+import { LayerList } from '@/features/layer-manager/LayerList';
+import { LayerListButton } from '@/features/layer-manager/LayerListButton';
 import type {
   BasemapChoice,
   LayerEntry,
@@ -35,7 +36,7 @@ import { useModels } from '@/features/models-3d/useModels';
 import { useTerrain } from '@/features/terrain/useTerrain';
 import { AppToolbar } from '@/ui/AppToolbar';
 import { SINGLE_PANEL_QUERY } from '@/ui/compactLayoutQuery';
-import { PANEL_SLOT, type PanelId, type PanelSlot } from '@/ui/panelIds';
+import type { PanelId } from '@/ui/panelIds';
 import { useWidthAsCssVariable } from '@/ui/useWidthAsCssVariable';
 
 /**
@@ -61,30 +62,31 @@ function App() {
   // which is why every feature hook takes `Viewer | null`.
   const [viewer, setViewer] = useState<Cesium.Viewer | null>(null);
 
-  // Which panel is open in each slot (PANEL_SLOT). One per slot, so two
-  // panels never stack on each other — but Layers and Add data can be open
-  // together, side by side: add a dataset from the catalogue, watch it
-  // arrive in the list next to it. On a screen too narrow or too short for
-  // both (SINGLE_PANEL_QUERY), opening one closes the other.
-  const [openPanels, setOpenPanels] = useState<Record<PanelSlot, PanelId | null>>({
-    left: null,
-    beside: null,
-  });
+  // Which side panel is open (left), and whether the layer list (right)
+  // is expanded — on a phone, whether its sheet is up. Add data on one
+  // side, watch it arrive in the list on the other. Where the two don't
+  // both fit (SINGLE_PANEL_QUERY, which includes every phone), opening one
+  // closes the other.
+  const [openPanel, setOpenPanel] = useState<PanelId | null>(null);
+  // Starts open where there's room, so a shared link's layers are in view;
+  // on a phone a sheet over half the map at startup would be in the way.
+  const [layerListOpen, setLayerListOpen] = useState(
+    () => !window.matchMedia(SINGLE_PANEL_QUERY).matches,
+  );
+  const crowded = () => window.matchMedia(SINGLE_PANEL_QUERY).matches;
   const showPanel = (panel: PanelId, show = true) => {
-    const slot = PANEL_SLOT[panel];
-    // Opening a panel where there's no room for two closes the other slot;
-    // closing one leaves the other alone.
-    const closeOther = show && window.matchMedia(SINGLE_PANEL_QUERY).matches;
-    setOpenPanels((current) => ({
-      left: slot === 'left' ? (show ? panel : null) : closeOther ? null : current.left,
-      beside: slot === 'beside' ? (show ? panel : null) : closeOther ? null : current.beside,
-    }));
+    setOpenPanel(show ? panel : null);
+    if (show && crowded()) setLayerListOpen(false);
   };
-  const togglePanel = (panel: PanelId) => showPanel(panel, openPanels[PANEL_SLOT[panel]] !== panel);
-  const isOpen = (panel: PanelId) => openPanels[PANEL_SLOT[panel]] === panel;
-  // After adding data, show where it went: the Layers panel is where it's
+  const togglePanel = (panel: PanelId) => showPanel(panel, openPanel !== panel);
+  const isOpen = (panel: PanelId) => openPanel === panel;
+  const showLayerList = (show: boolean) => {
+    setLayerListOpen(show);
+    if (show && crowded()) setOpenPanel(null);
+  };
+  // After adding data, show where it went: the layer list is where it's
   // managed, and the Add data panel doesn't list it again.
-  const showLayers = () => showPanel('layers');
+  const showLayers = () => showLayerList(true);
 
   // These two hooks live here rather than inside their own panels because
   // the layer manager shows the same layers those panels manage. A hook
@@ -95,8 +97,8 @@ function App() {
   const models = useModels(viewer);
   const terrain = useTerrain(viewer);
 
-  // The right rail wraps into extra columns on short screens; the right
-  // panel reads its measured width to stay clear of it. See Panel.css.
+  // The right rail wraps into extra columns on short screens; the layer
+  // list and the phone toolbar read its measured width to stay clear of it.
   const rightRailRef = useRef<HTMLDivElement>(null);
   useWidthAsCssVariable(rightRailRef, '--right-rail-width');
 
@@ -122,37 +124,39 @@ function App() {
   const [seenDrawingId, setSeenDrawingId] = useState(selectedDrawingId);
   if (selectedDrawingId !== seenDrawingId) {
     setSeenDrawingId(selectedDrawingId);
-    if (selectedDrawingId) {
-      setOpenPanels((current) => ({ ...current, left: 'drawings' }));
-    }
+    if (selectedDrawingId) showPanel('drawings');
   }
 
   // Adapt each feature's own entries into the neutral shape the layer
   // manager renders. Doing it here is what keeps that feature from
   // importing the others — see src/features/layer-manager/layerManagerTypes.ts.
+  //
+  // The basemap is left out: it's chosen from the map tile, not stacked,
+  // so the list holds only what you added. (It stays at the bottom of the
+  // stack — moveImagery never puts anything under it.)
   const imageryEntries = useMemo<LayerEntry[]>(
     () =>
-      mapServices.imagery.map((layer) => ({
-        id: layer.id,
-        name: layer.name,
-        kind: layer.kind,
-        visible: layer.visible,
-        onToggleVisibility: () => mapServices.toggleVisibility(layer.id),
-        onZoomTo: () => mapServices.zoomToLayer(layer.id),
-        onMove: (direction: 'up' | 'down') => mapServices.moveImagery(layer.id, direction),
-        // The basemap is swapped with the picker, never removed.
-        onRemove: layer.removable ? () => mapServices.removeLayer(layer.id) : undefined,
-        opacity: {
-          value: layer.alpha,
-          onChange: (alpha: number) => mapServices.setAlpha(layer.id, alpha),
-        },
-        legend: layer.config ? legendLoaderFor(layer.config) : undefined,
-      })),
+      mapServices.imagery
+        .filter((layer) => layer.removable)
+        .map((layer) => ({
+          id: layer.id,
+          name: layer.name,
+          kind: layer.kind,
+          visible: layer.visible,
+          onToggleVisibility: () => mapServices.toggleVisibility(layer.id),
+          onZoomTo: () => mapServices.zoomToLayer(layer.id),
+          onRemove: () => mapServices.removeLayer(layer.id),
+          opacity: {
+            value: layer.alpha,
+            onChange: (alpha: number) => mapServices.setAlpha(layer.id, alpha),
+          },
+          legend: layer.config ? legendLoaderFor(layer.config) : undefined,
+        })),
     [mapServices],
   );
 
   // 3D Tiles and WFS vectors share a section: neither is part of the
-  // imagery draw order, so neither gets reorder controls (no `onMove`).
+  // imagery draw order, so neither can be dragged.
   const sceneEntries = useMemo<LayerEntry[]>(
     () => [
       ...models.models.map((entry) => ({
@@ -285,11 +289,16 @@ function App() {
         search={<SearchBox viewer={viewer} datasets={searchableDatasets} />}
       />
 
-      <LayerManagerPanel
-        open={isOpen('layers')}
-        onClose={() => showPanel('layers', false)}
-        onAddData={() => showPanel('add-data')}
+      <LayerList
+        open={layerListOpen}
+        onToggle={() => showLayerList(!layerListOpen)}
         imagery={imageryEntries}
+        onMoveImagery={(id, toId) =>
+          mapServices.moveImagery(
+            id,
+            mapServices.imagery.findIndex((layer) => layer.id === toId),
+          )
+        }
         sceneData={sceneEntries}
         basemap={basemapChoice}
         terrain={terrainChoice}
@@ -351,6 +360,7 @@ function App() {
       />
 
       <div ref={rightRailRef} className="app__right-rail">
+        <LayerListButton open={layerListOpen} onToggle={() => showLayerList(!layerListOpen)} />
         <DrawingToolbar activeTool={activeTool} onSelectTool={setActiveTool} onClear={clearAll} />
       </div>
 
@@ -358,7 +368,7 @@ function App() {
         <ShareLinkButton getUrl={getShareUrl} disabled={!viewer} />
       </NavigationControls>
       <MapStatusBar viewer={viewer} />
-      <BasemapSwitcher basemap={basemapChoice} />
+      <BasemapSwitcher basemap={basemapChoice} terrain={terrainChoice} />
     </div>
   );
 }

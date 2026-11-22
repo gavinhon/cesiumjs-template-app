@@ -134,7 +134,7 @@ both what it is and all it should ever grow into.
 
 Two features that do the same job should read the same way. The "add a
 thing to the map" features share one set of roles (both are shown in the
-Add data panel and managed in the layer manager, so neither has a panel or
+Add data panel and managed in the layer list, so neither has a panel or
 list of its own):
 
 | Role                | Map services            | 3D models          |
@@ -154,12 +154,9 @@ walks through it step by step.
 A stylesheet is named after the component that imports it and sits beside it
 (`Panel.tsx` / `Panel.css`), and only that component imports it.
 
-There are two deliberate exceptions, both feature-internal.
-`layer-manager/LayerManager.css` holds the `.layer-manager` block used by
-`LayerManagerPanel` (it was once shared with a rail button), so it is named
-for the block rather than the component. `DrawingPanel.css` also carries the
-`.drawn-feature-editor` block, because that editor only ever renders inside
-that panel.
+There is one deliberate exception, feature-internal: `DrawingPanel.css`
+also carries the `.drawn-feature-editor` block, because that editor only
+ever renders inside that panel.
 
 The BEM block name is the component name in kebab-case: `AppToolbar` →
 `.app-toolbar`, `DrawnFeatureEditor` → `.drawn-feature-editor`. Rename them

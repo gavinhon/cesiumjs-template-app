@@ -53,16 +53,28 @@
   color: var(--ink);
 }
 
-/* The open row of choices, rising to the right of the tile. */
-.basemap-switcher__options {
+/* The open menu, rising to the right of the tile: the row of basemaps,
+   then terrain under it. */
+.basemap-switcher__menu {
   position: absolute;
   bottom: 0;
   left: calc(100% + 8px);
   display: flex;
-  gap: 6px;
-  padding: 6px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 6px 10px;
   border-radius: var(--radius-md);
   backdrop-filter: blur(16px);
+}
+
+.basemap-switcher__options {
+  display: flex;
+  gap: 6px;
+}
+
+/* Inset to line up with the thumbnails' own 4px padding. */
+.basemap-switcher__menu .terrain-field {
+  padding: 0 4px;
 }
 
 .basemap-switcher__option {
@@ -121,17 +133,15 @@
   text-align: center;
 }
 
-/* A left-hand panel reaches down over this corner — Layers, Drawings, or
-   Add data on its own in the 'beside' slot. Hidden while one is open
-   rather than stacked on top of it: the Layers panel has its own basemap
-   picker, and nothing in Drawings or Add data wants the basemap changed. */
-.app:has(.panel--left:not(.panel--collapsed)) .basemap-switcher,
-.app:has(.panel--beside:not(.panel--collapsed)) .basemap-switcher {
+/* A side panel (Add data, Drawings) reaches down over this corner.
+   Hidden while one is open rather than stacked on top of it: neither is
+   a moment for changing the basemap, and closing the panel brings it back. */
+.app:has(.panel:not(.panel--collapsed)) .basemap-switcher {
   display: none;
 }
 
 /* On a phone this corner belongs to the navigation row and attribution;
-   the layer manager's dropdown is the way to switch there. 640px must
+   the layer sheet's Map section is the way to switch there. 640px must
    match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
 @media (max-width: 640px) {
   .basemap-switcher {

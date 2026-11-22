@@ -33,7 +33,7 @@ export interface PublicTilesetDataset extends BaseDataset {
 
 /**
  * A folder holding a terrain `layer.json` (as written by
- * `scripts/build_terrain_tiles.py`) → selectable in the layer manager.
+ * `scripts/build_terrain_tiles.py`) → selectable under the map tile.
  */
 export interface PublicTerrainDataset extends BaseDataset {
   kind: 'terrain';

@@ -44,8 +44,8 @@ interface AddDataPanelProps {
  * the forms from the features that own them (which may not import each
  * other), the same way it feeds the layer manager and search.
  *
- * Docks right, opposite the Layers panel, so what you add can be seen
- * arriving in the list. Tabs are switched with `hidden`, not by unmounting,
+ * Docks left, opposite the layer list (top-right), so what you add can be
+ * seen arriving in the list. Tabs are switched with `hidden`, not by unmounting,
  * for the same reason panels stay mounted (CLAUDE.md, invariant 5): a
  * half-filled form survives a look at the catalogue.
  */
@@ -85,7 +85,6 @@ export function AddDataPanel({
   return (
     <Panel
       id="add-data-panel"
-      side="beside"
       title="Add data"
       subtitle="Ready-made datasets, or connect your own service by URL."
       open={open}

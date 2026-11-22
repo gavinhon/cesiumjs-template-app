@@ -29,7 +29,7 @@ deliberate, explicit sync.
 │  └────────┬────────┘  └────────┬────────┘          │  entities        │ │
 │           │ renders            │ renders           └──────────────────┘ │
 │           ▼                    ▼                                        │
-│    <LayerManagerPanel>  <AddDataPanel>  (via App)                       │
+│    <LayerList>          <AddDataPanel>  (via App)                       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -139,8 +139,8 @@ resources.
 | ---------------------------- | --------------------------- | ------------------------------------------------------ |
 | The `Viewer` instance        | `App.tsx` (`useState`)      | Every feature needs it; created by a child             |
 | Which panel is open          | `App.tsx` (`useState`)      | Toolbar toggles it, panels read it; only one at a time |
-| OGC layers, 3D tilesets      | `App.tsx` (feature hooks)   | The layer manager shows them too, so one owner only    |
-| Selected terrain             | `useTerrain`, in `App`      | One slot, not a list; the layer manager picks it       |
+| OGC layers, 3D tilesets      | `App.tsx` (feature hooks)   | The layer list shows them too, so one owner only       |
+| Selected terrain             | `useTerrain`, in `App`      | One slot, not a list; the map tile picks it            |
 | Datasets found in `public/`  | `PUBLIC_DATASETS` constant  | Baked in at build time; can't change without a reload  |
 | Drawing tools                | `useDrawingTools`, in `App` | Only the drawing toolbar uses it                       |
 | In-progress drawing vertices | `useDrawingTools` refs      | Read per frame by Cesium, never rendered by React      |
@@ -155,8 +155,8 @@ write down why.
 `viewer.imageryLayers` is an ordered collection painted onto the globe
 surface in sequence, so "above" and "below" are literal: index 0 is drawn
 first and everything after covers it. Raising a layer is genuinely how you
-uncover one that's hidden, which is what the layer manager's reorder
-controls do (`imageryLayers.raise`/`lower`).
+uncover one that's hidden, which is what dragging a row in the layer
+list does (`imageryLayers.raise`/`lower`, one step at a time).
 
 3D Tiles and vector data are different in kind. They're geometry positioned
 in space and rasterised through the depth buffer — what ends up in front is
@@ -164,9 +164,9 @@ decided by where the camera is, not by position in a list. `scene.primitives`
 and `viewer.dataSources` have an order, but changing it doesn't reliably
 change what you see.
 
-So the layer manager offers reordering for imagery only, and says why in
-its own UI. Don't add up/down arrows to the scene-data section: they'd be
-controls that visibly do nothing.
+So the layer list offers reordering for imagery only: only imagery rows
+have a drag handle. Don't add one to the features-and-3D group: it would
+be a control that visibly does nothing.
 
 ## Datasets in `public/`: discovered at build time
 
@@ -221,7 +221,7 @@ result is still a constant by the time any feature reads it. The same
 
 The globe has exactly one surface, so the terrain provider is a single
 value — there's no stack to add to and nothing to reorder. `useTerrain`
-therefore holds a _selection_, and the layer manager shows a picker rather
+therefore holds a _selection_, and the map tile shows a picker rather
 than rows with checkboxes. "None" means `EllipsoidTerrainProvider`: the
 smooth WGS84 ellipsoid the app uses when there's no elevation data.
 

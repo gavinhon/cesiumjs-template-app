@@ -189,13 +189,10 @@ there.
 
 Two small edits, both mechanical.
 
-Add the id to `PanelId` in [`src/ui/panelIds.ts`](../src/ui/panelIds.ts), and
-say where it docks in `PANEL_SLOT` (`'left'`, or `'beside'` the left panel):
+Add the id to `PanelId` in [`src/ui/panelIds.ts`](../src/ui/panelIds.ts):
 
 ```ts
-export type PanelId = 'map-services' | 'models-3d' | 'layers' | 'drawings' | 'geojson';
-// …and in PANEL_SLOT:
-  geojson: 'left',
+export type PanelId = 'add-data' | 'drawings' | 'geojson';
 ```
 
 Then add an entry to `PANELS` in
@@ -204,7 +201,6 @@ match the `id` you gave `<Panel>`:
 
 ```ts
 const PANELS: { id: PanelId; label: string; controls: string }[] = [
-  { id: 'layers', label: 'Layers', controls: 'layer-manager-panel' },
   { id: 'add-data', label: 'Add data', controls: 'add-data-panel' },
   { id: 'drawings', label: 'Drawings', controls: 'drawings-panel' },
   { id: 'geojson', label: 'GeoJSON', controls: 'geojson-panel' },
@@ -230,10 +226,10 @@ That's the whole integration. Note that you _added_ to each file and
 changed nothing existing — that's the property the structure is designed
 for.
 
-### Show what you added in the layer manager
+### Show what you added in the layer list
 
 The hook is called in `App.tsx` rather than in your panel because the
-layer manager needs its state too — the way `useMapServices` and
+layer list needs its state too — the way `useMapServices` and
 `useModels` are. Calling the same hook in two components creates two
 React states fighting over one Cesium collection.
 
@@ -290,7 +286,7 @@ build-time scan find it rather than asking the user to type its URL:
 
 Not everything fits the panel shape. The drawing tools are a hook plus a
 floating toolbar, with no form and no list; terrain is a hook whose only UI
-is a picker in the layer manager. That's fine — the parts that
+is a picker under the map tile. That's fine — the parts that
 still apply are: **one folder under `src/features/`, one hook that owns all
 the Cesium interaction, and shared `.control` classes for the buttons.**
 Skip the rest.

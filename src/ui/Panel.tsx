@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import type { PanelSlot } from './panelIds';
 import { useBottomSheet } from './useBottomSheet';
 import './Panel.css';
 
@@ -17,11 +16,6 @@ interface PanelProps {
   /** Whether the panel is open. Controlled by its toolbar button. */
   open: boolean;
   /**
-   * Where the panel docks — see `PanelSlot`. Defaults to `'left'`; Add
-   * data is `'beside'`, so it opens next to the Layers panel.
-   */
-  side?: PanelSlot;
-  /**
    * Closes the panel from its own header. On a desktop the toolbar button
    * does the same, but on a phone the panel is a bottom sheet over most of
    * the screen and that button is folded into a menu — the sheet has to
@@ -32,9 +26,10 @@ interface PanelProps {
 }
 
 /**
- * The floating side panel every feature's UI lives in — Layers, Add data
- * and Drawings are all this component with different children, which is what keeps them visually identical instead of
- * drifting apart as each grows.
+ * The floating side panel a feature's UI lives in — Add data and Drawings
+ * are both this component with different children, which is what keeps
+ * them visually identical instead of drifting apart as each grows. It
+ * docks to the left edge, under the toolbar button that opens it.
  *
  * Two behaviours worth knowing before you add a third panel:
  *
@@ -47,17 +42,12 @@ interface PanelProps {
  *    to lose work. That means your feature's state hook keeps running
  *    while the panel is hidden; that is intentional.
  */
-export function Panel({ id, title, subtitle, open, side = 'left', onClose, children }: PanelProps) {
+export function Panel({ id, title, subtitle, open, onClose, children }: PanelProps) {
   // On a phone the panel is a bottom sheet that can be dragged between
   // three heights; on a wider screen the grabber is hidden and the
   // `panel--sheet-*` class has no rules, so none of this applies.
   const { sheetRef, detent, grabberProps } = useBottomSheet<HTMLElement>('half');
-  const className = [
-    'panel',
-    `panel--${side}`,
-    `panel--sheet-${detent}`,
-    open ? null : 'panel--collapsed',
-  ]
+  const className = ['panel', `panel--sheet-${detent}`, open ? null : 'panel--collapsed']
     .filter(Boolean)
     .join(' ');
 

@@ -1,0 +1,393 @@
+/*
+ * The layer list, top-right — see LayerList.tsx.
+ *
+ * Left of the right rail, clear of it whatever its width: the rail's 16px
+ * inset, its measured width (--right-rail-width, published by App, since
+ * the rail wraps into a second column on short screens), then a 16px gap.
+ * The fallback is one column, for the moment before anything's measured.
+ */
+.layer-list {
+  --rail: var(--right-rail-width, calc(var(--control-height) + 14px));
+  position: absolute;
+  top: 16px;
+  right: calc(var(--rail) + 32px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  /* Collapsed it's a chip as wide as its label; open, a fixed column. */
+  width: auto;
+  max-width: calc(100vw - var(--rail) - 48px);
+  /* Stops above the navigation row and status bar in the bottom-right
+     corner (--bottom-right-stack, global.css). */
+  max-height: calc(100vh - 32px - var(--bottom-right-stack));
+  max-height: calc(100dvh - 32px - var(--bottom-right-stack));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+}
+
+.layer-list--open {
+  width: 264px;
+}
+
+/* Nothing added: nothing to show. The map tile covers basemap and terrain. */
+.layer-list--empty {
+  display: none;
+}
+
+.layer-list__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--control-height);
+  padding: 0 10px 0 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.layer-list__header:hover {
+  background: var(--surface-hover);
+}
+
+.layer-list__title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.layer-list__count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-variant);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.layer-list__chevron {
+  margin-left: auto;
+  color: var(--muted);
+  transform: rotate(180deg);
+  transition: transform 0.15s ease;
+}
+
+.layer-list--open .layer-list__chevron {
+  transform: none;
+}
+
+.layer-list__body {
+  display: none;
+  overflow-y: auto;
+  padding: 4px 8px 10px;
+  border-top: 1px solid var(--border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.layer-list--open .layer-list__body {
+  display: block;
+}
+
+.layer-list__section + .layer-list__section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.layer-list__heading {
+  margin: 6px 4px 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.layer-list__empty {
+  margin: 8px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.layer-list__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.layer-list__item {
+  position: relative;
+  border-radius: var(--radius-sm);
+}
+
+/* Lifted while dragged: above its neighbours, on the panel's own surface
+   so the rows it passes don't show through. */
+.layer-list__item--dragging {
+  z-index: 1;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+}
+
+/* Where the dragged row would land: a line on this row's edge, in the
+   accent — the one place a drag shows "here". */
+.layer-list__item--drop-above::before,
+.layer-list__item--drop-below::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  left: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.layer-list__item--drop-above::before {
+  top: -1px;
+}
+
+.layer-list__item--drop-below::after {
+  bottom: -1px;
+}
+
+.layer-list__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--control-height);
+}
+
+/* The square icon buttons on a row: eye and "…". Quiet until hovered —
+   they're on every row, and at full weight would drown the names. */
+.layer-list__icon-button,
+.layer-list__grip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.layer-list__icon-button:hover,
+.layer-list__icon-button:focus-visible,
+.layer-list__grip:hover,
+.layer-list__grip:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+/* Its details are open: the app's "on" language, an orange label. */
+.layer-list__icon-button--active {
+  color: var(--accent);
+}
+
+/* The grip takes the pointer for the drag, so the browser mustn't treat a
+   touch on it as a scroll or a pinch. */
+.layer-list__grip {
+  width: 20px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.layer-list__item--dragging .layer-list__grip {
+  cursor: grabbing;
+}
+
+.layer-list__grip-space {
+  flex: none;
+  width: 20px;
+}
+
+.layer-list__name {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* Hidden layers stay listed, dimmed, so turning one back on is one click. */
+.layer-list__item--hidden .layer-list__name {
+  color: var(--muted);
+}
+
+.layer-list__details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px 50px;
+  font-size: 12px;
+}
+
+.layer-list__opacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  color: var(--muted);
+}
+
+.layer-list__opacity input {
+  flex: 1;
+  min-width: 0;
+}
+
+.layer-list__opacity-value {
+  min-width: 34px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.layer-list__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.layer-list__action {
+  height: var(--control-height-sm);
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+/* Basemap and terrain live in the map tile on a wide screen — this copy is
+   the phone's (see the compact rules below). */
+.layer-list__map {
+  display: none;
+}
+
+/* Only phones have a grabber. */
+.layer-list__grabber {
+  display: none;
+}
+
+/* --- Compact layout: a bottom sheet, opened from the rail ---------------
+ *
+ * The same sheet as a side panel's (Panel.css): docked to the bottom, three
+ * heights dragged between with the grabber (useBottomSheet). Its heights
+ * must match `detentHeights()` and the --sheet-* rules in Panel.css and
+ * FeatureInfoCard.css. Closed, it's gone entirely — the rail button brings
+ * it back — so here "open" means shown rather than expanded.
+ *
+ * 640px must match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts.
+ */
+@media (max-width: 640px) {
+  .layer-list,
+  .layer-list--empty {
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    z-index: 25;
+    display: flex;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    transform: translateY(100%);
+    visibility: hidden;
+    transition:
+      transform 0.2s ease,
+      visibility 0.2s ease,
+      height 0.2s ease;
+  }
+
+  .layer-list--open {
+    transform: none;
+    visibility: visible;
+  }
+
+  .layer-list--sheet-peek {
+    height: 128px;
+  }
+
+  .layer-list--sheet-half {
+    height: 50vh;
+    height: 50dvh;
+  }
+
+  .layer-list--sheet-full {
+    height: calc(100vh - var(--control-height) - 24px);
+    height: calc(100dvh - var(--control-height) - 24px);
+  }
+
+  .layer-list__body {
+    display: block;
+    flex: 1;
+  }
+
+  /* The header closes the sheet downwards, so its chevron points down. */
+  .layer-list--open .layer-list__chevron {
+    transform: rotate(180deg);
+  }
+
+  .layer-list__map {
+    display: block;
+  }
+
+  .layer-list__map .field + .terrain-field {
+    margin-top: 12px;
+  }
+
+  .layer-list__grabber {
+    display: block;
+    flex: none;
+    width: 100%;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .layer-list__grabber::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 0 auto;
+    border-radius: 2px;
+    background: var(--border-strong);
+  }
+
+  /* Thumb-sized row buttons, in step with the touch control height. */
+  .layer-list__icon-button {
+    width: var(--control-height);
+    height: var(--control-height);
+  }
+
+  .layer-list__grip {
+    width: 32px;
+    height: var(--control-height);
+  }
+
+  .layer-list__grip-space {
+    width: 32px;
+  }
+
+  .layer-list__details {
+    margin-left: 80px;
+  }
+}
