@@ -106,6 +106,9 @@ export function useModels(viewer: Cesium.Viewer | null) {
       if (config.format === 'i3s') {
         const { provider, tilesets: parts } = await loadI3sSceneLayer(config.url, config.name);
         viewer.scene.primitives.add(provider);
+        const copyright = sceneLayerCopyright(provider);
+        const credit = copyright ? new Cesium.Credit(copyright, true) : null;
+        if (credit) viewer.creditDisplay.addStaticCredit(credit);
         setModels((prev) => [
           ...prev,
           {
@@ -117,13 +120,12 @@ export function useModels(viewer: Cesium.Viewer | null) {
             placement: 'as-authored',
             offset: 0,
             reason: 'Georeferenced (I3S)',
-            // Cesium credits I3S itself, from each layer's copyright text.
-            credit: null,
+            credit,
             propertyNames: {},
             sectionRange: null,
           },
         ]);
-        if (flyTo) flyToTilesets(viewer, parts);
+        frameOrLight(viewer, parts, flyTo);
         return;
       }
 
@@ -193,17 +195,7 @@ export function useModels(viewer: Cesium.Viewer | null) {
           sectionRange: sectionRange(json),
         },
       ]);
-      if (tileset.boundingSphere.radius < REGIONAL_RADIUS) {
-        if (flyTo) flyToTilesets(viewer, [tileset]);
-      } else {
-        // A worldwide layer is everywhere at once: flying "to" it would only
-        // pull the camera out to space, away from what the user was viewing.
-        // And Cesium lights each tileset's shaded sides with a sky rendered
-        // from the centre of its bounds — for a worldwide layer, the centre
-        // of the Earth, where the "sky" is black. Every wall facing away from
-        // the light renders solid black. A plain, even ambient light instead.
-        tileset.imageBasedLighting.sphericalHarmonicCoefficients = EVEN_AMBIENT_LIGHT;
-      }
+      frameOrLight(viewer, [tileset], flyTo);
     },
     [viewer],
   );
@@ -323,9 +315,48 @@ function copyrightOf(tilesetJson: unknown): string | null {
   return typeof copyright === 'string' && copyright.trim() ? copyright : null;
 }
 
+/**
+ * The attribution an I3S scene's layers declare in `copyrightText`, joined,
+ * or `null` when none does.
+ *
+ * Cesium reads none of it — an I3S scene loads with no credit at all — yet
+ * it's often a licence condition: Esri's OpenStreetMap buildings say "Map
+ * data OpenStreetMap contributors…" here and nowhere else, and ODbL needs
+ * that on screen. Third-party text, sanitised by Cesium like `copyrightOf`.
+ */
+function sceneLayerCopyright(provider: Cesium.I3SDataProvider): string | null {
+  const texts = new Set<string>();
+  for (const layer of provider.layers) {
+    const text = (layer.data as { copyrightText?: unknown } | undefined)?.copyrightText;
+    if (typeof text === 'string' && text.trim()) texts.add(text.trim());
+  }
+  return texts.size > 0 ? [...texts].join(' · ') : null;
+}
+
 /** Applies one vertical shift to every tileset a model is made of. */
 function moveTilesets(entry: ManagedModel, modelMatrix: Cesium.Matrix4) {
   for (const tileset of entry.tilesets) tileset.modelMatrix = modelMatrix;
+}
+
+/**
+ * What happens once a model has been added: fly to it — or, for a
+ * worldwide layer (3D Tiles or I3S alike), stay put and fix its lighting.
+ *
+ * A worldwide layer is everywhere at once: flying "to" it would only pull
+ * the camera out to space, away from what the user was viewing. And Cesium
+ * lights each tileset's shaded sides with a sky rendered from the centre of
+ * its bounds — for a worldwide layer, the centre of the Earth, where the
+ * "sky" is black. Every wall facing away from the light renders solid
+ * black. A plain, even ambient light instead.
+ */
+function frameOrLight(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[], flyTo: boolean) {
+  const regional = tilesets.filter((tileset) => tileset.boundingSphere.radius < REGIONAL_RADIUS);
+  for (const tileset of tilesets) {
+    if (!regional.includes(tileset)) {
+      tileset.imageBasedLighting.sphericalHarmonicCoefficients = EVEN_AMBIENT_LIGHT;
+    }
+  }
+  if (flyTo && regional.length === tilesets.length) flyToTilesets(viewer, tilesets);
 }
 
 /**

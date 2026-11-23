@@ -41,6 +41,16 @@ const EXAMPLE_MODELS_ONLINE: readonly ExampleModel[] = [
     name: 'Re:Earth Buildings (worldwide, OSM)',
     url: 'https://buildings.reearth.land/tileset.json',
   },
+  {
+    // Esri's worldwide scene layer of OpenStreetMap buildings (and
+    // Microsoft footprints where OSM has none), streamed without a key.
+    // Roofs are modelled where OSM tags a roof shape — few buildings in
+    // Singapore are — so most are blocks at their tagged height or levels.
+    // Under Esri's terms of use; its copyright text is credited on screen.
+    format: 'i3s',
+    name: 'OpenStreetMap 3D Buildings (worldwide, Esri)',
+    url: 'https://basemaps3d.arcgis.com/arcgis/rest/services/OpenStreetMap3D_Buildings_v1/SceneServer/layers/0',
+  },
 ];
 
 /**

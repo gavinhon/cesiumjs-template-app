@@ -468,6 +468,11 @@ non-obvious prop.
   conversion (Cesium only logs it). `loadI3sSceneLayer` awaits it. Its
   ArcGIS errors arrive as a `RuntimeError` whose `message` is an _object_;
   rendering that crashes React, so they're turned into text there.
+  Cesium also ignores a scene layer's `copyrightText` — the OSM licence
+  notice on Esri's OpenStreetMap buildings lives only there — so
+  `useModels` credits it (`sceneLayerCopyright`). A worldwide I3S layer
+  gets the same no-fly, even-ambient treatment as a worldwide tileset
+  (`frameOrLight`).
 - **3D models are lit by a fixed light, not the sun.** `installMapLight`
   (`src/cesium/hillshadeLight.ts`) runs once in `CesiumMap.tsx`. With
   Cesium's default real-time sun, a model somewhere it's currently night

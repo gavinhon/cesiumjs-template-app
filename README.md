@@ -54,8 +54,10 @@ CesiumJS, wired up **without** a Cesium ion account.
   property sets.
   The catalogue offers public Singapore datasets, badged by format:
   HDB blocks, building shells and a single development as I3S, and
-  worldwide OSM buildings
-  ([Re:Earth Buildings](https://buildings.reearth.land/)) as 3D Tiles.
+  worldwide OSM buildings two ways:
+  [Re:Earth Buildings](https://buildings.reearth.land/) as 3D Tiles (click
+  and filter them) and Esri's OpenStreetMap 3D Buildings as I3S (roof
+  shapes where OSM tags them).
 - **Drawing tools**, from the **Draw** menu on the right rail: place points
   (each shows its elevation), draw lines and polygons, drop text labels.
   Selecting a line shows its **ground profile** along the terrain. Live previews throughout: a marker showing where the next
