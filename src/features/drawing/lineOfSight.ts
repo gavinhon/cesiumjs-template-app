@@ -13,10 +13,15 @@ import * as Cesium from 'cesium';
  * height with the height of whatever is on the ground there. The first
  * place the ground rises above the line is where the view is blocked.
  *
- * "Ground" means both terrain and 3D Tiles (including I3S) — a building
- * blocks a view as surely as a hill does. Terrain comes from the terrain tiles at their
- * most detailed level; buildings from `scene.sampleHeightMostDetailed`,
- * which can only see tilesets the scene has loaded and only works in 3D.
+ * Terrain is checked that way, sampled from the terrain tiles at their
+ * most detailed level. **3D Tiles are checked by casting the sight line
+ * itself through them** (`pickFromRayMostDetailed`, see
+ * `firstHitAlongRay`), because a model is not a heightmap: a sight line
+ * through a window, under a canopy, or from one floor of a building to
+ * another passes beneath geometry that a top-down height sample would
+ * call solid. Where ray casting isn't available, buildings fall back to
+ * top-down height samples (`scene.sampleHeightMostDetailed`), which treat
+ * each building as solid up to its highest roof.
  */
 
 /** A standing adult's eye height — the convention for "can a person see it". */
@@ -122,6 +127,63 @@ export function visibleTilesets(scene: Cesium.Scene): Cesium.Cesium3DTileset[] {
   return tilesets;
 }
 
+/** A hit from Cesium's ray picking — just the part used here. */
+interface RayHit {
+  position?: Cesium.Cartesian3;
+}
+
+/**
+ * Cesium's ray picking, which isn't in its public typings.
+ *
+ * `Scene.pickFromRayMostDetailed` renders the scene along a ray — loading
+ * 3D Tiles at full detail first — and returns the first thing it meets.
+ * It's marked `@private` in Cesium's source, but it is the machinery the
+ * public `sampleHeightMostDetailed` is built on (a height sample is a ray
+ * cast straight down), and it has kept this signature across many
+ * releases. Reached through this narrow shape rather than `any`, and
+ * feature-detected: if a release removes it, line of sight falls back to
+ * height samples instead of breaking.
+ */
+interface RayPickingScene {
+  pickFromRayMostDetailed?: (
+    ray: Cesium.Ray,
+    objectsToExclude?: object[],
+    width?: number,
+  ) => Promise<RayHit | undefined>;
+}
+
+/**
+ * The first surface the straight line from `eye` to `target` passes
+ * through — a wall, a slab, terrain — or `null` if it meets nothing.
+ * `undefined` when ray casting isn't available (2D mode, or a Cesium
+ * release without it), for the caller to fall back.
+ */
+async function firstHitAlongRay(
+  scene: Cesium.Scene,
+  eye: Cesium.Cartesian3,
+  target: Cesium.Cartesian3,
+  exclude: object[],
+): Promise<Cesium.Cartesian3 | null | undefined> {
+  const picking = scene as unknown as RayPickingScene;
+  // Cesium throws for ray intersections outside 3D.
+  if (scene.mode !== Cesium.SceneMode.SCENE3D) return undefined;
+  if (typeof picking.pickFromRayMostDetailed !== 'function') return undefined;
+  const direction = Cesium.Cartesian3.normalize(
+    Cesium.Cartesian3.subtract(target, eye, new Cesium.Cartesian3()),
+    new Cesium.Cartesian3(),
+  );
+  try {
+    const hit = await picking.pickFromRayMostDetailed.call(
+      scene,
+      new Cesium.Ray(eye, direction),
+      exclude,
+    );
+    return hit?.position ? Cesium.Cartesian3.clone(hit.position) : null;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Works out whether `to` is visible from an observer standing at `from`.
  *
@@ -150,28 +212,46 @@ export async function computeLineOfSight(
     along.push(Cesium.Cartographic.fromCartesian(scratch));
   }
 
-  const ground = await sampleGroundHeights(viewer.terrainProvider, along, viewer.scene, exclude);
+  // Buildings by ray, when Cesium can cast one; otherwise by height
+  // samples below, along with the terrain.
+  const rayHit = await firstHitAlongRay(viewer.scene, eye, target, exclude);
+  const ground = await sampleGroundHeights(
+    viewer.terrainProvider,
+    along,
+    rayHit === undefined ? viewer.scene : undefined,
+    exclude,
+  );
 
   // The last couple of metres before the target are ignored: the target
-  // sits *on* that surface, so the samples beside it are as high as the
-  // line by construction and would read as a blocker.
+  // sits *on* that surface, so the samples beside it — and a ray arriving
+  // at it — meet that surface by construction and would read as a blocker.
   const ignoreNearTarget = Math.max(2, length * 0.005);
+
+  let obstruction: Cesium.Cartesian3 | null = null;
   for (let i = 0; i < along.length; i++) {
     const distanceToTarget = length * (1 - (i + 1) / count);
     if (distanceToTarget < ignoreNearTarget) break;
     if (ground[i] > along[i].height + TOLERANCE) {
       // On the sight line, where it enters the blocker — not at the
-      // blocker's height. A 3D Tiles height sample is the *top* of whatever
-      // stands there (`sampleHeightMostDetailed` looks straight down), so
-      // using it put the marker on the building's highest roof: the clear
-      // line bent up to it, and "Blocked at" measured to the roof.
-      const obstruction = Cesium.Cartesian3.fromRadians(
+      // blocker's height. A height sample is the *top* of whatever stands
+      // there (it looks straight down), so using it put the marker on a
+      // building's highest roof: the clear line bent up to it, and
+      // "Blocked at" measured to the roof.
+      obstruction = Cesium.Cartesian3.fromRadians(
         along[i].longitude,
         along[i].latitude,
         along[i].height,
       );
-      return { eye, target, obstruction };
+      break;
     }
   }
-  return { eye, target, obstruction: null };
+
+  // Whichever blocker the line meets first: terrain or something the ray hit.
+  if (rayHit && Cesium.Cartesian3.distance(eye, rayHit) < length - ignoreNearTarget) {
+    const terrainFirst =
+      obstruction !== null &&
+      Cesium.Cartesian3.distance(eye, obstruction) < Cesium.Cartesian3.distance(eye, rayHit);
+    if (!terrainFirst) obstruction = rayHit;
+  }
+  return { eye, target, obstruction };
 }

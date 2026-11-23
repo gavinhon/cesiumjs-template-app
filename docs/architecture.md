@@ -275,14 +275,23 @@ what the map label shows by default.
 **CesiumJS has no line-of-sight or viewshed API.** It has the pieces —
 terrain sampling (`sampleTerrainMostDetailed`), scene sampling
 (`scene.sampleHeightMostDetailed`) — and `lineOfSight.ts` and `viewshed.ts`
-build the analyses from them, using public APIs only so they survive Cesium
-upgrades. The trade-off worth knowing:
+build the analyses from them, using public APIs where they can so they
+survive Cesium upgrades.
 
-|                               | Line of sight              | Viewshed                         |
-| ----------------------------- | -------------------------- | -------------------------------- |
-| Blocked by terrain            | yes                        | yes                              |
-| Blocked by 3D Tiles buildings | yes (scene height samples) | yes, inside tileset footprints   |
-| Cost                          | a few hundred samples      | ~100,000 samples, about a second |
+The one exception is line of sight through 3D Tiles. A height sample looks
+straight down, so it sees a building as solid from the ground to its
+highest roof — a sight line through a window or under a canopy would read
+as blocked. Line of sight therefore casts the sight line itself through the
+scene with `scene.pickFromRayMostDetailed`: marked private in Cesium, but
+the machinery the public height sampling is built on. It's feature-detected,
+and without it line of sight falls back to height samples. The trade-off
+worth knowing:
+
+|                               | Line of sight                 | Viewshed                                    |
+| ----------------------------- | ----------------------------- | ------------------------------------------- |
+| Blocked by terrain            | yes                           | yes                                         |
+| Blocked by 3D Tiles buildings | yes (a ray cast through them) | yes, inside tileset footprints (from above) |
+| Cost                          | a few hundred samples         | ~100,000 samples, about a second            |
 
 Scene samples are the expensive kind — each is a small GPU render — so the
 viewshed asks the 3D Tiles only at samples inside a shown tileset's

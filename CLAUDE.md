@@ -414,6 +414,13 @@ non-obvious prop.
   `depthFailMaterial` (see `hiddenLineMaterial`) so the hidden stretch draws
   faintly instead of not at all. Draped (`clampToGround`) lines don't
   support it and don't need it.
+- **Height samples look straight down.** `sampleHeightMostDetailed` returns
+  the _top_ of whatever stands at a point, so it sees a building as solid
+  from the ground to its highest roof. Line of sight casts the sight line
+  through the scene instead (`firstHitAlongRay` in `lineOfSight.ts`, using
+  Cesium's private `pickFromRayMostDetailed`, feature-detected) so it can
+  pass through windows; the viewshed, which needs thousands of samples,
+  still uses height samples and keeps that limit.
 - **3D Tiles draw over terrain even when they're under it.**
   `depthTestAgainstTerrain` is off by default, so a tileset sitting below
   the terrain surface is fully visible — but `globe.pick` finds the terrain

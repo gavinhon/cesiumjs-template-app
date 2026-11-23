@@ -160,17 +160,18 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 
 ### Measurement and analysis
 
-| #   | Do                                                                  | Expect                                                                                          |
-| --- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| M1  | Measure along a flat street                                         | One number, e.g. "30.1 m"                                                                       |
-| M2  | Load a 3D Tiles city; measure from a roof to the street             | Two numbers: the 3D length and "… m horizontal"; the line shows faintly through walls           |
-| M3  | Height tool: click a roof, then the street                          | "… m down · … m horizontal" and a right triangle; label on the higher end                       |
-| M4  | Line of sight across Bukit Timah                                    | "Blocked at … of …"; cyan up to the hill, red beyond it                                         |
-| M5  | Line of sight across flat ground                                    | "Visible · …", all cyan                                                                         |
-| M6  | Viewshed on a hilltop, radius about 1 km                            | Cyan where visible, dark where hidden, inside a ring; "N% visible · … radius" in about a second |
-| M6b | Add the BIM model, then a viewshed beside it (radius about 200 m)   | The building casts a dark shadow behind it; the readout ends "· with 3D"                        |
-| M7  | Drag a line-of-sight or viewshed vertex                             | Shows "Analysing…", then the new result                                                         |
-| M8  | Start a measurement; switch to 2D; keep clicking; switch back to 3D | The measurement keeps working in both modes                                                     |
+| #   | Do                                                                                     | Expect                                                                                          |
+| --- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| M1  | Measure along a flat street                                                            | One number, e.g. "30.1 m"                                                                       |
+| M2  | Load a 3D Tiles city; measure from a roof to the street                                | Two numbers: the 3D length and "… m horizontal"; the line shows faintly through walls           |
+| M3  | Height tool: click a roof, then the street                                             | "… m down · … m horizontal" and a right triangle; label on the higher end                       |
+| M4  | Line of sight across Bukit Timah                                                       | "Blocked at … of …"; cyan up to the hill, red beyond it                                         |
+| M5  | Line of sight across flat ground                                                       | "Visible · …", all cyan                                                                         |
+| M5b | Add the BIM model; line of sight from inside a room out through a window to the ground | Cyan all the way if nothing is in the way; a wall or slab in the way blocks it at that wall     |
+| M6  | Viewshed on a hilltop, radius about 1 km                                               | Cyan where visible, dark where hidden, inside a ring; "N% visible · … radius" in about a second |
+| M6b | Add the BIM model, then a viewshed beside it (radius about 200 m)                      | The building casts a dark shadow behind it; the readout ends "· with 3D"                        |
+| M7  | Drag a line-of-sight or viewshed vertex                                                | Shows "Analysing…", then the new result                                                         |
+| M8  | Start a measurement; switch to 2D; keep clicking; switch back to 3D                    | The measurement keeps working in both modes                                                     |
 
 ### Layers and data
 

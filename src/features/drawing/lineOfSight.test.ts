@@ -92,3 +92,58 @@ describe('computeLineOfSight', () => {
     expect(obstruction).toBeNull();
   });
 });
+
+describe('computeLineOfSight through 3D Tiles', () => {
+  /** A viewer whose scene can cast rays, answering with `hit` (or nothing). */
+  function rayViewer(hit: Cesium.Cartesian3 | null) {
+    const sampleHeightMostDetailed = vi.fn(async () => []);
+    const pickFromRayMostDetailed = vi.fn(async () => (hit ? { position: hit } : undefined));
+    const rayScene = {
+      mode: Cesium.SceneMode.SCENE3D,
+      primitives: { length: 0, get: () => undefined },
+      sampleHeightSupported: true,
+      sampleHeightMostDetailed,
+      pickFromRayMostDetailed,
+    };
+    return {
+      viewer: {
+        terrainProvider: { availability: {} },
+        scene: rayScene,
+      } as unknown as Cesium.Viewer,
+      sampleHeightMostDetailed,
+      pickFromRayMostDetailed,
+    };
+  }
+
+  it('is blocked where the ray meets a wall, on the sight line', async () => {
+    const wall = Cesium.Cartesian3.fromDegrees(midway, 1.35, 0.85);
+    const { viewer: walled } = rayViewer(wall);
+    const { obstruction } = await computeLineOfSight(walled, from, to, []);
+    expect(obstruction).not.toBeNull();
+    expect(Cesium.Cartesian3.distance(obstruction as Cesium.Cartesian3, wall)).toBeLessThan(1e-6);
+  });
+
+  it('is clear when the ray only meets the surface the target stands on', async () => {
+    const { viewer: open } = rayViewer(Cesium.Cartesian3.clone(to));
+    const { obstruction } = await computeLineOfSight(open, from, to, []);
+    expect(obstruction).toBeNull();
+  });
+
+  it('casts the line instead of sampling building heights from above', async () => {
+    // The top-down samples are what called a line through a window blocked.
+    const { viewer: open, sampleHeightMostDetailed, pickFromRayMostDetailed } = rayViewer(null);
+    const { obstruction } = await computeLineOfSight(open, from, to, []);
+    expect(obstruction).toBeNull();
+    expect(pickFromRayMostDetailed).toHaveBeenCalledOnce();
+    expect(sampleHeightMostDetailed).not.toHaveBeenCalled();
+  });
+
+  it('still stops at a hill nearer than anything the ray hits', async () => {
+    groundAt = (lon) => (Math.abs(lon - midway) < 0.0005 ? 30 : 0);
+    const beyondHill = Cesium.Cartesian3.fromDegrees(midway + 0.002, 1.35, 0.5);
+    const { viewer: hilly } = rayViewer(beyondHill);
+    const { obstruction } = await computeLineOfSight(hilly, from, to, []);
+    const blocked = Cesium.Cartographic.fromCartesian(obstruction as Cesium.Cartesian3);
+    expect(Cesium.Math.toDegrees(blocked.longitude)).toBeLessThan(midway);
+  });
+});
