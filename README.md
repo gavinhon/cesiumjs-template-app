@@ -311,10 +311,13 @@ above.
 - **[docs/coding-conventions.md](docs/coding-conventions.md)** — the file
   naming standard, plus imports, TypeScript, React, CSS, and commenting
   rules.
+- **[docs/terrain-and-heights.md](docs/terrain-and-heights.md)** — how
+  every kind of data meets the terrain: imagery, vector layers, each kind
+  of 3D model, drawings and measurements.
 - **[CLAUDE.md](CLAUDE.md)** — the same rules condensed for coding agents,
   with the invariants that cause real bugs when broken.
 
-[docs/README.md](docs/README.md) indexes all four and says which to read
+[docs/README.md](docs/README.md) indexes them all and says which to read
 when.
 
 Source files are commented to explain _why_, not just _what_ —

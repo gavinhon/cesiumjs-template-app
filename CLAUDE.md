@@ -443,6 +443,9 @@ non-obvious prop.
   `disableDepthTestDistance`; lines through the ground get a
   `depthFailMaterial`. With it on, a model below the surface is hidden —
   which is why city layers built on flat ground are draped (next bullets).
+  [docs/terrain-and-heights.md](docs/terrain-and-heights.md) is the matrix
+  of how every kind of data meets the terrain — update its row when you
+  change how one does, and add a row for a new kind of data.
 - **`scene.pickPosition` caches per frame by `position.toString()`.** Pass
   a real `Cartesian2`. A plain `{ x, y }` stringifies to `[object Object]`,
   so every call in a frame returns the first answer — easy to hit when
