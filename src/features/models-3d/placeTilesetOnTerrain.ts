@@ -158,14 +158,16 @@ export function footprintOf(tilesetJson: unknown): TilesetFootprint | null {
 
 /**
  * A placement the tileset asks for itself, via a top-level
- * `"extras": { "placement": "as-authored" }` (or `"on-terrain"`) in its
- * tileset.json. `extras` is the spec's sanctioned place for
+ * `"extras": { "placement": "as-authored" }` (or `"on-terrain"`, or
+ * `"draped"` for a city model built on flat ground) in its tileset.json. `extras` is the spec's sanctioned place for
  * application-specific data, so the hint travels with the dataset: mark an
  * underground utility model once, and it never needs unticking again.
  */
 export function placementHint(tilesetJson: unknown): ModelPlacement | null {
   const placement = (tilesetJson as { extras?: { placement?: unknown } } | null)?.extras?.placement;
-  return placement === 'on-terrain' || placement === 'as-authored' ? placement : null;
+  return placement === 'on-terrain' || placement === 'draped' || placement === 'as-authored'
+    ? placement
+    : null;
 }
 
 /**
@@ -205,7 +207,11 @@ export function initialPlacement(
 ): { placement: ModelPlacement; reason: string | null } {
   if (hint) return { placement: hint, reason: 'Set in tileset.json' };
   // Entirely below the surface: built to be underground, so it stays put.
-  if (footprint.top < ground) return { placement: 'as-authored', reason: 'Underground' };
+  // The terrain hides it (`depthTestAgainstTerrain`), so the reason says
+  // so — otherwise a model that loaded fine looks like one that didn't.
+  if (footprint.top < ground) {
+    return { placement: 'as-authored', reason: 'Underground, hidden by terrain' };
+  }
   return { placement: 'on-terrain', reason: null };
 }
 

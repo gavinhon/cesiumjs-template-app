@@ -20,14 +20,14 @@ const depthScratch = new Cesium.Cartesian3();
  * answer — what the user is actually looking at — wins. The margin scales
  * with distance because depth precision does.
  *
- * "Disagree" deliberately includes the depth hit being *behind* the
- * terrain. Cesium draws 3D Tiles over terrain by default
- * (`depthTestAgainstTerrain` is off), so a tileset georeferenced lower
- * than the terrain — a city model built for flat ground, now under a real
- * DTM — is still fully visible, yet sits beneath the surface `globe.pick`
- * finds. Trusting only hits *in front of* the ground would make its roofs
- * unclickable: every click on a visible building would land on the
- * hillside above it.
+ * The globe is depth-tested (`depthTestAgainstTerrain`, set in
+ * `CesiumMap`), so anything under or behind the terrain is hidden and
+ * never wins: the depth buffer holds the terrain there, and the two
+ * answers agree. Before that was switched on, a tileset sunk below the
+ * DTM was drawn through the ground and its roofs were clickable through
+ * it; "disagree" is still measured both ways so a depth hit a little
+ * behind `globe.pick` — the terrain mesh and its rendered depth don't
+ * match exactly at a distance — isn't mistaken for bare ground.
  *
  * Markers drawn with `disableDepthTestDistance` (the cursor ghost, vertex
  * handles) never reach the depth buffer, so they don't register as

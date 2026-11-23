@@ -25,12 +25,23 @@ export interface ModelConfig {
    * (`…/SceneServer`), which loads every layer in it.
    */
   url: string;
+  /**
+   * How it should stand, when the data doesn't say and the app can't tell:
+   * a catalogue entry sets `'draped'` for a city layer built on flat ground
+   * (HDB LoD2). Unset, the placement is chosen as `useModels` describes.
+   */
+  placement?: ModelPlacement;
 }
 
 /**
- * Where a tileset sits vertically: moved so it stands on the terrain, or
- * left at the heights it was authored with — for underground models, and
- * for anything already georeferenced to the ground you want. See
- * `placeTilesetOnTerrain.ts`.
+ * Where a model sits vertically:
+ *
+ *  - `on-terrain` — moved up or down as one piece so it stands on the
+ *    terrain: a building, a site (`placeTilesetOnTerrain.ts`).
+ *  - `draped` — each vertex lifted by the ground beneath it, for a city
+ *    layer too large to move as one piece and built on flat ground
+ *    (`terrainDrape.ts`). The layer list shows both as "On terrain".
+ *  - `as-authored` — left at the heights it came with: underground
+ *    models, and anything already georeferenced to the ground you want.
  */
-export type ModelPlacement = 'on-terrain' | 'as-authored';
+export type ModelPlacement = 'on-terrain' | 'draped' | 'as-authored';

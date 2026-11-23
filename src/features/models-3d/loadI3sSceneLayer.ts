@@ -28,6 +28,21 @@ export interface LoadedSceneLayer {
   provider: Cesium.I3SDataProvider;
   /** One per layer Cesium could read (a building scene layer has several). */
   tilesets: Cesium.Cesium3DTileset[];
+  /**
+   * The scene says its heights are measured from the ground, not sea level
+   * (`elevationInfo.mode` is `relativeToGround`, as on Esri's OpenStreetMap
+   * buildings). ArcGIS adds the ground height when it draws; Cesium ignores
+   * the setting and stands every building on sea level, so such a scene is
+   * draped on the terrain by default (see `terrainDrape.ts`).
+   */
+  groundRelative: boolean;
+  /**
+   * Cesium shifted the scene from sea level to ellipsoid heights. It does
+   * that to every layer once it has a geoid provider, whatever the layer's
+   * `heightModelInfo` says — ground-relative ones included — so a draped
+   * scene's "zero" is the geoid, which the drape then subtracts.
+   */
+  geoidConverted: boolean;
 }
 
 /**
@@ -75,7 +90,35 @@ export async function loadI3sSceneLayer(url: string, name: string): Promise<Load
         'building layers, not points or point clouds.',
     );
   }
-  return { provider, tilesets };
+  const groundRelative = provider.layers.some(
+    (layer) =>
+      (layer.data as { elevationInfo?: { mode?: unknown } } | undefined)?.elevationInfo?.mode ===
+      'relativeToGround',
+  );
+  return {
+    provider,
+    tilesets,
+    groundRelative,
+    geoidConverted: provider.geoidTiledTerrainProvider !== undefined,
+  };
+}
+
+/**
+ * How far mean sea level sits above the ellipsoid at a point, in metres, from
+ * the same geoid service scenes are converted with — 0 when it's offline or
+ * unreachable, as the scenes then aren't converted either.
+ */
+export async function geoidHeightAt(position: Cesium.Cartographic): Promise<number> {
+  const provider = await geoid;
+  if (!provider) return 0;
+  try {
+    const [sampled] = await Cesium.sampleTerrainMostDetailed(provider, [
+      Cesium.Cartographic.clone(position),
+    ]);
+    return Number.isFinite(sampled.height) ? sampled.height : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**

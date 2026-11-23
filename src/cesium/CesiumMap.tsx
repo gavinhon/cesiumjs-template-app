@@ -103,6 +103,17 @@ export function CesiumMap({ onViewerReady }: CesiumMapProps) {
       ),
     });
 
+    // Let the terrain hide what's behind or under it. Cesium's default
+    // (off) draws 3D Tiles and I3S over the terrain wherever they are, so
+    // the part of a building below the surface — a basement, or a city
+    // model whose heights don't match this DTM — shows through the ground,
+    // and slides across it as the camera tilts, as if the ground moved
+    // with the model. Hills also stop hiding the buildings behind them.
+    // Markers that must stay visible set `disableDepthTestDistance`, and
+    // lines that run through the ground draw faintly via
+    // `depthFailMaterial` (see `hiddenLineMaterial`).
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+
     // A fixed light instead of the real-time sun, so 3D models aren't
     // black whenever it's night where they are. See installMapLight.
     installMapLight(viewer.scene);

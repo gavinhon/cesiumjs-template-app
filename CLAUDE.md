@@ -435,11 +435,14 @@ non-obvious prop.
   real fix — a GPU shadow-map viewshed — rests on Cesium internals
   (`ShadowMap`, `scene.context`) that break across releases. Add one only
   if Cesium gains a supported way to do it.
-- **3D Tiles draw over terrain even when they're under it.**
-  `depthTestAgainstTerrain` is off by default, so a tileset sitting below
-  the terrain surface is fully visible — but `globe.pick` finds the terrain
-  above it, not the roof you clicked. `pickSurface` handles this; anything
-  else that picks must too.
+- **Terrain hides what's under it only because we said so.**
+  `depthTestAgainstTerrain` is off by default, which draws 3D Tiles and I3S
+  over the terrain wherever they are: a building's buried storeys show
+  through the hillside and slide across it as the camera tilts.
+  `CesiumMap.tsx` turns it on. Markers that must stay visible set
+  `disableDepthTestDistance`; lines through the ground get a
+  `depthFailMaterial`. With it on, a model below the surface is hidden —
+  which is why city layers built on flat ground are draped (next bullets).
 - **`scene.pickPosition` caches per frame by `position.toString()`.** Pass
   a real `Cartesian2`. A plain `{ x, y }` stringifies to `[object Object]`,
   so every call in a frame returns the first answer — easy to hit when
@@ -459,9 +462,25 @@ non-obvious prop.
   region is ±60 m around a flat sheet) is placed that far off. Models
   entirely below the surface are left as authored (underground); the list
   has a per-model switch, and `"extras": { "placement": "as-authored" }` in
-  tileset.json sets it from the data. **I3S scene layers are never moved**:
-  their declared bounds (`fullExtent`, the root node's box) are padded by
-  hundreds of metres, so they stay at their georeferenced heights.
+  tileset.json sets it from the data. **I3S scene layers are never moved**
+  as one piece: their declared bounds (`fullExtent`, the root node's box)
+  are padded by hundreds of metres, so that would misplace them.
+- **City layers built on flat ground are draped, per vertex.** Cesium can
+  clamp only points and lines in a tileset to terrain, never a mesh, and
+  one vertical shift can't fit a whole island. HDB LoD2 stands every block
+  on sea level (its metadata says absolute heights); Esri's OSM buildings
+  declare `elevationInfo.mode: relativeToGround`, which ArcGIS honours and
+  Cesium ignores. `terrainDrape.ts` adds the ground height under each
+  vertex in a `CustomShader`, read from a `TerrainHeightmap`
+  (`src/cesium/terrainHeightmap.ts`: built once per terrain by
+  rasterising its quantized-mesh tiles through Cesium's private decoded
+  arrays, feature-detected), minus the geoid — Cesium converts _every_
+  I3S layer from sea level once it has a geoid provider. It's the third
+  `ModelPlacement`, `draped`, under the same "On terrain" switch: on by
+  default for a ground-relative scene or a catalogue entry with
+  `placement: 'draped'`, and what that switch does for any model too
+  large to move as one piece. Shared links don't carry it; each layer's
+  default does. Tiles are still culled by their undraped bounds.
 - **I3S needs the geoid provider awaited.** `I3SDataProvider.fromUrl`'s docs
   accept a promise for `geoidTiledTerrainProvider`, but the code uses the
   value as-is, so a promise silently disables the sea-level → ellipsoid

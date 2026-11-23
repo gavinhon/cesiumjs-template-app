@@ -9,7 +9,9 @@ import {
   verticalShift,
   type TilesetFootprint,
 } from './placeTilesetOnTerrain';
-import { loadI3sSceneLayer } from './loadI3sSceneLayer';
+import { terrainHeightmap } from '@/cesium/terrainHeightmap';
+import { geoidHeightAt, loadI3sSceneLayer } from './loadI3sSceneLayer';
+import { applyDrape, createDrapeShader, drapeArea } from './terrainDrape';
 import type { ModelConfig, ModelPlacement } from './modelTypes';
 import { sectionRange } from './modelFilter';
 import { fetchPropertyNames } from './tilesetPropertyNames';
@@ -50,6 +52,8 @@ export interface ManagedModel {
    * (`sectionRange`); `null` when that frame isn't known, or for I3S.
    */
   sectionRange: { min: number; max: number } | null;
+  /** Cesium converted it from sea level — I3S with the geoid service; see `drapeModel`. */
+  geoidConverted: boolean;
 }
 
 /**
@@ -63,11 +67,14 @@ export interface ManagedModel {
  * the terrain changes, so choosing a different terrain (or none) in the
  * layer manager carries the models with it.
  *
- * I3S scenes are left where they're authored. They're georeferenced to
- * real heights (see `loadI3sSceneLayer`), and their declared bounds are
+ * I3S scenes are never moved as one piece. They're georeferenced to real
+ * heights (see `loadI3sSceneLayer`), and their declared bounds are
  * padded far beyond the geometry — hundreds of metres in Esri's own
  * samples — so "lift its lowest point onto the ground" would misplace
- * them by that much.
+ * them by that much. A scene built on flat ground instead — one that says
+ * it's ground-relative, or a catalogue entry marked `draped` — has each
+ * building stood on the terrain by a shader (`terrainDrape.ts`), and so
+ * does a 3D Tiles layer too large to move, when asked.
  *
  * Unlike our WMS/WMTS/XYZ imagery layers, a loaded tileset always knows
  * its own real bounding volume, so we can unconditionally fly to it on
@@ -90,6 +97,22 @@ export function useModels(viewer: Cesium.Viewer | null) {
    * now. Applying it is a separate, synchronous step, so callers can drop a
    * result that a later terrain change has made stale.
    */
+  // One counter per model: a drape that finishes loading after a later
+  // request (undrape, a terrain change) for the same model is dropped.
+  const drapeTokensRef = useRef(new Map<string, number>());
+  const drape = useCallback(
+    async (id: string, entry: DrapeTarget, on: boolean) => {
+      const token = (drapeTokensRef.current.get(id) ?? 0) + 1;
+      drapeTokensRef.current.set(id, token);
+      if (!viewer || !on) {
+        applyDrape(entry.tilesets, undefined);
+        return;
+      }
+      await drapeModel(viewer, entry, () => drapeTokensRef.current.get(id) === token);
+    },
+    [viewer],
+  );
+
   const offsetFor = useCallback(
     async (footprint: TilesetFootprint | null, placement: ModelPlacement) => {
       if (!viewer || !footprint || placement === 'as-authored') return 0;
@@ -104,28 +127,33 @@ export function useModels(viewer: Cesium.Viewer | null) {
       if (!viewer) return;
 
       if (config.format === 'i3s') {
-        const { provider, tilesets: parts } = await loadI3sSceneLayer(config.url, config.name);
+        const scene = await loadI3sSceneLayer(config.url, config.name);
+        const { provider, tilesets: parts, geoidConverted } = scene;
+        // Never moved as one piece (see above): "on terrain" means draped.
+        const draped = config.placement ? config.placement !== 'as-authored' : scene.groundRelative;
         viewer.scene.primitives.add(provider);
         const copyright = sceneLayerCopyright(provider);
         const credit = copyright ? new Cesium.Credit(copyright, true) : null;
         if (credit) viewer.creditDisplay.addStaticCredit(credit);
-        setModels((prev) => [
-          ...prev,
-          {
-            config,
-            visible: true,
-            primitive: provider,
-            tilesets: parts,
-            footprint: null,
-            placement: 'as-authored',
-            offset: 0,
-            reason: 'Georeferenced (I3S)',
-            credit,
-            propertyNames: {},
-            sectionRange: null,
-          },
-        ]);
+        let reason: string | null = 'Georeferenced (I3S)';
+        if (draped) reason = config.placement ? null : 'Ground-relative layer';
+        const entry: ManagedModel = {
+          config,
+          visible: true,
+          primitive: provider,
+          tilesets: parts,
+          footprint: null,
+          placement: draped ? 'draped' : 'as-authored',
+          offset: 0,
+          reason,
+          credit,
+          propertyNames: {},
+          sectionRange: null,
+          geoidConverted,
+        };
+        setModels((prev) => [...prev, entry]);
         frameOrLight(viewer, parts, flyTo);
+        if (draped) await drape(config.id, entry, true);
         return;
       }
 
@@ -165,11 +193,18 @@ export function useModels(viewer: Cesium.Viewer | null) {
           ? 'Too large to move'
           : 'No bounds in tileset.json';
       let offset = 0;
+      const hint = config.placement ?? placementHint(json);
       if (footprint) {
         const ground = await groundUnder(viewer, footprint);
-        ({ placement, reason } = initialPlacement(footprint, ground, placementHint(json)));
+        ({ placement, reason } = initialPlacement(footprint, ground, hint));
+        if (config.placement) reason = null;
         if (placement === 'on-terrain') offset = ground - footprint.base;
         tileset.modelMatrix = verticalShift(footprint.center, offset);
+      } else if (hint === 'draped' || hint === 'on-terrain') {
+        // Too large to move as one piece, so standing it on the ground
+        // means draping it.
+        placement = 'draped';
+        reason = null;
       }
 
       // Placed before it's added, so it never appears at the wrong height
@@ -179,42 +214,50 @@ export function useModels(viewer: Cesium.Viewer | null) {
       const copyright = copyrightOf(json);
       const credit = copyright ? new Cesium.Credit(copyright, true) : null;
       if (credit) viewer.creditDisplay.addStaticCredit(credit);
-      setModels((prev) => [
-        ...prev,
-        {
-          config,
-          visible: true,
-          primitive: tileset,
-          tilesets: [tileset],
-          footprint,
-          placement,
-          offset,
-          reason,
-          credit,
-          propertyNames,
-          sectionRange: sectionRange(json),
-        },
-      ]);
+      const entry: ManagedModel = {
+        config,
+        visible: true,
+        primitive: tileset,
+        tilesets: [tileset],
+        footprint,
+        placement,
+        offset,
+        reason,
+        credit,
+        propertyNames,
+        sectionRange: sectionRange(json),
+        geoidConverted: false,
+      };
+      setModels((prev) => [...prev, entry]);
       frameOrLight(viewer, [tileset], flyTo);
+      if (placement === 'draped') await drape(config.id, entry, true);
     },
-    [viewer],
+    [viewer, drape],
   );
 
-  /** Switches a tileset between standing on the terrain and its authored height. */
+  /** Switches a model between standing on the terrain and its authored height. */
   const setPlacement = useCallback(
     async (id: string, placement: ModelPlacement) => {
       const target = modelsRef.current.find((entry) => entry.config.id === id);
-      if (!target?.footprint) return;
-      const offset = await offsetFor(target.footprint, placement);
+      if (!target) return;
+      // A choice the user made replaces whatever was chosen for them.
+      const record = (offset: number) =>
+        setModels((prev) =>
+          prev.map((entry) =>
+            entry.config.id === id ? { ...entry, placement, offset, reason: null } : entry,
+          ),
+        );
+      const draped = placement === 'draped';
+      if (draped || target.placement === 'draped') void drape(id, target, draped);
+      if (!target.footprint) {
+        record(0);
+        return;
+      }
+      const offset = await offsetFor(target.footprint, draped ? 'as-authored' : placement);
       moveTilesets(target, verticalShift(target.footprint.center, offset));
-      setModels((prev) =>
-        prev.map((entry) =>
-          // A choice the user made replaces whatever was chosen for them.
-          entry.config.id === id ? { ...entry, placement, offset, reason: null } : entry,
-        ),
-      );
+      record(offset);
     },
-    [offsetFor],
+    [offsetFor, drape],
   );
 
   // The ground moved: re-seat every model standing on it. Cesium fires
@@ -240,6 +283,10 @@ export function useModels(viewer: Cesium.Viewer | null) {
           moveTilesets(entry, verticalShift(entry.footprint.center, offset));
         }
       }
+      // Draped models read the new terrain's heights instead.
+      for (const entry of modelsRef.current) {
+        if (entry.placement === 'draped') void drape(entry.config.id, entry, true);
+      }
       const offsets = new Map(updates.map(({ entry, offset }) => [entry.config.id, offset]));
       setModels((prev) =>
         prev.map((entry) => {
@@ -249,7 +296,7 @@ export function useModels(viewer: Cesium.Viewer | null) {
       );
     };
     return viewer.scene.terrainProviderChanged.addEventListener(() => void reseat());
-  }, [viewer, offsetFor]);
+  }, [viewer, offsetFor, drape]);
 
   const removeModel = useCallback(
     (id: string) => {
@@ -331,6 +378,47 @@ function sceneLayerCopyright(provider: Cesium.I3SDataProvider): string | null {
     if (typeof text === 'string' && text.trim()) texts.add(text.trim());
   }
   return texts.size > 0 ? [...texts].join(' · ') : null;
+}
+
+/** What draping needs of a model. */
+type DrapeTarget = Pick<ManagedModel, 'primitive' | 'tilesets' | 'geoidConverted'>;
+
+/**
+ * Stands each building of a model on the terrain loaded now
+ * (`terrainDrape.ts`) — or leaves it be where there's no terrain to read:
+ * on the ellipsoid, the ground *is* height 0.
+ *
+ * The heightmap takes a few seconds the first time (it reads the terrain's
+ * tiles); `stillWanted` drops the result if the model was undraped or the
+ * terrain changed meanwhile, and a terrain change re-drapes it anyway.
+ */
+async function drapeModel(
+  viewer: Cesium.Viewer,
+  entry: DrapeTarget,
+  stillWanted: () => boolean,
+): Promise<void> {
+  const provider = viewer.terrainProvider;
+  const current = () =>
+    stillWanted() && !viewer.isDestroyed() && viewer.terrainProvider === provider;
+  const heightmap = await terrainHeightmap(provider, drapeArea(entry.primitive));
+  if (!current()) return;
+  if (!heightmap) {
+    applyDrape(entry.tilesets, undefined);
+    return;
+  }
+  // The scene's "ground" after Cesium's conversion is the geoid, ~8 m above
+  // the ellipsoid here and within a metre of that across the island — one
+  // sample at the middle of the terrain serves the whole layer.
+  const datum = entry.geoidConverted
+    ? await geoidHeightAt(
+        new Cesium.Cartographic(
+          heightmap.west + (heightmap.width * heightmap.texelWidth) / 2,
+          heightmap.south + (heightmap.height * heightmap.texelHeight) / 2,
+        ),
+      )
+    : 0;
+  if (!current()) return;
+  applyDrape(entry.tilesets, createDrapeShader(heightmap, datum));
 }
 
 /** Applies one vertical shift to every tileset a model is made of. */

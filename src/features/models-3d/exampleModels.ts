@@ -16,10 +16,14 @@ export type ExampleModel = Omit<ModelConfig, 'id'>;
 
 const EXAMPLE_MODELS_ONLINE: readonly ExampleModel[] = [
   {
-    // HDB blocks island-wide, modelled with roof shapes (LoD2).
+    // HDB blocks island-wide, modelled with roof shapes (LoD2) — on flat
+    // ground: each block's base is at sea level, though its metadata says
+    // its heights are absolute. On a hillside the terrain would bury it, so
+    // it's draped, each block stood on the ground beneath it.
     format: 'i3s',
     name: 'HDB buildings (LoD2)',
     url: 'https://tiles.arcgis.com/tiles/GrCObcYo81O3Ymu8/arcgis/rest/services/hdblod2/SceneServer/layers/0',
+    placement: 'draped',
   },
   {
     format: 'i3s',
@@ -46,6 +50,8 @@ const EXAMPLE_MODELS_ONLINE: readonly ExampleModel[] = [
     // Microsoft footprints where OSM has none), streamed without a key.
     // Roofs are modelled where OSM tags a roof shape — few buildings in
     // Singapore are — so most are blocks at their tagged height or levels.
+    // Its heights are relative to the ground (its `elevationInfo`), so it's
+    // draped on the terrain by default; see loadI3sSceneLayer.
     // Under Esri's terms of use; its copyright text is credited on screen.
     format: 'i3s',
     name: 'OpenStreetMap 3D Buildings (worldwide, Esri)',

@@ -118,7 +118,7 @@ describe('initialPlacement', () => {
   it('leaves a model lying entirely below the surface underground', () => {
     expect(initialPlacement(footprint(-30, -8), 11.4, null)).toEqual({
       placement: 'as-authored',
-      reason: 'Underground',
+      reason: 'Underground, hidden by terrain',
     });
   });
 

@@ -195,7 +195,6 @@ function App() {
         detail: (
           <>
             <ModelPlacementControl
-              format={entry.config.format}
               placement={entry.placement}
               offset={entry.offset}
               reason={entry.reason}

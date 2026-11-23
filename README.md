@@ -48,6 +48,12 @@ CesiumJS, wired up **without** a Cesium ion account.
   ellipsoid heights with Esri's public EGM2008 geoid service and left at
   their georeferenced position. A tileset wider than a city (a worldwide
   buildings layer) is left where it's authored, and the camera stays put.
+  City layers built on flat ground — HDB LoD2, and Esri's OSM buildings,
+  which say they're ground-relative — are **draped**: a shader stands
+  each building on the terrain beneath it, since no single shift fits a
+  hilly island. The same "On terrain" switch drapes any I3S layer, or a
+  tileset too large to move as one piece. The terrain hides whatever is
+  below its surface, so nothing shows through the ground.
   Click any part of a 3D Tiles model — a wall, slab or beam of a BIM
   model, a building in a city model — to highlight it and see its
   attributes: for an IFC conversion, its name, IFC class, GlobalId and
