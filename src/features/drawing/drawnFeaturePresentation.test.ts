@@ -5,7 +5,7 @@ import type { DrawnFeature, DrawnFeatureKind } from './drawingTypes';
 import {
   applyGeometry,
   colorFor,
-  horizontalLabelFor,
+  secondaryLabelsFor,
   isReadoutKind,
   labelAnchorFor,
   labelTextFor,
@@ -88,7 +88,28 @@ describe('labelTextFor', () => {
       measurement: '50.0 m · 30.0 m horizontal',
     });
     expect(labelTextFor(climb)).toBe('50.0 m');
-    expect(horizontalLabelFor(climb)?.text).toBe('30.0 m horizontal');
+    expect(secondaryLabelsFor(climb, false).map((label) => label.text)).toEqual([
+      '30.0 m horizontal',
+    ]);
+  });
+
+  it('breaks a height into its vertical and horizontal parts only when selected and diagonal', () => {
+    const diagonal = feature({
+      kind: 'height',
+      labelSource: 'measurement',
+      positions: [p(103.8, 1.35, 40), p(103.80027, 1.35, 10)], // ~30 m across, 30 m down
+    });
+    expect(secondaryLabelsFor(diagonal, false)).toEqual([]);
+    expect(secondaryLabelsFor(diagonal, true).map((label) => label.text)).toEqual([
+      '30.0 m down',
+      '30.0 m horizontal',
+    ]);
+    const nearlyLevel = feature({
+      kind: 'height',
+      labelSource: 'measurement',
+      positions: [p(103.8, 1.35, 10), p(103.80027, 1.35, 10.2)],
+    });
+    expect(secondaryLabelsFor(nearlyLevel, true)).toEqual([]);
   });
 
   it('shows an attribute as "key: value", or the bare value without a key', () => {

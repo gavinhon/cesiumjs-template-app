@@ -9,3 +9,5 @@
 # would have its bytes "fixed" on checkout — a corrupt tile doesn't error in
 # the browser, it silently stops the terrain refining. Say so explicitly.
 *.terrain binary
+# Likewise the 3D Tiles content of the committed BIM model.
+*.glb binary

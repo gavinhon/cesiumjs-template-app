@@ -1,0 +1,266 @@
+{
+  "id": "customFromIfcDocument",
+  "classes": {
+    "merged": {
+      "properties": {
+        "sGPsetWindowStatus": {
+          "name": "SGPset_Window_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetWindowDimensionStructuralHeight": {
+          "name": "SGPset_WindowDimension_StructuralHeight",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "sGPsetWallReferTo2DDetail": {
+          "name": "SGPset_Wall_ReferTo2DDetail",
+          "type": "STRING",
+          "noData": ""
+        },
+        "bBIMBooleanData": {
+          "name": "BBIM_Boolean_Data",
+          "type": "STRING",
+          "noData": ""
+        },
+        "psetDoorCommonIsExternal": {
+          "name": "Pset_DoorCommon_IsExternal",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetDoorDimensionStructuralHeight": {
+          "name": "SGPset_DoorDimension_StructuralHeight",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "sGPsetWindowDimensionStructuralWidth": {
+          "name": "SGPset_WindowDimension_StructuralWidth",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "sGPsetWallDimensionThickness": {
+          "name": "SGPset_WallDimension_Thickness",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "overallHeight": {
+          "name": "OverallHeight",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "psetWallCommonIsExternal": {
+          "name": "Pset_WallCommon_IsExternal",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetColumnStatus": {
+          "name": "SGPset_Column_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "predefinedType": {
+          "name": "PredefinedType",
+          "type": "STRING",
+          "noData": ""
+        },
+        "globalId": {
+          "name": "GlobalId",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetMaterialMaterial": {
+          "name": "SGPset_Material_Material",
+          "type": "STRING",
+          "noData": ""
+        },
+        "psetStairCommonNumberOfTreads": {
+          "name": "Pset_StairCommon_NumberOfTreads",
+          "type": "SCALAR",
+          "componentType": "UINT32",
+          "noData": 0
+        },
+        "sGPsetStairStatus": {
+          "name": "SGPset_Stair_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetDoorVisionPanel": {
+          "name": "SGPset_Door_VisionPanel",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetDoorMainEntrance": {
+          "name": "SGPset_Door_MainEntrance",
+          "type": "STRING",
+          "noData": ""
+        },
+        "name_1": {
+          "name": "Name",
+          "type": "STRING",
+          "noData": ""
+        },
+        "objectPlacement": {
+          "name": "ObjectPlacement",
+          "type": "SCALAR",
+          "componentType": "UINT32",
+          "noData": 0
+        },
+        "bIMAgentColourName": {
+          "name": "BIM_Agent_Colour_Name",
+          "type": "STRING",
+          "noData": ""
+        },
+        "representation": {
+          "name": "Representation",
+          "type": "SCALAR",
+          "componentType": "UINT32",
+          "noData": 0
+        },
+        "bIMAgentColourTransparency": {
+          "name": "BIM_Agent_Colour_Transparency",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "name": {
+          "type": "STRING",
+          "noData": ""
+        },
+        "expressId": {
+          "name": "Express ID",
+          "type": "SCALAR",
+          "componentType": "UINT32",
+          "noData": 0
+        },
+        "objectType": {
+          "name": "Object Type",
+          "type": "STRING",
+          "noData": ""
+        },
+        "psetStairCommonNumberOfRiser": {
+          "name": "Pset_StairCommon_NumberOfRiser",
+          "type": "SCALAR",
+          "componentType": "UINT32",
+          "noData": 0
+        },
+        "classId": {
+          "name": "Class ID",
+          "type": "SCALAR",
+          "componentType": "UINT32",
+          "noData": 0
+        },
+        "sGPsetRailingDimensionHeight": {
+          "name": "SGPset_RailingDimension_Height",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "ePsetParametricEngine": {
+          "name": "EPset_Parametric_Engine",
+          "type": "STRING",
+          "noData": ""
+        },
+        "bIMAgentColourColour": {
+          "name": "BIM_Agent_Colour_Colour",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetBeamStatus": {
+          "name": "SGPset_Beam_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetCoveringStatus": {
+          "name": "SGPset_Covering_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetDoorStatus": {
+          "name": "SGPset_Door_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetSlabStatus": {
+          "name": "SGPset_Slab_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetRoofStatus": {
+          "name": "SGPset_Roof_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetRailingSafetyBarrier": {
+          "name": "SGPset_Railing_SafetyBarrier",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetWallStatus": {
+          "name": "SGPset_Wall_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "objectType_1": {
+          "name": "ObjectType",
+          "type": "STRING",
+          "noData": ""
+        },
+        "overallWidth": {
+          "name": "OverallWidth",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "sGPsetRailingStatus": {
+          "name": "SGPset_Railing_Status",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetDoorDimensionStructuralWidth": {
+          "name": "SGPset_DoorDimension_StructuralWidth",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "bIMAgentColourSource": {
+          "name": "BIM_Agent_Colour_Source",
+          "type": "STRING",
+          "noData": ""
+        },
+        "psetStairCommonRiserHeight": {
+          "name": "Pset_StairCommon_RiserHeight",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "className": {
+          "name": "Class Name",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetRoofConstructionMethod": {
+          "name": "SGPset_Roof_ConstructionMethod",
+          "type": "STRING",
+          "noData": ""
+        },
+        "sGPsetSlabDimensionThickness": {
+          "name": "SGPset_SlabDimension_Thickness",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        },
+        "psetStairCommonTreadLength": {
+          "name": "Pset_StairCommon_TreadLength",
+          "type": "SCALAR",
+          "componentType": "FLOAT64",
+          "noData": -9999.0
+        }
+      }
+    }
+  }
+}

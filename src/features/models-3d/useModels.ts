@@ -11,6 +11,7 @@ import {
 } from './placeTilesetOnTerrain';
 import { loadI3sSceneLayer } from './loadI3sSceneLayer';
 import type { ModelConfig, ModelPlacement } from './modelTypes';
+import { sectionRange } from './modelFilter';
 import { fetchPropertyNames } from './tilesetPropertyNames';
 
 export interface ManagedModel {
@@ -44,6 +45,11 @@ export interface ManagedModel {
    * Empty for I3S, and for tilesets without a schema.
    */
   propertyNames: Record<string, string>;
+  /**
+   * Heights a section cut can move through, in the tileset's clipping frame
+   * (`sectionRange`); `null` when that frame isn't known, or for I3S.
+   */
+  sectionRange: { min: number; max: number } | null;
 }
 
 /**
@@ -114,6 +120,7 @@ export function useModels(viewer: Cesium.Viewer | null) {
             // Cesium credits I3S itself, from each layer's copyright text.
             credit: null,
             propertyNames: {},
+            sectionRange: null,
           },
         ]);
         if (flyTo) flyToTilesets(viewer, parts);
@@ -183,6 +190,7 @@ export function useModels(viewer: Cesium.Viewer | null) {
           reason,
           credit,
           propertyNames,
+          sectionRange: sectionRange(json),
         },
       ]);
       if (tileset.boundingSphere.radius < REGIONAL_RADIUS) {

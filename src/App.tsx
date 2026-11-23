@@ -31,7 +31,9 @@ import { useMapUrlState } from '@/features/share-link/useMapUrlState';
 import type { SearchableDataset } from '@/features/search/searchTypes';
 import { AddModelForm } from '@/features/models-3d/AddModelForm';
 import { MODEL_QUICK_ADD } from '@/features/models-3d/modelQuickAdd';
+import { ModelFilterControl } from '@/features/models-3d/ModelFilterControl';
 import { ModelPlacementControl } from '@/features/models-3d/ModelPlacementControl';
+import { useModelFilters } from '@/features/models-3d/useModelFilters';
 import { useModelPartInspector } from '@/features/models-3d/useModelPartInspector';
 import { useModels } from '@/features/models-3d/useModels';
 import { useTerrain } from '@/features/terrain/useTerrain';
@@ -114,6 +116,9 @@ function App() {
   // shows its metadata in the same card. A click picks one object, so at
   // most one of the two has something to show.
   const partInspector = useModelPartInspector(viewer, models.models, activeTool === 'none');
+  // Each 3D Tiles model filtered by its parts' attributes, and cut at a
+  // height — controls on its row in the layer list.
+  const modelFilters = useModelFilters(models.models);
 
   // Clicking a shape on the globe should show you its attributes, not just
   // highlight it — otherwise selection looks like it did nothing whenever
@@ -188,14 +193,22 @@ function App() {
         onZoomTo: () => models.zoomToModel(entry.config.id),
         onRemove: () => models.removeModel(entry.config.id),
         detail: (
-          <ModelPlacementControl
-            format={entry.config.format}
-            placement={entry.placement}
-            offset={entry.offset}
-            reason={entry.reason}
-            placeable={entry.footprint !== null}
-            onChange={(placement) => void models.setPlacement(entry.config.id, placement)}
-          />
+          <>
+            <ModelPlacementControl
+              format={entry.config.format}
+              placement={entry.placement}
+              offset={entry.offset}
+              reason={entry.reason}
+              placeable={entry.footprint !== null}
+              onChange={(placement) => void models.setPlacement(entry.config.id, placement)}
+            />
+            <ModelFilterControl
+              attributes={modelFilters.attributesOf(entry.config.id)}
+              filter={modelFilters.filterOf(entry.config.id)}
+              onChange={(change) => modelFilters.setFilter(entry.config.id, change)}
+              sectionRange={entry.sectionRange}
+            />
+          </>
         ),
       })),
       ...mapServices.vectors.map((layer) => ({
@@ -211,7 +224,7 @@ function App() {
         legend: () => Promise.resolve(vectorLegend(layer.dataSource)),
       })),
     ],
-    [models, mapServices],
+    [models, mapServices, modelFilters],
   );
 
   // Every ready-made dataset, from both features that offer some, with how

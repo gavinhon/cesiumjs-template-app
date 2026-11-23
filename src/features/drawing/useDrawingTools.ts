@@ -12,7 +12,7 @@ import {
   casedLineMaterial,
   colorFor,
   hiddenLineMaterial,
-  horizontalLabelFor,
+  secondaryLabelsFor,
   isReadoutKind,
   labelAnchorFor,
   labelTextFor,
@@ -28,7 +28,6 @@ import { computeLineOfSight } from './lineOfSight';
 import {
   describeDirect,
   describeElevation,
-  describeHeight,
   describeHorizontal,
   describePath,
   formatDistance,
@@ -145,7 +144,9 @@ function measurementFor(kind: DrawnFeatureKind, positions: Cesium.Cartesian3[]):
     case 'measure':
       return describePath(positions);
     case 'height':
-      return describeHeight(positions[0], positions[positions.length - 1]);
+      // The direct distance only; the vertical and horizontal parts show on
+      // the legs when the line is selected (see `secondaryLabelsFor`).
+      return describeDirect([positions[0], positions[positions.length - 1]]);
     default:
       return null;
   }
@@ -218,8 +219,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
   /** Label ids per feature, keyed by feature id — see the label sync effect. */
   const featureLabelIdsRef = useRef<Map<string, string>>(new Map());
-  /** A measurement's second label, on its level line — see `horizontalLabelFor`. */
-  const horizontalLabelIdsRef = useRef<Map<string, string>>(new Map());
+  /** A measurement's other labels, on the lines they describe — see `secondaryLabelsFor`. */
+  const secondaryLabelIdsRef = useRef<Map<string, string[]>>(new Map());
   /** Draggable vertex handles for the selected feature, in vertex order. */
   const handleEntitiesRef = useRef<Cesium.Entity[]>([]);
   const dragRef = useRef<{
@@ -272,7 +273,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     // whole life, but reading `.current` in a cleanup is a lint error for
     // good reason in general.
     const featureLabelIds = featureLabelIdsRef.current;
-    const horizontalLabelIds = horizontalLabelIdsRef.current;
+    const secondaryLabelIds = secondaryLabelIdsRef.current;
 
     // Every click and cursor move below becomes a position through
     // `pickSurface` — on the terrain, or on a 3D Tiles building standing on
@@ -449,7 +450,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         case 'measure':
           return describeDirect(positions);
         case 'height':
-          return describeHeight(first, last);
+          return describeDirect([first, last]);
         case 'line-of-sight':
           return `→ ${formatDistance(Cesium.Cartesian3.distance(first, last))}`;
         case 'line':
@@ -710,17 +711,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
       switch (tool) {
         case 'height':
+          // Just the line: the legs and their numbers appear when the
+          // finished line is selected.
           addPreviewLine(() => [start(), liveEnd()], casedLineMaterial(MEASURE_COLOR), 5);
-          addPreviewLine(
-            () => [start(), heightTriangleCorner(start(), liveEnd())],
-            DASHED_MEASURE,
-            1.5,
-          );
-          addPreviewLine(
-            () => [heightTriangleCorner(start(), liveEnd()), liveEnd()],
-            DASHED_MEASURE,
-            1.5,
-          );
           break;
         case 'line-of-sight':
           // From exactly the point placed — see lineOfSight.ts.
@@ -961,14 +954,14 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       };
       const text = labelTextFor(moved);
       if (text !== null) labelLayer.update(labelId, labelAnchorFor(moved), text);
-      // Its level line's label too. Appearing or disappearing as the drag
-      // makes the path steeper or flatter waits for the sync effect when the
-      // drag ends; mid-drag it just follows.
-      const horizontalId = horizontalLabelIdsRef.current.get(feature.id);
-      const horizontal = horizontalLabelFor(moved);
-      if (horizontalId && horizontal) {
-        labelLayer.update(horizontalId, horizontal.anchor, horizontal.text);
-      }
+      // Its other labels too. Appearing or disappearing as the drag makes
+      // the line steeper or flatter waits for the sync effect when the drag
+      // ends; mid-drag the ones already there just follow.
+      const secondaryIds = secondaryLabelIdsRef.current.get(feature.id) ?? [];
+      const secondary = secondaryLabelsFor(moved, feature.id === selectedIdRef.current);
+      secondaryIds.forEach((id, i) => {
+        if (secondary[i]) labelLayer.update(id, secondary[i].anchor, secondary[i].text);
+      });
     }
 
     const handler = new Cesium.ScreenSpaceEventHandler(cesiumViewer.scene.canvas);
@@ -1198,7 +1191,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       labelLayer.destroy();
       labelLayerRef.current = null;
       featureLabelIds.clear();
-      horizontalLabelIds.clear();
+      secondaryLabelIds.clear();
     };
     // `setActiveTool` is a stable callback; listing it doesn't re-run this.
   }, [viewer, setActiveTool]);
@@ -1268,29 +1261,22 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       }
     }
 
-    // A measurement's second label, on its dotted level line. Derived the
-    // same way: present exactly when `horizontalLabelFor` says so.
-    const horizontalIds = horizontalLabelIdsRef.current;
-    const wanted = new Set<string>();
+    // A measurement's other labels, each on the line it describes. Derived
+    // the same way: present exactly when `secondaryLabelsFor` says so —
+    // which for a height depends on the selection, hence `selectedId` below.
+    // Rebuilt rather than matched up: there are at most two per feature.
+    const secondaryIds = secondaryLabelIdsRef.current;
+    for (const ids of secondaryIds.values()) for (const id of ids) labelLayer.remove(id);
+    secondaryIds.clear();
     for (const feature of features) {
-      const horizontal = horizontalLabelFor(feature);
-      if (!horizontal) continue;
-      wanted.add(feature.id);
-      const existing = horizontalIds.get(feature.id);
-      if (existing) labelLayer.update(existing, horizontal.anchor, horizontal.text);
-      else
-        horizontalIds.set(
-          feature.id,
-          labelLayer.add(horizontal.anchor, horizontal.text, 'readout'),
-        );
+      const labels = secondaryLabelsFor(feature, feature.id === selectedId);
+      if (labels.length === 0) continue;
+      secondaryIds.set(
+        feature.id,
+        labels.map((label) => labelLayer.add(label.anchor, label.text, 'readout')),
+      );
     }
-    for (const [featureId, labelId] of horizontalIds) {
-      if (!wanted.has(featureId)) {
-        labelLayer.remove(labelId);
-        horizontalIds.delete(featureId);
-      }
-    }
-  }, [features]);
+  }, [features, selectedId]);
 
   /**
    * Draggable handles on the selected feature's vertices.
@@ -1449,10 +1435,12 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     // they need clearing separately; the sync effect would also do it, but
     // not until the next render.
     const labelLayer = labelLayerRef.current;
-    for (const labels of [featureLabelIdsRef.current, horizontalLabelIdsRef.current]) {
-      for (const labelId of labels.values()) labelLayer?.remove(labelId);
-      labels.clear();
+    for (const labelId of featureLabelIdsRef.current.values()) labelLayer?.remove(labelId);
+    featureLabelIdsRef.current.clear();
+    for (const ids of secondaryLabelIdsRef.current.values()) {
+      for (const labelId of ids) labelLayer?.remove(labelId);
     }
+    secondaryLabelIdsRef.current.clear();
     setFeatures([]);
     setSelectedId(null);
   }, [viewer]);

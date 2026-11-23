@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   describeDirect,
   describeElevation,
-  describeHeight,
+  describeRise,
+  isDiagonal,
   describeHorizontal,
   describePath,
   formatDistance,
@@ -110,13 +111,24 @@ describe('pointAlong', () => {
   });
 });
 
-describe('describeHeight', () => {
+describe('describeRise', () => {
   it('says "up" when the second point is higher', () => {
-    expect(describeHeight(at(0, 5), at(11, 15.2))).toBe('10.2 m up · 11.0 m horizontal');
+    expect(describeRise(at(0, 5), at(11, 15.2))).toBe('10.2 m up');
   });
 
   it('says "down" when the second point is lower, without a minus sign', () => {
-    expect(describeHeight(at(0, 150), at(1500, 20))).toBe('130.0 m down · 1.50 km horizontal');
+    expect(describeRise(at(0, 150), at(1500, 20))).toBe('130.0 m down');
+  });
+});
+
+describe('isDiagonal', () => {
+  it('is true when both the rise and the run are worth showing', () => {
+    expect(isDiagonal(at(0, 0), at(30, 30))).toBe(true);
+  });
+
+  it('is false for a nearly level or nearly vertical line', () => {
+    expect(isDiagonal(at(0, 10), at(30, 10.3))).toBe(false);
+    expect(isDiagonal(at(0, 0), at(0.2, 40))).toBe(false);
   });
 });
 

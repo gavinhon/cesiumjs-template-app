@@ -143,15 +143,26 @@ export function heightTriangleCorner(
 }
 
 /**
- * The height tool's readout: how far up (or down) the second point is from
- * the first, then how far across. In words rather than arrows and signs,
- * so it reads without a legend. The slanted line's own length is what the
- * measure tool is for, so it isn't repeated here.
+ * Whether a two-point line is diagonal enough for its vertical and
+ * horizontal parts to be worth showing: each at least half a metre and 5%
+ * of the line. A nearly level line's "rise" or a nearly vertical one's
+ * "run" would only be noise beside the length itself.
  */
-export function describeHeight(from: Cesium.Cartesian3, to: Cesium.Cartesian3): string {
+export function isDiagonal(from: Cesium.Cartesian3, to: Cesium.Cartesian3): boolean {
+  const length = Cesium.Cartesian3.distance(from, to);
+  const threshold = Math.max(0.5, length * 0.05);
+  const rise = Math.abs(heightOf(to) - heightOf(from));
+  const run = groundDistance([from, to]);
+  return rise >= threshold && run >= threshold;
+}
+
+/**
+ * The vertical part of a two-point line, in words rather than a sign so it
+ * reads without a legend: "10.2 m up", "130.0 m down".
+ */
+export function describeRise(from: Cesium.Cartesian3, to: Cesium.Cartesian3): string {
   const rise = heightOf(to) - heightOf(from);
-  const direction = rise >= 0 ? 'up' : 'down';
-  return `${formatDistance(Math.abs(rise))} ${direction} · ${formatDistance(groundDistance([from, to]))} horizontal`;
+  return `${formatDistance(Math.abs(rise))} ${rise >= 0 ? 'up' : 'down'}`;
 }
 
 /**

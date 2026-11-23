@@ -68,9 +68,16 @@ CesiumJS, wired up **without** a Cesium ion account.
   - **Distance** along a path, in true 3D length. Where the path climbs
     noticeably — up a hill, or street to roof — the readout adds the
     horizontal distance a flat map would give ("52.3 m · 41.0 m horizontal").
-  - **Height** between two points: how far up or down, and how far across
-    ("10.2 m up · 4.1 m horizontal"), drawn as a right triangle. Click a
-    roof, then the street, and you've measured the building.
+  - **Height** between two points: the straight-line distance on the map.
+    Click the line and, where it runs on a slant, it opens into a right
+    triangle with how far up or down and how far across ("7.4 m down",
+    "10.5 m horizontal"). Click a roof, then the street, and you've
+    measured the building.
+- **Filter a BIM model.** A model's "…" in the layer list offers its
+  parts' own attributes — IFC class, material, a floor or level where the
+  model has one — so you can show only the walls, or one storey. A height
+  cut slices the model so you can look into a floor from above, even when
+  the model doesn't say which floor a part is on.
   - **Line of sight**: is one point visible from another — a window from
     the street, a rooftop from a hill? It runs from exactly the point you
     pick. The
@@ -135,7 +142,8 @@ break Cesium's web workers.
 Datasets in `public/` are gitignored, so the deployed site only has the
 ones you've committed — which is the Singapore terrain
 (`public/terrain/singapore-gem15-dtm`, 29 MB), tracked deliberately so the
-site opens on real elevation. Large datasets are better hosted elsewhere —
+site opens on real elevation, and a small BIM model
+(`public/af1-gpt61sol`, 384 KB) to click and filter. Large datasets are better hosted elsewhere —
 any CORS-enabled static host — and loaded by URL.
 
 ## Deploying offline with Docker

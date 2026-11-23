@@ -7,6 +7,8 @@ import {
   heightOf,
   heightTriangleCorner,
   horizontalDiffers,
+  isDiagonal,
+  describeRise,
   levelPath,
   pointAlong,
 } from './measurement';
@@ -165,7 +167,7 @@ export function labelTextFor(feature: DrawnFeature): string | null {
     case 'measurement':
       // A measurement's map label is just the measured line's length; the
       // horizontal distance gets its own label on its own dotted line
-      // (`horizontalLabelFor`). The panel still shows both together.
+      // (`secondaryLabelsFor`). The panel still shows both together.
       return feature.kind === 'measure' ? describeDirect(feature.positions) : feature.measurement;
     default: {
       const attribute = feature.attributes.find((entry) => entry.id === feature.labelSource);
@@ -177,22 +179,44 @@ export function labelTextFor(feature: DrawnFeature): string | null {
 }
 
 /**
- * The second label a measurement carries: the horizontal distance, halfway
- * along the dotted level line it describes. `null` when the path barely
- * climbs (the two distances would print the same), or when the feature's
- * label isn't showing the measurement at all.
+ * The labels a measurement carries besides its main one, each on the line
+ * it describes. Empty unless the feature's label is showing the
+ * measurement at all.
+ *
+ *  - A distance measurement: the horizontal distance, halfway along its
+ *    dotted level line — unless the path barely climbs, and the two
+ *    distances would print the same.
+ *  - A height: nothing until it's selected, then its vertical and
+ *    horizontal parts on the triangle's legs — if it's diagonal enough for
+ *    them to mean anything (`isDiagonal`). Its main label is just the
+ *    direct distance; the breakdown is there when you ask for it.
  */
-export function horizontalLabelFor(
+export function secondaryLabelsFor(
   feature: DrawnFeature,
-): { anchor: Cesium.Cartesian3; text: string } | null {
-  if (feature.kind !== 'measure' || !feature.visible || feature.labelSource !== 'measurement') {
-    return null;
+  selected: boolean,
+): { anchor: Cesium.Cartesian3; text: string }[] {
+  if (!feature.visible || feature.labelSource !== 'measurement') return [];
+  const { positions } = feature;
+  if (feature.kind === 'measure') {
+    if (!horizontalDiffers(positions)) return [];
+    return [{ anchor: pointAlong(levelPath(positions), 0.5), text: describeHorizontal(positions) }];
   }
-  if (!horizontalDiffers(feature.positions)) return null;
-  return {
-    anchor: pointAlong(levelPath(feature.positions), 0.5),
-    text: describeHorizontal(feature.positions),
-  };
+  if (feature.kind === 'height' && selected) {
+    const [from, to] = [positions[0], positions[positions.length - 1]];
+    if (!isDiagonal(from, to)) return [];
+    const corner = heightTriangleCorner(from, to);
+    return [
+      { anchor: pointAlong([from, corner], 0.5), text: describeRise(from, to) },
+      { anchor: pointAlong([corner, to], 0.5), text: describeHorizontal([from, to]) },
+    ];
+  }
+  return [];
+}
+
+/** The height triangle's legs show only on a selected, diagonal line. */
+function legsShown(feature: DrawnFeature, selected: boolean): boolean {
+  const { positions } = feature;
+  return selected && isDiagonal(positions[0], positions[positions.length - 1]);
 }
 
 /**
@@ -255,7 +279,10 @@ export function styleFeature(feature: DrawnFeature, selected: boolean): void {
   const width = baseLineWidth(feature.kind);
 
   for (const entity of feature.entities) {
-    entity.show = feature.visible;
+    const part = partOf(entity);
+    entity.show =
+      feature.visible &&
+      (part === 'vertical' || part === 'horizontal' ? legsShown(feature, selected) : true);
     const style = PARTS.get(entity);
     const color = style?.color ?? kindColor;
 

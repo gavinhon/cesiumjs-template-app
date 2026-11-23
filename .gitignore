@@ -35,6 +35,11 @@ public/**/*.geojson
 public/terrain/*/
 !public/terrain/singapore-gem15-dtm/
 
+# And one small BIM model (384 KB, an IFC conversion with per-element
+# attributes), so the Pages site has something to click, filter and run a
+# line of sight through.
+!public/af1-gpt61sol/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

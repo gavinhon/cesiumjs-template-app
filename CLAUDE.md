@@ -265,6 +265,17 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   map labels, never through React state. I3S parts aren't inspectable:
   Cesium loads their attributes only on request, through a node it doesn't
   expose on the picked feature.
+- **A model is filtered by its own attributes.** `useModelFilters` reads
+  each 3D Tiles part's string properties as its tile loads
+  (`tileset.tileLoad`) and offers the categories — a detected floor
+  attribute first (`isFloorAttribute`) — in the model's row
+  (`ModelFilterControl`, via `LayerEntry.detail`). Filtering is a
+  `Cesium3DTileStyle` `show` expression, never a loop over parts; the
+  height cut is one `ClippingPlane` in the tileset's root frame, so it
+  needs a root `transform` + `box` (`sectionRange`) and follows the
+  on-terrain offset. Many IFC converters drop the storey tree — the
+  bundled model has none — which is what the cut is for. I3S isn't
+  covered, for the reason above.
 - **TypeScript is strict.** No `any`, avoid `!`, prefer discriminated
   unions, add `never` exhaustiveness checks on union switches.
 - **Registering a panel** means adding to `PanelId` in
@@ -468,6 +479,8 @@ non-obvious prop.
 - **`public/` holds static data**, including any 3D Tiles datasets dropped
   in for testing. It's excluded from Prettier; don't reformat it. Dataset
   folders and `.geojson` files in it are gitignored — never commit data —
-  with one deliberate exception, `public/terrain/singapore-gem15-dtm`,
-  tracked so clones and the Pages site have real terrain (see `.gitignore`).
-  `*.terrain` is marked binary in `.gitattributes`; keep it that way.
+  with two deliberate exceptions, tracked so clones and the Pages site
+  have them (see `.gitignore`): `public/terrain/singapore-gem15-dtm` for real
+  terrain, and `public/af1-gpt61sol`, a small IFC-converted BIM model to
+  click, filter and analyse. `*.terrain` and `*.glb` are marked binary in
+  `.gitattributes`; keep it that way.
