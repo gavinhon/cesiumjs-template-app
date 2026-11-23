@@ -11,6 +11,7 @@ import {
 } from './placeTilesetOnTerrain';
 import { loadI3sSceneLayer } from './loadI3sSceneLayer';
 import type { ModelConfig, ModelPlacement } from './modelTypes';
+import { fetchPropertyNames } from './tilesetPropertyNames';
 
 export interface ManagedModel {
   config: ModelConfig;
@@ -37,6 +38,12 @@ export interface ManagedModel {
   reason: string | null;
   /** The dataset's own attribution, shown on the map while it's loaded. See `copyrightOf`. */
   credit: Cesium.Credit | null;
+  /**
+   * Display names of its parts' properties, by id, from its metadata schema
+   * (`fetchPropertyNames`) — what the info card labels a clicked part with.
+   * Empty for I3S, and for tilesets without a schema.
+   */
+  propertyNames: Record<string, string>;
 }
 
 /**
@@ -106,6 +113,7 @@ export function useModels(viewer: Cesium.Viewer | null) {
             reason: 'Georeferenced (I3S)',
             // Cesium credits I3S itself, from each layer's copyright text.
             credit: null,
+            propertyNames: {},
           },
         ]);
         if (flyTo) flyToTilesets(viewer, parts);
@@ -158,6 +166,7 @@ export function useModels(viewer: Cesium.Viewer | null) {
       // Placed before it's added, so it never appears at the wrong height
       // and the fly-to below heads for where it actually ends up.
       viewer.scene.primitives.add(tileset);
+      const propertyNames = await fetchPropertyNames(json, config.url);
       const copyright = copyrightOf(json);
       const credit = copyright ? new Cesium.Credit(copyright, true) : null;
       if (credit) viewer.creditDisplay.addStaticCredit(credit);
@@ -173,6 +182,7 @@ export function useModels(viewer: Cesium.Viewer | null) {
           offset,
           reason,
           credit,
+          propertyNames,
         },
       ]);
       if (tileset.boundingSphere.radius < REGIONAL_RADIUS) {

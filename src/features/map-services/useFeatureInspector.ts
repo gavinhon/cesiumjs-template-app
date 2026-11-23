@@ -1,20 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
+import type { FeatureCardContent } from '@/cesium/FeatureInfoCard';
 import { pickSurface } from '@/cesium/pickSurface';
-import { readAttributes, type AttributeRow } from './featureAttributes';
+import { readAttributes } from '@/lib/featureAttributes';
 import type { ManagedVectorLayer } from './mapServiceTypes';
 import { styleVectorEntity } from './vectorFeatureStyle';
 
-/** A clicked vector feature: what the info card shows, and where it's pinned. */
-export interface InspectedFeature {
+/**
+ * A clicked vector feature: what the info card shows (its title is the
+ * feature's name if a field looks like one, otherwise its layer's), plus
+ * what's needed to highlight it and to notice its layer going away.
+ */
+export interface InspectedFeature extends FeatureCardContent {
   entity: Cesium.Entity;
   layerId: string;
-  layerName: string;
-  /** The feature's name if a field looks like one, otherwise its layer's. */
-  title: string;
-  rows: AttributeRow[];
-  /** The clicked point on the surface, which the card stays pinned to. */
-  position: Cesium.Cartesian3;
 }
 
 /** The entity under a window position, if there is one. */

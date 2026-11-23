@@ -1,15 +1,30 @@
 import { Fragment, useEffect } from 'react';
 import * as Cesium from 'cesium';
-import { toWindowPosition } from '@/cesium/mapLabels';
+import type { AttributeRow } from '@/lib/featureAttributes';
 import { COMPACT_LAYOUT_QUERY } from '@/ui/compactLayoutQuery';
 import { useBottomSheet } from '@/ui/useBottomSheet';
-import type { InspectedFeature } from './useFeatureInspector';
+import { toWindowPosition } from './mapLabels';
 import './FeatureInfoCard.css';
+
+/**
+ * What the card shows about a clicked thing, whichever feature found it: a
+ * vector feature (`useFeatureInspector`) or a part of a 3D model
+ * (`useModelPartInspector`). The card knows only this, which is what lets
+ * two features share it without importing each other.
+ */
+export interface FeatureCardContent {
+  title: string;
+  /** The layer or model it belongs to — shown under the title unless it *is* the title. */
+  layerName: string;
+  rows: AttributeRow[];
+  /** The clicked point on the surface, which the card stays pinned to. */
+  position: Cesium.Cartesian3;
+}
 
 interface FeatureInfoCardProps {
   viewer: Cesium.Viewer | null;
-  /** The clicked feature, from `useFeatureInspector`; nothing renders without one. */
-  feature: InspectedFeature | null;
+  /** The clicked feature or model part; nothing renders without one. */
+  feature: FeatureCardContent | null;
   onClose: () => void;
 }
 

@@ -256,9 +256,15 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   with none armed it selects, and the selected shape gets draggable vertex
   handles. That is what lets one click mean two things without a modifier.
   With none armed, a click on a WFS / ArcGIS / GeoJSON feature opens its
-  attribute card (`useFeatureInspector` + `<FeatureInfoCard>`, its own
-  `ScreenSpaceEventHandler`); the card is positioned from `postRender`
-  like the map labels, never through React state.
+  attribute card (`useFeatureInspector`), and a click on a part of a 3D
+  Tiles model — a BIM element, a city building — tints it and opens the
+  same card with its metadata (`useModelPartInspector`, labels from the
+  tileset's schema via `fetchPropertyNames`). Each has its own
+  `ScreenSpaceEventHandler`; `<FeatureInfoCard>` lives in `src/cesium` so
+  both features can use it, and is positioned from `postRender` like the
+  map labels, never through React state. I3S parts aren't inspectable:
+  Cesium loads their attributes only on request, through a node it doesn't
+  expose on the picked feature.
 - **TypeScript is strict.** No `any`, avoid `!`, prefer discriminated
   unions, add `never` exhaustiveness checks on union switches.
 - **Registering a panel** means adding to `PanelId` in

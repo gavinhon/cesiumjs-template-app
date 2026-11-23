@@ -19,7 +19,7 @@ import type {
 } from '@/features/layer-manager/layerManagerTypes';
 import { MapStatusBar } from '@/features/map-status/MapStatusBar';
 import { NavigationControls } from '@/features/navigation/NavigationControls';
-import { FeatureInfoCard } from '@/features/map-services/FeatureInfoCard';
+import { FeatureInfoCard } from '@/cesium/FeatureInfoCard';
 import { AddMapServiceForm } from '@/features/map-services/AddMapServiceForm';
 import { legendLoaderFor } from '@/features/map-services/layerLegend';
 import { MAP_SERVICE_QUICK_ADD } from '@/features/map-services/mapServiceQuickAdd';
@@ -32,6 +32,7 @@ import type { SearchableDataset } from '@/features/search/searchTypes';
 import { AddModelForm } from '@/features/models-3d/AddModelForm';
 import { MODEL_QUICK_ADD } from '@/features/models-3d/modelQuickAdd';
 import { ModelPlacementControl } from '@/features/models-3d/ModelPlacementControl';
+import { useModelPartInspector } from '@/features/models-3d/useModelPartInspector';
 import { useModels } from '@/features/models-3d/useModels';
 import { useTerrain } from '@/features/terrain/useTerrain';
 import { AppToolbar } from '@/ui/AppToolbar';
@@ -109,6 +110,10 @@ function App() {
   // Clicking a WFS / ArcGIS / GeoJSON feature shows its attributes — but
   // only with no drawing tool armed, when a click isn't drawing something.
   const featureInspector = useFeatureInspector(viewer, mapServices.vectors, activeTool === 'none');
+  // …and clicking a part of a 3D model — a BIM element, a city building —
+  // shows its metadata in the same card. A click picks one object, so at
+  // most one of the two has something to show.
+  const partInspector = useModelPartInspector(viewer, models.models, activeTool === 'none');
 
   // Clicking a shape on the globe should show you its attributes, not just
   // highlight it — otherwise selection looks like it did nothing whenever
@@ -371,8 +376,11 @@ function App() {
       />
       <FeatureInfoCard
         viewer={viewer}
-        feature={featureInspector.inspected}
-        onClose={featureInspector.close}
+        feature={featureInspector.inspected ?? partInspector.inspected}
+        onClose={() => {
+          featureInspector.close();
+          partInspector.close();
+        }}
       />
 
       <div ref={rightRailRef} className="app__right-rail">

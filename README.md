@@ -48,6 +48,10 @@ CesiumJS, wired up **without** a Cesium ion account.
   ellipsoid heights with Esri's public EGM2008 geoid service and left at
   their georeferenced position. A tileset wider than a city (a worldwide
   buildings layer) is left where it's authored, and the camera stays put.
+  Click any part of a 3D Tiles model — a wall, slab or beam of a BIM
+  model, a building in a city model — to highlight it and see its
+  attributes: for an IFC conversion, its name, IFC class, GlobalId and
+  property sets.
   The catalogue offers public Singapore datasets, badged by format:
   HDB blocks, building shells and a single development as I3S, and
   worldwide OSM buildings

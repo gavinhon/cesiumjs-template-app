@@ -1,6 +1,7 @@
 /**
- * Turns a vector feature's raw properties — whatever a WFS or ArcGIS server
- * sent — into what the info card shows: a title, and one row per field.
+ * Turns a feature's raw properties — whatever a WFS or ArcGIS server sent,
+ * or a 3D model part's metadata — into what the info card shows: a title,
+ * and one row per field.
  *
  * Pure, so the guesswork in here (which field is the name? which are
  * housekeeping?) is testable without a map.
