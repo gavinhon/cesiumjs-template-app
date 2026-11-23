@@ -108,23 +108,6 @@ const icons: Record<Exclude<DrawingTool, 'none'> | 'clear' | 'draw', ReactNode> 
       <circle cx="21" cy="12" r="1.8" fill="currentColor" stroke="none" />
     </svg>
   ),
-  viewshed: (
-    <svg
-      viewBox="0 0 24 24"
-      width="18"
-      height="18"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" strokeDasharray="2 3" />
-      <path d="M12 12 L18.4 5.6 A9 9 0 0 1 21 12 Z" fill="currentColor" stroke="none" />
-      <path d="M12 12 L5.6 18.4 A9 9 0 0 1 3 12 Z" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
-    </svg>
-  ),
   label: (
     <svg
       viewBox="0 0 24 24"
@@ -198,7 +181,6 @@ const TOOL_GROUPS: {
       { tool: 'measure', name: 'Distance', hint: 'In 3D and over the ground' },
       { tool: 'height', name: 'Height', hint: 'Difference between two points' },
       { tool: 'line-of-sight', name: 'Line of sight', hint: 'Can one point see another?' },
-      { tool: 'viewshed', name: 'Viewshed', hint: 'What can be seen from a point' },
     ],
   },
 ];

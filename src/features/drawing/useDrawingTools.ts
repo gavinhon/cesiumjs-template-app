@@ -24,7 +24,7 @@ import {
   type EntityPart,
 } from './drawnFeaturePresentation';
 import type { DrawnFeature, DrawnFeatureKind, FeatureAttribute, LabelSource } from './drawingTypes';
-import { computeLineOfSight, EYE_HEIGHT, raise } from './lineOfSight';
+import { computeLineOfSight } from './lineOfSight';
 import {
   describeDirect,
   describeElevation,
@@ -37,19 +37,10 @@ import {
   levelPath,
   pointAlong,
 } from './measurement';
-import { computeViewshed, describeViewshed, rimPositions } from './viewshed';
 
 /** Which drawing/measurement/analysis mode is currently active, if any. */
 export type DrawingTool =
-  | 'none'
-  | 'point'
-  | 'line'
-  | 'polygon'
-  | 'label'
-  | 'measure'
-  | 'height'
-  | 'line-of-sight'
-  | 'viewshed';
+  'none' | 'point' | 'line' | 'polygon' | 'label' | 'measure' | 'height' | 'line-of-sight';
 
 /** The tools that build a multi-vertex path, rather than placing one thing per click. */
 export type PathTool = Extract<DrawingTool, 'line' | 'polygon' | 'measure'>;
@@ -63,10 +54,10 @@ export function isPathTool(tool: DrawingTool): tool is PathTool {
  * finish on the second click instead of waiting for a double-click: there
  * is nothing a third point could mean.
  */
-export type TwoPointTool = Extract<DrawingTool, 'height' | 'line-of-sight' | 'viewshed'>;
+export type TwoPointTool = Extract<DrawingTool, 'height' | 'line-of-sight'>;
 
 export function isTwoPointTool(tool: DrawingTool): tool is TwoPointTool {
-  return tool === 'height' || tool === 'line-of-sight' || tool === 'viewshed';
+  return tool === 'height' || tool === 'line-of-sight';
 }
 
 /** Whatever tool owns the shape currently being drawn. */
@@ -85,12 +76,12 @@ function toolColor(tool: DrawingTool): Cesium.Color {
 }
 
 /**
- * Two clicks closer than this are a slip, not a measurement: a viewshed
- * with no radius, or a sight line to the observer's own feet.
+ * Two clicks closer than this are a slip, not a measurement: a height
+ * with no length, or a sight line to the observer's own feet.
  */
 const MIN_TWO_POINT_DISTANCE = 0.5;
 
-/** Shown while a line-of-sight or viewshed analysis is running. */
+/** Shown while a line-of-sight analysis is running. */
 const ANALYSING = 'Analysing…';
 
 /**
@@ -135,7 +126,6 @@ const DEFAULT_NAME: Record<DrawnFeatureKind, string> = {
   measure: 'Measurement',
   height: 'Height',
   'line-of-sight': 'Line of sight',
-  viewshed: 'Viewshed',
 };
 
 /** Fewest vertices that make a real shape — below this there's nothing to keep. */
@@ -163,7 +153,7 @@ function measurementFor(kind: DrawnFeatureKind, positions: Cesium.Cartesian3[]):
 
 /**
  * Lets the user draw points, lines, and polygons on the map, measure
- * distances and heights in 3D, analyse line of sight and viewsheds, and
+ * distances and heights in 3D, analyse line of sight, and
  * drop text labels — all via Cesium's
  * `Entity` API (`viewer.entities`). That choice is what makes "works in
  * both 2D and 3D" close to free: entities are scene-mode-aware by design,
@@ -195,7 +185,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
   const ghostEntityRef = useRef<Cesium.Entity | null>(null);
   const vertexEntitiesRef = useRef<Cesium.Entity[]>([]);
   // The construction lines a two-point tool previews with — a height
-  // triangle's legs, a viewshed's rim. Torn down when the second click lands.
+  // triangle's legs. Torn down when the second click lands.
   const previewExtrasRef = useRef<Cesium.Entity[]>([]);
   const labelLayerRef = useRef<MapLabelLayer | null>(null);
   // The in-progress measurement readout. Finished features get their labels
@@ -462,8 +452,6 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           return describeHeight(first, last);
         case 'line-of-sight':
           return `→ ${formatDistance(Cesium.Cartesian3.distance(first, last))}`;
-        case 'viewshed':
-          return `r ${formatDistance(Cesium.Cartesian3.distance(first, last))}`;
         case 'line':
         case 'polygon':
           return '';
@@ -730,17 +718,6 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           // From exactly the point placed — see lineOfSight.ts.
           addPreviewLine(() => [start(), liveEnd()], DASHED_SIGHT, 2);
           break;
-        case 'viewshed':
-          addPreviewLine(
-            () => rimPositions(start(), Cesium.Cartesian3.distance(start(), liveEnd())),
-            new Cesium.ColorMaterialProperty(SIGHT_COLOR),
-            2,
-          );
-          addPreviewLine(() => [start(), liveEnd()], DASHED_SIGHT, 1.5);
-          // The viewshed's observer stands EYE_HEIGHT tall; the dashed riser
-          // shows that, so the eye doesn't seem to float above the point.
-          addPreviewLine(() => [start(), raise(start(), EYE_HEIGHT)], DASHED_SIGHT, 1.5);
-          break;
         default: {
           const exhaustive: never = tool;
           throw new Error(`Unhandled tool: ${String(exhaustive)}`);
@@ -756,9 +733,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
 
     /**
      * Second click of a two-point tool: swap the preview for the finished
-     * feature. Height is pure geometry and is done here; line of sight and
-     * viewshed need the terrain, so they start out as "Analysing" and
-     * `runAnalysis` fills them in.
+     * feature. Height is pure geometry and is done here; line of sight
+     * needs the terrain and the scene, so it starts out as "Analysing" and
+     * `runAnalysis` fills it in.
      */
     function finishTwoPoint(tool: TwoPointTool, end: Cesium.Cartesian3) {
       const start = positionsRef.current[0];
@@ -804,26 +781,6 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           ];
           break;
         }
-        case 'viewshed': {
-          entities = [
-            tagPart(
-              add({
-                polyline: {
-                  positions: rimPositions(start, Cesium.Cartesian3.distance(start, end)),
-                  // Draped, so the rim follows the hills instead of cutting
-                  // through them at the observer's height.
-                  clampToGround: true,
-                },
-              }),
-              'rim',
-            ),
-            tagPart(add({ polyline: { positions: [start, raise(start, EYE_HEIGHT)] } }), 'stand', {
-              dashed: true,
-            }),
-            tagPart(add({ position: raise(start, EYE_HEIGHT), point: { ...pointStyle } }), 'eye'),
-          ];
-          break;
-        }
         default: {
           const exhaustive: never = tool;
           throw new Error(`Unhandled tool: ${String(exhaustive)}`);
@@ -842,8 +799,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
     }
 
     /**
-     * Computes a line-of-sight or viewshed result and writes it into the
-     * feature's entities and readout.
+     * Computes a line-of-sight result and writes it into the feature's
+     * entities and readout.
      *
      * Async, so the feature may have changed by the time it finishes: it
      * may have been deleted, or dragged again and re-analysed. Each run
@@ -864,7 +821,6 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
       const part = (name: EntityPart) => entities.find((entity) => partOf(entity) === name);
 
       let measurement: string;
-      let overlay: Cesium.Entity | null = null;
       try {
         if (kind === 'line-of-sight') {
           const { eye, target, obstruction } = await computeLineOfSight(
@@ -899,65 +855,18 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             ? `Blocked at ${formatDistance(Cesium.Cartesian3.distance(eye, obstruction))} of ${total}`
             : `Visible · ${total}`;
         } else {
-          const radius = Cesium.Cartesian3.distance(start, end);
-          const result = await computeViewshed(
-            cesiumViewer,
-            start,
-            radius,
-            cesiumViewer.entities.values,
-          );
-          if (!isCurrent()) return;
-          overlay = tagPart(
-            cesiumViewer.entities.add({
-              rectangle: {
-                coordinates: result.rectangle,
-                material: new Cesium.ImageMaterialProperty({
-                  image: result.image,
-                  transparent: true,
-                }),
-              },
-            }),
-            'overlay',
-          );
-          measurement = describeViewshed(result.visibleFraction, radius, result.includesBuildings);
+          return;
         }
       } catch (error) {
         if (!isCurrent()) return;
         measurement = `Analysis failed: ${error instanceof Error ? error.message : String(error)}`;
       }
 
-      // The feature may have been deleted while the analysis ran. Its
-      // entities are already gone; don't leave a new overlay orphaned.
-      const current = featuresRef.current.find((feature) => feature.id === featureId);
-      if (!current) {
-        if (overlay) cesiumViewer.entities.remove(overlay);
-        return;
-      }
-
-      // A re-run replaces the previous overlay rather than stacking a
-      // second image on top of it. Removed here, outside the state updater,
-      // because StrictMode runs updaters twice and `remove` isn't idempotent
-      // in effect — the second run would find nothing, but the first must
-      // not be repeated against a list that already lacks the entity.
-      const stale = overlay
-        ? current.entities.filter((entity) => partOf(entity) === 'overlay')
-        : [];
-      for (const entity of stale) cesiumViewer.entities.remove(entity);
-      const added = overlay;
+      // The feature may have been deleted while the analysis ran.
+      if (!featuresRef.current.some((feature) => feature.id === featureId)) return;
 
       setFeatures((prev) =>
-        prev.map((feature) =>
-          feature.id === featureId
-            ? {
-                ...feature,
-                measurement,
-                entities: [
-                  ...feature.entities.filter((entity) => !stale.includes(entity)),
-                  ...(added ? [added] : []),
-                ],
-              }
-            : feature,
-        ),
+        prev.map((feature) => (feature.id === featureId ? { ...feature, measurement } : feature)),
       );
     }
     runAnalysisRef.current = runAnalysis;
@@ -1085,7 +994,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
         return;
       }
 
-      // Height, line of sight, viewshed: the first click sets the start,
+      // Height and line of sight: the first click sets the start,
       // the second finishes. No double-click needed — a third point would
       // mean nothing.
       if (isTwoPointTool(tool)) {

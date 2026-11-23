@@ -265,7 +265,7 @@ Terrain changes things that sit on it:
 
 ## Measurement and analysis are drawings too
 
-The measure, height, line-of-sight and viewshed tools produce
+The measure, height and line-of-sight tools produce
 `DrawnFeature`s like any other shape, so they get everything drawings get
 for free: they're listed in the Drawings panel, can be named, attributed,
 selected and reshaped by dragging their vertices, and the discard button
@@ -274,9 +274,9 @@ what the map label shows by default.
 
 **CesiumJS has no line-of-sight or viewshed API.** It has the pieces —
 terrain sampling (`sampleTerrainMostDetailed`), scene sampling
-(`scene.sampleHeightMostDetailed`) — and `lineOfSight.ts` and `viewshed.ts`
-build the analyses from them, using public APIs where they can so they
-survive Cesium upgrades.
+(`scene.sampleHeightMostDetailed`) — and `lineOfSight.ts` builds the
+analysis from them, using public APIs where it can so it survives Cesium
+upgrades.
 
 The one exception is line of sight through 3D Tiles. A height sample looks
 straight down, so it sees a building as solid from the ground to its
@@ -284,23 +284,19 @@ highest roof — a sight line through a window or under a canopy would read
 as blocked. Line of sight therefore casts the sight line itself through the
 scene with `scene.drillPickFromRayMostDetailed`: marked private in Cesium, but
 the machinery the public height sampling is built on. It's feature-detected,
-and without it line of sight falls back to height samples. The trade-off
-worth knowing:
+and without it line of sight falls back to height samples.
 
-|                               | Line of sight                 | Viewshed                                    |
-| ----------------------------- | ----------------------------- | ------------------------------------------- |
-| Blocked by terrain            | yes                           | yes                                         |
-| Blocked by 3D Tiles buildings | yes (a ray cast through them) | yes, inside tileset footprints (from above) |
-| Cost                          | a few hundred samples         | ~100,000 samples, about a second            |
-
-Scene samples are the expensive kind — each is a small GPU render — so the
-viewshed asks the 3D Tiles only at samples inside a shown tileset's
-bounding sphere, and terrain everywhere else. One building costs hundreds
-to a few thousand renders; a city-wide tileset would cost every sample, so
-past a budget (`MAX_BUILDING_SAMPLES`) the whole grid is coarsened instead.
-The alternative, GPU shadow mapping, would be exact and fast, but in
-CesiumJS it means private `ShadowMap` internals and a custom shader that
-break across releases, so it's not in a template.
+**Why there's no viewshed.** The app had one, built from height samples
+like the fallback above: tens of thousands of them, each "the top of
+whatever stands here". That works on open terrain but not around a BIM or
+city model — every floor under a roof read as solid, so a viewshed placed
+inside an open model was simply wrong, and ray-casting each sample instead
+would take minutes. The right tool is GPU shadow mapping (render depth
+from the observer, test every pixel against it), which in CesiumJS means
+the private `ShadowMap` and `scene.context` plus a custom shader — exact
+and fast, but the kind of internals that break across releases. It was
+removed rather than left giving wrong answers; it belongs back once Cesium
+supports it.
 
 Analyses are async. A feature shows "Analysing…" until its result arrives,
 and dragging one of its vertices re-runs it; each run is numbered so only

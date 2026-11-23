@@ -216,8 +216,8 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   ignored when we restyle, so its legend would lie.
 - **The rail holds two tool menus and discard** — and, on phones only, a
   layer button on top (`LayerListButton`). Draw (point, line,
-  polygon, label) and Measure and analyse (distance, height, line of sight,
-  viewshed) each open a labelled menu to the left; the menu button shows
+  polygon, label) and Measure and analyse (distance, height, line of
+  sight) each open a labelled menu to the left; the menu button shows
   the armed tool's icon, lit. Escape closes an open menu before it can
   disarm the tool. Add a tool to `TOOL_GROUPS` in `DrawingToolbar.tsx`.
 - **The basemap is a picture.** `BasemapSwitcher` (bottom-left) shows each
@@ -245,9 +245,9 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   Presentation (colour, selected look, label anchor/text, geometry rewrite)
   lives in `drawnFeaturePresentation.ts` as pure functions of that record.
   A feature made of several entities tags each with the part it plays
-  (`tagPart(entity, 'clear')`, `'vertical'`, `'overlay'`…) so styling and
+  (`tagPart(entity, 'clear')`, `'vertical'`, `'obstruction'`…) so styling and
   vertex-dragging know which is which without relying on array order.
-  Measurements and analyses (height, line of sight, viewshed) are
+  Measurements and analyses (height, line of sight) are
   `DrawnFeature`s too — their result is the `measurement` string.
 - **Clicks become positions through `pickSurface`** (`src/cesium/pickSurface.ts`),
   never `pickEllipsoid` or `globe.pick` alone — it's what makes clicks land
@@ -419,8 +419,11 @@ non-obvious prop.
   from the ground to its highest roof. Line of sight casts the sight line
   through the scene instead (`firstHitAlongRay` in `lineOfSight.ts`, using
   Cesium's private `drillPickFromRayMostDetailed`, feature-detected) so it can
-  pass through windows; the viewshed, which needs thousands of samples,
-  still uses height samples and keeps that limit.
+  pass through windows. That limit is also why there's no viewshed: built
+  from height samples, it read every floor under a roof as solid, and the
+  real fix — a GPU shadow-map viewshed — rests on Cesium internals
+  (`ShadowMap`, `scene.context`) that break across releases. Add one only
+  if Cesium gains a supported way to do it.
 - **3D Tiles draw over terrain even when they're under it.**
   `depthTestAgainstTerrain` is off by default, so a tileset sitting below
   the terrain surface is fully visible — but `globe.pick` finds the terrain

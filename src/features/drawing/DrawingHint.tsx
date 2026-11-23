@@ -17,8 +17,7 @@ const ACTION_HINT: Record<Exclude<DrawingTool, 'none'>, string> = {
   polygon: 'Click to add corners',
   measure: 'Click to add points — distance is measured in 3D',
   height: 'Click a start point, then an end point',
-  'line-of-sight': 'Click where the observer stands, then the target',
-  viewshed: 'Click where the observer stands, then the edge of the area',
+  'line-of-sight': 'Click the point to look from, then the target',
 };
 
 /**

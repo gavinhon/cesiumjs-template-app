@@ -14,7 +14,6 @@ import {
   styleFeature,
   tagPart,
 } from './drawnFeaturePresentation';
-import { EYE_HEIGHT } from './lineOfSight';
 import { heightOf } from './measurement';
 
 const p = (lon: number, lat: number, height = 0) => Cesium.Cartesian3.fromDegrees(lon, lat, height);
@@ -49,15 +48,12 @@ describe('colorFor', () => {
     expect(colorFor('measure')).toBe(MAP_COLORS.measure);
     expect(colorFor('height')).toBe(MAP_COLORS.measure);
     expect(colorFor('line-of-sight')).toBe(MAP_COLORS.sight);
-    expect(colorFor('viewshed')).toBe(MAP_COLORS.sight);
   });
 });
 
 describe('isReadoutKind', () => {
   it('is true for measurements and analyses, false for drawings', () => {
-    expect(['measure', 'height', 'line-of-sight', 'viewshed'].every(isReadoutKind as never)).toBe(
-      true,
-    );
+    expect(['measure', 'height', 'line-of-sight'].every(isReadoutKind as never)).toBe(true);
     expect(['point', 'line', 'polygon', 'label'].some(isReadoutKind as never)).toBe(false);
   });
 });
@@ -136,15 +132,6 @@ describe('labelAnchorFor', () => {
     const street = p(103.8001, 1.35, 5);
     expect(labelAnchorFor(feature({ kind: 'height', positions: [street, roof] }))).toBe(roof);
     expect(labelAnchorFor(feature({ kind: 'height', positions: [roof, street] }))).toBe(roof);
-  });
-
-  it('puts a viewshed label on the observer’s eye, not the rim point', () => {
-    const anchor = labelAnchorFor(
-      feature({ kind: 'viewshed', positions: [p(103.8, 1.35, 10), p(103.81, 1.35, 10)] }),
-    );
-    const carto = Cesium.Cartographic.fromCartesian(anchor);
-    expect(Cesium.Math.toDegrees(carto.longitude)).toBeCloseTo(103.8, 9);
-    expect(carto.height).toBeCloseTo(10 + EYE_HEIGHT, 4);
   });
 
   it('centres a polygon’s label in geographic coordinates, at the average height', () => {

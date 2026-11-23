@@ -47,7 +47,6 @@ deploy will still run the same checks.
 | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/features/drawing/measurement.test.ts`              | Distance formatting, 3D vs ground distance, the measure and height readouts, the height triangle's corner                                                                                      |
 | `src/features/drawing/lineOfSight.test.ts`              | Clear and blocked sight lines over drawn terrain profiles, the noise tolerance, the target's own ground not counting as a blocker                                                              |
-| `src/features/drawing/viewshed.test.ts`                 | Ray visibility behind walls and past the horizon, area weighting, the sample grid and which samples fall under a tileset, the rim's radius on the WGS84 ellipsoid, the readout                 |
 | `src/features/drawing/drawnFeaturePresentation.test.ts` | Colour per feature family, label text for every label source, label anchors, selected/hidden styling, depth-fail materials, geometry rewrites while dragging                                   |
 | `src/features/map-services/capabilitiesParsing.test.ts` | WMS 1.1.1/1.3.0 and WFS 1.0/2.0 capabilities parsing, bounding boxes (including missing edges), HTTP and XML errors                                                                            |
 | `src/features/map-services/layerRequests.test.ts`       | WFS GetFeature parameter names per version; the WMS, WMTS and XYZ imagery providers built from a config                                                                                        |
@@ -57,9 +56,8 @@ deploy will still run the same checks.
 
 Each of these has already caught a real bug: a distance just under 1 km
 printing as "1000.0 m", a capabilities extent with a missing edge read as
-the equator, a zero-padded folder name crashing the dev server, the
-viewshed drawn 0.6% too small on a spherical earth, and the terrain mesh
-fitted to the north–south mirror of each tile.
+the equator, a zero-padded folder name crashing the dev server, and the
+terrain mesh fitted to the north–south mirror of each tile.
 
 ## Writing a test
 
@@ -70,9 +68,9 @@ fitted to the north–south mirror of each tile.
   all work there without a browser. A test that needs DOM APIs opts in
   with `// @vitest-environment happy-dom` on its first line.
 - **Separate the logic from the I/O to test it.** `parseWmsLayers` is split
-  from `fetchWmsLayers` and `traceVisibility` from `computeViewshed` for
-  exactly this reason: the parser and the maths are tested directly, with
-  no network and no canvas.
+  from `fetchWmsLayers` and `dropIndex` from the layer list's drag handling
+  for exactly this reason: the parser and the maths are tested directly,
+  with no network and no DOM.
 - **Mock at the edge, not in the middle.** `lineOfSight.test.ts` replaces
   one function — Cesium's terrain sampler — so each test can draw the
   ground profile it needs, and everything else runs for real.
@@ -160,20 +158,17 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 
 ### Measurement and analysis
 
-| #   | Do                                                                                     | Expect                                                                                                      |
-| --- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| M1  | Measure along a flat street                                                            | One number, e.g. "30.1 m"                                                                                   |
-| M2  | Load a 3D Tiles city; measure from a roof to the street                                | Two numbers: the 3D length and "… m horizontal"; the line shows faintly through walls                       |
-| M3  | Height tool: click a roof, then the street                                             | "… m down · … m horizontal" and a right triangle; label on the higher end                                   |
-| M4  | Line of sight across Bukit Timah                                                       | "Blocked at … of …"; cyan up to the hill, red beyond it                                                     |
-| M5  | Line of sight across flat ground                                                       | "Visible · …", all cyan                                                                                     |
-| M5b | Add the BIM model; line of sight from inside a room out through a window to the ground | Cyan all the way if nothing is in the way; a wall or slab in the way blocks it at that wall                 |
-| M5c | Start a line of sight on a BIM window sill and move the mouse                          | The dashed preview leaves from exactly that point; a viewshed instead shows a 1.7 m dashed riser to its eye |
-| M6  | Viewshed on a hilltop, radius about 1 km                                               | Cyan where visible, dark where hidden, inside a ring; "N% visible · … radius" in about a second             |
-| M6b | Add the BIM model, then a viewshed beside it (radius about 200 m)                      | The building casts a dark shadow behind it; the readout ends "· with 3D"                                    |
-| M6c | Viewshed from the BIM roof, about 1 m from its edge                                    | The street at the foot of the building is hidden, not visible straight down the façade                      |
-| M7  | Drag a line-of-sight or viewshed vertex                                                | Shows "Analysing…", then the new result                                                                     |
-| M8  | Start a measurement; switch to 2D; keep clicking; switch back to 3D                    | The measurement keeps working in both modes                                                                 |
+| #   | Do                                                                                     | Expect                                                                                      |
+| --- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| M1  | Measure along a flat street                                                            | One number, e.g. "30.1 m"                                                                   |
+| M2  | Load a 3D Tiles city; measure from a roof to the street                                | Two numbers: the 3D length and "… m horizontal"; the line shows faintly through walls       |
+| M3  | Height tool: click a roof, then the street                                             | "… m down · … m horizontal" and a right triangle; label on the higher end                   |
+| M4  | Line of sight across Bukit Timah                                                       | "Blocked at … of …"; cyan up to the hill, red beyond it                                     |
+| M5  | Line of sight across flat ground                                                       | "Visible · …", all cyan                                                                     |
+| M5b | Add the BIM model; line of sight from inside a room out through a window to the ground | Cyan all the way if nothing is in the way; a wall or slab in the way blocks it at that wall |
+| M5c | Start a line of sight on a BIM window sill and move the mouse                          | The dashed preview leaves from exactly that point                                           |
+| M7  | Drag a line-of-sight vertex                                                            | Shows "Analysing…", then the new result                                                     |
+| M8  | Start a measurement; switch to 2D; keep clicking; switch back to 3D                    | The measurement keeps working in both modes                                                 |
 
 ### Layers and data
 

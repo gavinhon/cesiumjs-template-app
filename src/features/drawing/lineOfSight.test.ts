@@ -1,6 +1,6 @@
 import * as Cesium from 'cesium';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { computeLineOfSight, EYE_HEIGHT, raise } from './lineOfSight';
+import { computeLineOfSight } from './lineOfSight';
 
 // The terrain sampler is the one thing these tests replace: it would
 // otherwise need real terrain tiles over the network. `groundAt` decides
@@ -41,14 +41,6 @@ const midway = (FROM_LON + TO_LON) / 2;
 
 beforeEach(() => {
   groundAt = () => 0;
-});
-
-describe('raise', () => {
-  it('lifts a point straight up by the given height', () => {
-    const raised = Cesium.Cartographic.fromCartesian(raise(from, EYE_HEIGHT));
-    expect(raised.height).toBeCloseTo(EYE_HEIGHT, 4);
-    expect(Cesium.Math.toDegrees(raised.longitude)).toBeCloseTo(FROM_LON, 9);
-  });
 });
 
 describe('computeLineOfSight', () => {

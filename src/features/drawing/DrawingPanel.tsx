@@ -24,7 +24,6 @@ const KIND_LABEL = {
   measure: 'MEASURE',
   height: 'HEIGHT',
   'line-of-sight': 'SIGHT',
-  viewshed: 'VIEWSHED',
   label: 'LABEL',
 } as const;
 

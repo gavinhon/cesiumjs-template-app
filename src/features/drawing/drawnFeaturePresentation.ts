@@ -1,7 +1,6 @@
 import * as Cesium from 'cesium';
 import { MAP_COLORS } from '@/cesium/mapColors';
 import type { DrawnFeature, DrawnFeatureKind } from './drawingTypes';
-import { raise, EYE_HEIGHT } from './lineOfSight';
 import {
   describeDirect,
   describeHorizontal,
@@ -11,7 +10,6 @@ import {
   levelPath,
   pointAlong,
 } from './measurement';
-import { rimPositions } from './viewshed';
 
 /**
  * How a finished feature is drawn and labelled.
@@ -32,7 +30,7 @@ const MEASURE_KINDS: ReadonlySet<DrawnFeatureKind> = new Set(['measure', 'height
  * The kinds whose result is an analysis: the label is a computed readout,
  * and moving a vertex means recomputing, not just redrawing.
  */
-export const ANALYSIS_KINDS: ReadonlySet<DrawnFeatureKind> = new Set(['line-of-sight', 'viewshed']);
+export const ANALYSIS_KINDS: ReadonlySet<DrawnFeatureKind> = new Set(['line-of-sight']);
 
 /** Kinds whose default label is a computed number, drawn in the readout style. */
 export function isReadoutKind(kind: DrawnFeatureKind): boolean {
@@ -47,7 +45,7 @@ export function colorFor(kind: DrawnFeatureKind): Cesium.Color {
 
 /** A polygon's edge is thinner than a standalone line — it has a fill backing it up. */
 function baseLineWidth(kind: DrawnFeatureKind): number {
-  return kind === 'polygon' || kind === 'viewshed' ? 2 : 3;
+  return kind === 'polygon' ? 2 : 3;
 }
 
 /**
@@ -66,14 +64,11 @@ export type EntityPart =
   | 'vertical' // height triangle: the vertical leg
   | 'horizontal' // height triangle: the horizontal leg
   | 'level' // measurement: the path flattened to its lowest point, dotted
-  | 'eye' // where a sight line starts; a viewshed's observer, at eye height
-  | 'stand' // viewshed observer: dashed, from where they stand up to the eye
+  | 'eye' // where a sight line starts
   | 'target' // line-of-sight target
   | 'clear' // line of sight: eye to the first obstruction (or the target)
   | 'blocked' // line of sight: obstruction to target
-  | 'obstruction' // line of sight: where the view is blocked
-  | 'overlay' // viewshed: the draped visible/hidden image
-  | 'rim'; // viewshed: the edge of the analysed area
+  | 'obstruction'; // line of sight: where the view is blocked
 
 interface PartStyle {
   part: EntityPart;
@@ -112,13 +107,11 @@ export function partOf(entity: Cesium.Entity): EntityPart {
  * Where a feature's label sits.
  *
  * A shape's label goes in the middle of it; a line's goes at the end, where
- * a measurement readout naturally belongs. A viewshed's goes on its
- * observer — the end point only sets the radius, and is anywhere on the rim.
+ * a measurement readout naturally belongs.
  */
 export function labelAnchorFor(feature: DrawnFeature): Cesium.Cartesian3 {
   const { positions } = feature;
   if (positions.length === 1) return positions[0];
-  if (feature.kind === 'viewshed') return raise(positions[0], EYE_HEIGHT);
   if (feature.kind === 'height') {
     // Above the triangle, not on it: the higher end is its top corner, so
     // a label there sits clear of the lines it describes.
@@ -288,7 +281,7 @@ export function styleFeature(feature: DrawnFeature, selected: boolean): void {
             })
           : new Cesium.ColorMaterialProperty(color);
       }
-      // Draped lines (a viewshed's rim) follow the surface and can't be
+      // Draped lines (`clampToGround`) follow the surface and can't be
       // hidden by it — and Cesium doesn't support a depth-fail material on
       // them anyway.
       if (!entity.polyline.clampToGround?.getValue(Cesium.JulianDate.now())) {
@@ -324,15 +317,14 @@ export function styleFeature(feature: DrawnFeature, selected: boolean): void {
  * when the drag ends.
  *
  * For the analysis kinds this only moves the *geometry*: a dragged sight
- * line is drawn as unobstructed and a dragged viewshed keeps its old image
- * until the drag ends and the hook recomputes them. Re-running an analysis
+ * line is drawn as unobstructed until the drag ends and the hook
+ * recomputes it. Re-running an analysis
  * on every mouse move would mean dozens of terrain queries a second.
  */
 export function applyGeometry(feature: DrawnFeature, positions: Cesium.Cartesian3[]): void {
   const [first, last] = [positions[0], positions[positions.length - 1]];
-  // Only the viewshed's observer stands at eye height; a sight line runs
-  // from exactly the point chosen.
-  const eye = feature.kind === 'viewshed' ? raise(first, EYE_HEIGHT) : first;
+  // A sight line runs from exactly the point chosen.
+  const eye = first;
 
   for (const entity of feature.entities) {
     const part = partOf(entity);
@@ -353,9 +345,6 @@ export function applyGeometry(feature: DrawnFeature, positions: Cesium.Cartesian
       case 'eye':
         entity.position = new Cesium.ConstantPositionProperty(eye);
         break;
-      case 'stand':
-        setPolyline(entity, [first, eye]);
-        break;
       case 'target':
         entity.position = new Cesium.ConstantPositionProperty(last);
         break;
@@ -367,11 +356,6 @@ export function applyGeometry(feature: DrawnFeature, positions: Cesium.Cartesian
         break;
       case 'obstruction':
         entity.position = undefined;
-        break;
-      case 'rim':
-        setPolyline(entity, rimPositions(first, Cesium.Cartesian3.distance(first, last)));
-        break;
-      case 'overlay':
         break;
       case 'shape':
         if (entity.polygon) {

@@ -58,7 +58,7 @@
   /* --- Colours Cesium also needs (mirrored in src/cesium/mapColors.ts) ----- */
   --measure: #f5f1ea; /* near-white — measurements, so they read as not-a-drawing */
   --vector: #5b9dff; /* blue — WFS features, complementary to the accent */
-  --sight: #22d3ee; /* cyan — what an observer can see: line-of-sight and viewshed results */
+  --sight: #22d3ee; /* cyan — what an observer can see: the clear part of a line of sight */
   --location: #ffffff; /* white — a place the app put there: your location, a search result */
 
   /* Just enough to lift a card off a bright street map — OSM is mostly

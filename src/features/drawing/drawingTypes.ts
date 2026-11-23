@@ -23,9 +23,7 @@ export type DrawnFeatureKind =
   /** Height difference between two points, with its horizontal and 3D distance. */
   | 'height'
   /** Whether one point can be seen from another. */
-  | 'line-of-sight'
-  /** Everything visible from one point, within a radius. */
-  | 'viewshed';
+  | 'line-of-sight';
 
 /**
  * What a feature's on-map label shows.

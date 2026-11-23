@@ -5,8 +5,7 @@ import * as Cesium from 'cesium';
  *
  * The line runs exactly between the two points chosen — a window, a
  * rooftop, a spot on the ground — not from a standing person's eye above
- * the first. (The viewshed does raise its observer to `EYE_HEIGHT`: an
- * eye at ground level sees almost nothing past the noise in the terrain.)
+ * the first.
  *
  * **CesiumJS has no line-of-sight API.** It has the pieces one is built
  * from — terrain height sampling and scene height sampling — and this
@@ -29,9 +28,6 @@ import * as Cesium from 'cesium';
  * each building as solid up to its highest roof.
  */
 
-/** A standing adult's eye height — the viewshed's observer stands this tall. */
-export const EYE_HEIGHT = 1.7;
-
 /** Sample spacing along the sight line, in metres, before the cap below kicks in. */
 const SAMPLE_SPACING = 2;
 const MAX_SAMPLES = 600;
@@ -52,32 +48,18 @@ export interface LineOfSightResult {
 }
 
 /**
- * Raises a ground point by `meters` along the vertical — how an observer's
- * eye is placed above where they stand.
- */
-export function raise(position: Cesium.Cartesian3, meters: number): Cesium.Cartesian3 {
-  const carto = Cesium.Cartographic.fromCartesian(position);
-  return Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height + meters);
-}
-
-/**
- * Heights of the terrain and anything standing on it, at each position.
- * Shared with the viewshed.
+ * Heights of the terrain — and, given a `scene`, of anything standing on
+ * it — at each position. The scene is only asked when ray casting isn't
+ * available (see `computeLineOfSight`).
  *
  * Terrain without tile availability (the plain ellipsoid) has nothing to
  * sample and is height 0 everywhere — which is exactly what it is.
- *
- * `sceneMask` limits the 3D Tiles sampling to the positions it marks with
- * 1. Each scene sample costs a small GPU render, so the viewshed — tens of
- * thousands of positions — asks only where a tileset actually stands, and
- * takes terrain everywhere else.
  */
-export async function sampleGroundHeights(
+async function sampleGroundHeights(
   terrainProvider: Cesium.TerrainProvider,
   cartographics: Cesium.Cartographic[],
   scene?: Cesium.Scene,
   exclude: object[] = [],
-  sceneMask?: Uint8Array,
 ): Promise<number[]> {
   const heights = new Array<number>(cartographics.length).fill(0);
 
@@ -90,21 +72,12 @@ export async function sampleGroundHeights(
   }
 
   if (scene && visibleTilesets(scene).length > 0 && scene.sampleHeightSupported) {
-    const indices: number[] = [];
-    cartographics.forEach((_, i) => {
-      if (!sceneMask || sceneMask[i]) indices.push(i);
+    const onScene = cartographics.map((c) => new Cesium.Cartographic(c.longitude, c.latitude));
+    const sampled = await scene.sampleHeightMostDetailed(onScene, exclude);
+    sampled.forEach((c, i) => {
+      // `undefined` where no building is: the terrain height stands.
+      if (c && Number.isFinite(c.height)) heights[i] = Math.max(heights[i], c.height);
     });
-    const onScene = indices.map(
-      (i) => new Cesium.Cartographic(cartographics[i].longitude, cartographics[i].latitude),
-    );
-    if (onScene.length > 0) {
-      const sampled = await scene.sampleHeightMostDetailed(onScene, exclude);
-      sampled.forEach((c, j) => {
-        // `undefined` where no building is: the terrain height stands.
-        const i = indices[j];
-        if (c && Number.isFinite(c.height)) heights[i] = Math.max(heights[i], c.height);
-      });
-    }
   }
 
   return heights;
@@ -117,7 +90,7 @@ export async function sampleGroundHeights(
  * `sampleHeightMostDetailed` throws — and an empty list lets callers skip
  * the GPU render passes scene sampling costs.
  */
-export function visibleTilesets(scene: Cesium.Scene): Cesium.Cesium3DTileset[] {
+function visibleTilesets(scene: Cesium.Scene): Cesium.Cesium3DTileset[] {
   if (scene.mode !== Cesium.SceneMode.SCENE3D) return [];
   const tilesets: Cesium.Cesium3DTileset[] = [];
   for (let i = 0; i < scene.primitives.length; i++) {

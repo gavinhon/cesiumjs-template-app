@@ -36,8 +36,7 @@ export const MAP_COLORS = {
    */
   vector: Cesium.Color.fromCssColorString('#5b9dff'),
   /**
-   * --sight: what an observer can see — the clear part of a line of sight,
-   * and the visible area of a viewshed.
+   * --sight: what an observer can see — the clear part of a line of sight.
    *
    * Its own hue rather than the accent, because an analysis result is a
    * different *kind* of thing from a shape you drew, and the two often sit
