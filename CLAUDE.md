@@ -477,8 +477,13 @@ non-obvious prop.
   vertex in a `CustomShader`, read from a `TerrainHeightmap`
   (`src/cesium/terrainHeightmap.ts`: built once per terrain by
   rasterising its quantized-mesh tiles through Cesium's private decoded
-  arrays, feature-detected), minus the geoid — Cesium converts _every_
-  I3S layer from sea level once it has a geoid provider. It's the third
+  arrays, feature-detected), minus the geoid where Cesium added it.
+  Cesium converts I3S from sea level only when it could fetch the geoid
+  over the scene's whole extent — never for a worldwide layer — so check
+  with `wasGeoidConverted`, never just "there's a geoid provider": that
+  assumption sank Esri's OSM buildings 8 m. And `scene.setTerrain` fires
+  `terrainProviderChanged` once with `undefined` while the new terrain
+  loads (`currentTerrain` in `useModels`). It's the third
   `ModelPlacement`, `draped`, under the same "On terrain" switch: on by
   default for a ground-relative scene or a catalogue entry with
   `placement: 'draped'`, and what that switch does for any model too

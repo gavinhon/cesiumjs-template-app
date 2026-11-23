@@ -267,6 +267,11 @@ export function useModels(viewer: Cesium.Viewer | null) {
     if (!viewer) return;
     let latest = 0;
     const reseat = async () => {
+      // While a newly chosen terrain loads, `scene.setTerrain` puts
+      // `undefined` on the globe as a placeholder and fires this event for
+      // it too. There's no ground to sit on yet — wait for the real one,
+      // which fires again.
+      if (!currentTerrain(viewer)) return;
       const run = ++latest;
       const updates = await Promise.all(
         modelsRef.current
@@ -380,6 +385,25 @@ function sceneLayerCopyright(provider: Cesium.I3SDataProvider): string | null {
   return texts.size > 0 ? [...texts].join(' · ') : null;
 }
 
+/**
+ * The terrain on the globe, or `undefined` while a new one loads:
+ * `scene.setTerrain` puts `undefined` there as a placeholder until the
+ * provider is ready, though Cesium's types say it's never unset.
+ */
+function currentTerrain(viewer: Cesium.Viewer): Cesium.TerrainProvider | undefined {
+  return viewer.terrainProvider as Cesium.TerrainProvider | undefined;
+}
+
+/** Resolves the next time the globe's terrain changes. */
+function nextTerrain(viewer: Cesium.Viewer): Promise<void> {
+  return new Promise((resolve) => {
+    const remove = viewer.scene.terrainProviderChanged.addEventListener(() => {
+      remove();
+      resolve();
+    });
+  });
+}
+
 /** What draping needs of a model. */
 type DrapeTarget = Pick<ManagedModel, 'primitive' | 'tilesets' | 'geoidConverted'>;
 
@@ -397,7 +421,10 @@ async function drapeModel(
   entry: DrapeTarget,
   stillWanted: () => boolean,
 ): Promise<void> {
-  const provider = viewer.terrainProvider;
+  const provider = currentTerrain(viewer);
+  // Still loading: keep the drape it has until the real terrain arrives,
+  // which drapes it again.
+  if (!provider) return;
   const current = () =>
     stillWanted() && !viewer.isDestroyed() && viewer.terrainProvider === provider;
   const heightmap = await terrainHeightmap(provider, drapeArea(entry.primitive));
@@ -474,7 +501,11 @@ function flyToTilesets(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[]
  */
 async function groundUnder(viewer: Cesium.Viewer, footprint: TilesetFootprint): Promise<number> {
   for (;;) {
-    const provider = viewer.terrainProvider;
+    const provider = currentTerrain(viewer);
+    if (!provider) {
+      await nextTerrain(viewer);
+      continue;
+    }
     const ground = await groundHeightUnder(provider, footprint);
     if (viewer.isDestroyed() || viewer.terrainProvider === provider) return ground;
   }

@@ -36,6 +36,26 @@ const FIRST_TERRAIN: PublicTerrainDataset | null = PUBLIC_TERRAINS[0] ?? null;
  * folder with a `layer.json`, and `scripts/build_terrain_tiles.py` writes
  * one from a GeoTIFF.
  */
+/**
+ * One provider per terrain, kept for the session. Switching the terrain off
+ * and on again then hands Cesium the same provider: no second `layer.json`
+ * fetch, and the 3D models draped on it reuse the heightmap they read from
+ * it (`terrainHeightmap` caches per provider) instead of re-reading every
+ * tile — during which they'd stand sunk at their undraped heights. A load
+ * that fails is forgotten, so choosing it again retries.
+ */
+const providers = new Map<string, Promise<Cesium.CesiumTerrainProvider>>();
+
+function terrainProvider(dataset: PublicTerrainDataset): Promise<Cesium.CesiumTerrainProvider> {
+  let provider = providers.get(dataset.url);
+  if (!provider) {
+    provider = Cesium.CesiumTerrainProvider.fromUrl(dataset.url, { requestVertexNormals: true });
+    providers.set(dataset.url, provider);
+    provider.catch(() => providers.delete(dataset.url));
+  }
+  return provider;
+}
+
 export function useTerrain(viewer: Cesium.Viewer | null) {
   // Starts on the terrain the preload below is about to fetch, already
   // "loading", rather than on None and then switched by an effect. The
@@ -69,7 +89,7 @@ export function useTerrain(viewer: Cesium.Viewer | null) {
 
       const terrain = new Cesium.Terrain(
         dataset
-          ? Cesium.CesiumTerrainProvider.fromUrl(dataset.url, { requestVertexNormals: true })
+          ? terrainProvider(dataset)
           : // "None" goes through setTerrain too, so it also cancels a
             // terrain that's still loading instead of being overwritten by it.
             Promise.resolve(new Cesium.EllipsoidTerrainProvider()),

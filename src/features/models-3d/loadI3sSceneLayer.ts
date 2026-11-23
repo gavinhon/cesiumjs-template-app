@@ -37,10 +37,9 @@ export interface LoadedSceneLayer {
    */
   groundRelative: boolean;
   /**
-   * Cesium shifted the scene from sea level to ellipsoid heights. It does
-   * that to every layer once it has a geoid provider, whatever the layer's
-   * `heightModelInfo` says — ground-relative ones included — so a draped
-   * scene's "zero" is the geoid, which the drape then subtracts.
+   * Cesium shifted the scene from sea level to ellipsoid heights, so a
+   * draped scene's "zero" is the geoid, which the drape then subtracts.
+   * See `wasGeoidConverted`: having a geoid provider doesn't mean it worked.
    */
   geoidConverted: boolean;
 }
@@ -95,12 +94,31 @@ export async function loadI3sSceneLayer(url: string, name: string): Promise<Load
       (layer.data as { elevationInfo?: { mode?: unknown } } | undefined)?.elevationInfo?.mode ===
       'relativeToGround',
   );
-  return {
-    provider,
-    tilesets,
-    groundRelative,
-    geoidConverted: provider.geoidTiledTerrainProvider !== undefined,
-  };
+  return { provider, tilesets, groundRelative, geoidConverted: wasGeoidConverted(provider) };
+}
+
+/**
+ * Whether Cesium actually converted a scene's heights from sea level.
+ *
+ * Given a geoid provider, Cesium converts every layer, whatever its
+ * `heightModelInfo` says — but only once it has fetched the geoid tiles
+ * covering the scene's whole extent, at the service's deepest level. For a
+ * worldwide layer (Esri's OpenStreetMap buildings declare -180..180,
+ * -90..90) that's thousands of Web Mercator tiles reaching the poles; the
+ * fetch fails, Cesium logs "no geoid conversion will be performed", and
+ * the scene loads unconverted. Assuming otherwise sank every draped OSM
+ * building ~8 m, by a geoid height it never had added.
+ *
+ * Cesium records the tiles it got in its private `_geoidDataList`, set by
+ * the time `fromUrl` resolves (each layer awaits the geoid before loading).
+ * Feature-detected: if a later Cesium drops the field, fall back to
+ * "converted whenever there's a provider", which holds for regional scenes.
+ */
+function wasGeoidConverted(provider: Cesium.I3SDataProvider): boolean {
+  if (provider.geoidTiledTerrainProvider === undefined) return false;
+  if (!('_geoidDataList' in provider)) return true;
+  const tiles = (provider as { _geoidDataList?: unknown })._geoidDataList;
+  return Array.isArray(tiles) && tiles.length > 0;
 }
 
 /**
