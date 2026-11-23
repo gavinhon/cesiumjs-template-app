@@ -37,7 +37,7 @@ export interface LineOfSightResult {
   /** Where the eye is: the observer's ground point, raised by `EYE_HEIGHT`. */
   eye: Cesium.Cartesian3;
   target: Cesium.Cartesian3;
-  /** The first point where the view is blocked, on the blocking surface; `null` if clear. */
+  /** Where the sight line first runs into something; `null` if clear. */
   obstruction: Cesium.Cartesian3 | null;
 }
 
@@ -160,10 +160,15 @@ export async function computeLineOfSight(
     const distanceToTarget = length * (1 - (i + 1) / count);
     if (distanceToTarget < ignoreNearTarget) break;
     if (ground[i] > along[i].height + TOLERANCE) {
+      // On the sight line, where it enters the blocker — not at the
+      // blocker's height. A 3D Tiles height sample is the *top* of whatever
+      // stands there (`sampleHeightMostDetailed` looks straight down), so
+      // using it put the marker on the building's highest roof: the clear
+      // line bent up to it, and "Blocked at" measured to the roof.
       const obstruction = Cesium.Cartesian3.fromRadians(
         along[i].longitude,
         along[i].latitude,
-        ground[i],
+        along[i].height,
       );
       return { eye, target, obstruction };
     }

@@ -62,15 +62,18 @@ describe('computeLineOfSight', () => {
     expect(Cesium.Cartographic.fromCartesian(eye).height).toBeCloseTo(EYE_HEIGHT, 4);
   });
 
-  it('is blocked by a hill between the two points, at the hill', async () => {
+  it('is blocked by a hill between the two points, where the line meets it', async () => {
     groundAt = (lon) => (Math.abs(lon - midway) < 0.0005 ? 30 : 0);
     const { obstruction } = await computeLineOfSight(viewer, from, to, []);
     expect(obstruction).not.toBeNull();
     const blocked = Cesium.Cartographic.fromCartesian(obstruction as Cesium.Cartesian3);
-    // On the hill's near face, at the hill's height.
+    // On the hill's near face, and on the sight line itself — about 0.85 m
+    // up here — not up at the 30 m summit, so the clear line runs straight
+    // to it instead of bending up to the top of whatever blocked it.
     expect(Cesium.Math.toDegrees(blocked.longitude)).toBeGreaterThan(midway - 0.0006);
     expect(Cesium.Math.toDegrees(blocked.longitude)).toBeLessThan(midway);
-    expect(blocked.height).toBeCloseTo(30, 4);
+    expect(blocked.height).toBeGreaterThan(0.5);
+    expect(blocked.height).toBeLessThan(1.7);
   });
 
   it('ignores a bump lower than the sampling-noise tolerance', async () => {
