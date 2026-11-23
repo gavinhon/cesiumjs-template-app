@@ -727,6 +727,10 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           );
           break;
         case 'line-of-sight':
+          // The sight line leaves from the eye, EYE_HEIGHT above the click;
+          // the short dashed riser shows that drop, so the line doesn't seem
+          // to start in mid-air above the point you placed.
+          addPreviewLine(() => [start(), raise(start(), EYE_HEIGHT)], DASHED_SIGHT, 1.5);
           addPreviewLine(() => [raise(start(), EYE_HEIGHT), liveEnd()], DASHED_SIGHT, 2);
           break;
         case 'viewshed':
@@ -736,6 +740,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             2,
           );
           addPreviewLine(() => [start(), liveEnd()], DASHED_SIGHT, 1.5);
+          addPreviewLine(() => [start(), raise(start(), EYE_HEIGHT)], DASHED_SIGHT, 1.5);
           break;
         default: {
           const exhaustive: never = tool;
@@ -795,6 +800,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             tagPart(add({ point: { ...pointStyle } }), 'obstruction', {
               color: MAP_COLORS.obstructed,
             }),
+            tagPart(add({ polyline: { positions: [start, eye] } }), 'stand', { dashed: true }),
             tagPart(add({ position: eye, point: { ...pointStyle } }), 'eye'),
             tagPart(add({ position: end, point: { ...pointStyle } }), 'target'),
           ];
@@ -813,6 +819,9 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
               }),
               'rim',
             ),
+            tagPart(add({ polyline: { positions: [start, raise(start, EYE_HEIGHT)] } }), 'stand', {
+              dashed: true,
+            }),
             tagPart(add({ position: raise(start, EYE_HEIGHT), point: { ...pointStyle } }), 'eye'),
           ];
           break;

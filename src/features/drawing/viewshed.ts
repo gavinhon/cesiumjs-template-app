@@ -119,6 +119,30 @@ export function viewshedGrid(radius: number, budget: number, minSpacing = 2): Vi
 }
 
 /**
+ * Distances for the samples between the observer and a ray's first grid
+ * sample: 0.25 m, doubling, short of `spacing`.
+ *
+ * The grid starts one spacing out — 2 m at least, several metres on a big
+ * radius — so whatever the observer stands on between there and their
+ * feet went unsampled. On a rooftop that's the roof edge: with it missing,
+ * the first sample was the street far below, and the trace "saw" straight
+ * down the façade. A few close samples catch the edge; doubling keeps it
+ * to a handful per ray however large the spacing.
+ */
+export function nearDistances(spacing: number): number[] {
+  const distances: number[] = [];
+  for (let d = 0.25; d < spacing; d *= 2) distances.push(d);
+  return distances;
+}
+
+/** Whether a point east/north of the observer, in metres, is under any footprint. */
+function inAnyFootprint(east: number, north: number, footprints: Footprint[]): boolean {
+  return footprints.some(
+    (footprint) => Math.hypot(east - footprint.east, north - footprint.north) <= footprint.radius,
+  );
+}
+
+/**
  * Which samples of `grid` fall inside any footprint — the ones worth
  * asking the 3D Tiles about. Same layout as the heights: ray by ray,
  * nearest sample first. Pure, so it's tested without a scene.
@@ -132,13 +156,8 @@ export function samplesInFootprints(grid: ViewshedGrid, footprints: Footprint[])
     const sin = Math.sin(bearing);
     const cos = Math.cos(bearing);
     for (let s = 1; s <= steps; s++) {
-      const east = s * spacing * sin;
-      const north = s * spacing * cos;
-      for (const footprint of footprints) {
-        if (Math.hypot(east - footprint.east, north - footprint.north) <= footprint.radius) {
-          mask[r * steps + (s - 1)] = 1;
-          break;
-        }
+      if (inAnyFootprint(s * spacing * sin, s * spacing * cos, footprints)) {
+        mask[r * steps + (s - 1)] = 1;
       }
     }
   }
@@ -172,6 +191,10 @@ const HIDDEN_FILL = Cesium.Color.BLACK.withAlpha(0.42).toBytes();
  * first; sample `s` (from 1) of each ray is `s × spacing` metres out. A
  * sample is visible when the angle up to it is at least the steepest angle
  * to anything nearer on the same ray.
+ *
+ * `nearSteepest`, one per ray, is the steepest angle among the samples
+ * closer than the first one (`nearDistances`) — the roof edge under a
+ * rooftop observer. Without it each ray starts as if nothing were nearer.
  */
 export function traceVisibility(
   ground: ArrayLike<number>,
@@ -179,12 +202,13 @@ export function traceVisibility(
   steps: number,
   spacing: number,
   eyeHeight: number,
+  nearSteepest?: ArrayLike<number>,
 ): { visible: Uint8Array; visibleFraction: number } {
   const visible = new Uint8Array(rays * steps);
   let visibleArea = 0;
   let totalArea = 0;
   for (let r = 0; r < rays; r++) {
-    let steepest = -Infinity;
+    let steepest = nearSteepest ? nearSteepest[r] : -Infinity;
     for (let s = 1; s <= steps; s++) {
       const index = r * steps + (s - 1);
       const d = s * spacing;
@@ -252,27 +276,57 @@ export async function computeViewshed(
   // Offsets in a local flat frame around the observer. Exact enough out to
   // tens of kilometres, and the curvature that matters — the ground
   // dropping away from a level sight line — is added back below.
+  const at = (bearing: number, d: number) =>
+    new Cesium.Cartographic(
+      origin.longitude + (d * Math.sin(bearing)) / scale.east,
+      origin.latitude + (d * Math.cos(bearing)) / scale.north,
+    );
   const samples: Cesium.Cartographic[] = [];
   for (let r = 0; r < rays; r++) {
     const bearing = (r / rays) * 2 * Math.PI;
-    for (let s = 1; s <= steps; s++) {
-      const d = s * spacing;
-      samples.push(
-        new Cesium.Cartographic(
-          origin.longitude + (d * Math.sin(bearing)) / scale.east,
-          origin.latitude + (d * Math.cos(bearing)) / scale.north,
-        ),
-      );
-    }
+    for (let s = 1; s <= steps; s++) samples.push(at(bearing, s * spacing));
   }
-  const ground = await sampleGroundHeights(
+
+  // The near field, sampled in the same pass (appended after the grid):
+  // a handful of points per ray between the observer and its first sample.
+  const near = nearDistances(spacing);
+  const nearMask = new Uint8Array(rays * near.length);
+  for (let r = 0; r < rays; r++) {
+    const bearing = (r / rays) * 2 * Math.PI;
+    near.forEach((d, k) => {
+      samples.push(at(bearing, d));
+      if (inAnyFootprint(d * Math.sin(bearing), d * Math.cos(bearing), footprints)) {
+        nearMask[r * near.length + k] = 1;
+      }
+    });
+  }
+  const allMask = new Uint8Array(mask.length + nearMask.length);
+  allMask.set(mask);
+  allMask.set(nearMask, mask.length);
+
+  const heights = await sampleGroundHeights(
     viewer.terrainProvider,
     samples,
     viewer.scene,
     exclude,
-    mask,
+    allMask,
   );
-  const { visible, visibleFraction } = traceVisibility(ground, rays, steps, spacing, eyeHeight);
+  const ground = heights.slice(0, rays * steps);
+  const nearSteepest = new Float64Array(rays).fill(-Infinity);
+  for (let r = 0; r < rays; r++) {
+    near.forEach((d, k) => {
+      const slope = (heights[rays * steps + r * near.length + k] - eyeHeight) / d;
+      nearSteepest[r] = Math.max(nearSteepest[r], slope);
+    });
+  }
+  const { visible, visibleFraction } = traceVisibility(
+    ground,
+    rays,
+    steps,
+    spacing,
+    eyeHeight,
+    nearSteepest,
+  );
 
   // Paint: every pixel inside the circle looks up the ray and sample
   // nearest to it.

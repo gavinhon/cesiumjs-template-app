@@ -67,6 +67,7 @@ export type EntityPart =
   | 'horizontal' // height triangle: the horizontal leg
   | 'level' // measurement: the path flattened to its lowest point, dotted
   | 'eye' // observer, raised to eye height
+  | 'stand' // observer: dashed, from where they stand up to the eye
   | 'target' // line-of-sight target
   | 'clear' // line of sight: eye to the first obstruction (or the target)
   | 'blocked' // line of sight: obstruction to target
@@ -349,6 +350,9 @@ export function applyGeometry(feature: DrawnFeature, positions: Cesium.Cartesian
         break;
       case 'eye':
         entity.position = new Cesium.ConstantPositionProperty(eye);
+        break;
+      case 'stand':
+        setPolyline(entity, [first, eye]);
         break;
       case 'target':
         entity.position = new Cesium.ConstantPositionProperty(last);

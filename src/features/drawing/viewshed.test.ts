@@ -2,6 +2,7 @@ import * as Cesium from 'cesium';
 import { describe, expect, it } from 'vitest';
 import {
   describeViewshed,
+  nearDistances,
   rimPositions,
   samplesInFootprints,
   traceVisibility,
@@ -51,6 +52,33 @@ describe('traceVisibility', () => {
     // Hidden: only the farthest of three samples, which stands for 3/6 of the area.
     const { visibleFraction } = ray([0, 20, 0]);
     expect(visibleFraction).toBeCloseTo(3 / 6, 6);
+  });
+});
+
+describe('traceVisibility from a rooftop', () => {
+  // An eye 1.7 m above a 20 m roof whose edge is 1 m away — closer than the
+  // first grid sample, 10 m out. The street beyond is at 0.
+  const eye = 21.7;
+  const street = new Array(5).fill(0);
+
+  it('sees straight down the façade if nothing nearer is known', () => {
+    const { visible } = traceVisibility(street, 1, 5, 10, eye);
+    expect(visible[0]).toBe(1);
+  });
+
+  it('hides the street at the foot of the building behind the roof edge', () => {
+    // The roof 1 m out, sampled by the near field: steepest -1.7 / 1.
+    const { visible } = traceVisibility(street, 1, 5, 10, eye, [(20 - eye) / 1]);
+    // Hidden until the street drops below that angle: past ~12.8 m.
+    expect(visible[0]).toBe(0);
+    expect(visible[1]).toBe(1);
+  });
+});
+
+describe('nearDistances', () => {
+  it('doubles from a quarter metre to just short of the spacing', () => {
+    expect(nearDistances(2)).toEqual([0.25, 0.5, 1]);
+    expect(nearDistances(6.7)).toEqual([0.25, 0.5, 1, 2, 4]);
   });
 });
 

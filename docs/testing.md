@@ -168,8 +168,10 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 | M4  | Line of sight across Bukit Timah                                                       | "Blocked at … of …"; cyan up to the hill, red beyond it                                         |
 | M5  | Line of sight across flat ground                                                       | "Visible · …", all cyan                                                                         |
 | M5b | Add the BIM model; line of sight from inside a room out through a window to the ground | Cyan all the way if nothing is in the way; a wall or slab in the way blocks it at that wall     |
+| M5c | Start a line of sight on the ground and move the mouse                                 | A short dashed riser climbs 1.7 m from the point to the eye, where the sight line starts        |
 | M6  | Viewshed on a hilltop, radius about 1 km                                               | Cyan where visible, dark where hidden, inside a ring; "N% visible · … radius" in about a second |
 | M6b | Add the BIM model, then a viewshed beside it (radius about 200 m)                      | The building casts a dark shadow behind it; the readout ends "· with 3D"                        |
+| M6c | Viewshed from the BIM roof, about 1 m from its edge                                    | The street at the foot of the building is hidden, not visible straight down the façade          |
 | M7  | Drag a line-of-sight or viewshed vertex                                                | Shows "Analysing…", then the new result                                                         |
 | M8  | Start a measurement; switch to 2D; keep clicking; switch back to 3D                    | The measurement keeps working in both modes                                                     |
 
