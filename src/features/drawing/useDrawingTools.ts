@@ -533,13 +533,21 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             outline: false,
           },
         });
+        //
+        // Draped, like the fill. A polygon entity with no height is clamped
+        // to the surface as drawn *now*, while a plain polyline sits at the
+        // vertices' stored heights — and those can be metres off the
+        // surface: clicked from far away (depth-buffer picking is only that
+        // precise), or before the terrain had loaded at full detail. Seen
+        // obliquely, the edge then floated away from its own fill.
+        // Draped lines can't take a depthFailMaterial, and don't need one.
         const outline = tagPart(
           cesiumViewer.entities.add({
             polyline: {
               positions: new Cesium.CallbackProperty(livePolygonOutline, false),
               width: 2,
               material: color,
-              depthFailMaterial: hiddenLineMaterial(color),
+              clampToGround: true,
             },
           }),
           'outline',
