@@ -418,7 +418,7 @@ non-obvious prop.
   the _top_ of whatever stands at a point, so it sees a building as solid
   from the ground to its highest roof. Line of sight casts the sight line
   through the scene instead (`firstHitAlongRay` in `lineOfSight.ts`, using
-  Cesium's private `pickFromRayMostDetailed`, feature-detected) so it can
+  Cesium's private `drillPickFromRayMostDetailed`, feature-detected) so it can
   pass through windows; the viewshed, which needs thousands of samples,
   still uses height samples and keeps that limit.
 - **3D Tiles draw over terrain even when they're under it.**

@@ -66,8 +66,8 @@ export type EntityPart =
   | 'vertical' // height triangle: the vertical leg
   | 'horizontal' // height triangle: the horizontal leg
   | 'level' // measurement: the path flattened to its lowest point, dotted
-  | 'eye' // observer, raised to eye height
-  | 'stand' // observer: dashed, from where they stand up to the eye
+  | 'eye' // where a sight line starts; a viewshed's observer, at eye height
+  | 'stand' // viewshed observer: dashed, from where they stand up to the eye
   | 'target' // line-of-sight target
   | 'clear' // line of sight: eye to the first obstruction (or the target)
   | 'blocked' // line of sight: obstruction to target
@@ -330,7 +330,9 @@ export function styleFeature(feature: DrawnFeature, selected: boolean): void {
  */
 export function applyGeometry(feature: DrawnFeature, positions: Cesium.Cartesian3[]): void {
   const [first, last] = [positions[0], positions[positions.length - 1]];
-  const eye = ANALYSIS_KINDS.has(feature.kind) ? raise(first, EYE_HEIGHT) : first;
+  // Only the viewshed's observer stands at eye height; a sight line runs
+  // from exactly the point chosen.
+  const eye = feature.kind === 'viewshed' ? raise(first, EYE_HEIGHT) : first;
 
   for (const entity of feature.entities) {
     const part = partOf(entity);

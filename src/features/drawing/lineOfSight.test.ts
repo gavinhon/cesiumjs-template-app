@@ -57,9 +57,9 @@ describe('computeLineOfSight', () => {
     expect(result.obstruction).toBeNull();
   });
 
-  it('puts the eye at standing height above the observer', async () => {
+  it('starts at exactly the chosen point, not a standing eye height above it', async () => {
     const { eye } = await computeLineOfSight(viewer, from, to, []);
-    expect(Cesium.Cartographic.fromCartesian(eye).height).toBeCloseTo(EYE_HEIGHT, 4);
+    expect(Cesium.Cartesian3.distance(eye, from)).toBeLessThan(1e-6);
   });
 
   it('is blocked by a hill between the two points, where the line meets it', async () => {
@@ -67,18 +67,17 @@ describe('computeLineOfSight', () => {
     const { obstruction } = await computeLineOfSight(viewer, from, to, []);
     expect(obstruction).not.toBeNull();
     const blocked = Cesium.Cartographic.fromCartesian(obstruction as Cesium.Cartesian3);
-    // On the hill's near face, and on the sight line itself — about 0.85 m
-    // up here — not up at the 30 m summit, so the clear line runs straight
-    // to it instead of bending up to the top of whatever blocked it.
+    // On the hill's near face, and on the sight line itself — at ground
+    // level here — not up at the 30 m summit, so the clear line runs
+    // straight to it instead of bending up to the top of whatever blocked it.
     expect(Cesium.Math.toDegrees(blocked.longitude)).toBeGreaterThan(midway - 0.0006);
     expect(Cesium.Math.toDegrees(blocked.longitude)).toBeLessThan(midway);
-    expect(blocked.height).toBeGreaterThan(0.5);
-    expect(blocked.height).toBeLessThan(1.7);
+    expect(Math.abs(blocked.height)).toBeLessThan(0.5);
   });
 
   it('ignores a bump lower than the sampling-noise tolerance', async () => {
-    // The sight line is ~0.85 m up at midway; 1 m pokes 0.15 m above it.
-    groundAt = (lon) => (Math.abs(lon - midway) < 0.0005 ? 1 : 0);
+    // The sight line runs along the ground; 0.2 m pokes just above it.
+    groundAt = (lon) => (Math.abs(lon - midway) < 0.0005 ? 0.2 : 0);
     const { obstruction } = await computeLineOfSight(viewer, from, to, []);
     expect(obstruction).toBeNull();
   });
@@ -97,13 +96,16 @@ describe('computeLineOfSight through 3D Tiles', () => {
   /** A viewer whose scene can cast rays, answering with `hit` (or nothing). */
   function rayViewer(hit: Cesium.Cartesian3 | null) {
     const sampleHeightMostDetailed = vi.fn(async () => []);
-    const pickFromRayMostDetailed = vi.fn(async () => (hit ? { position: hit } : undefined));
+    // The start point's own surface comes first, as it does in a real scene.
+    const drillPickFromRayMostDetailed = vi.fn(async () =>
+      hit ? [{ position: Cesium.Cartesian3.clone(from) }, { position: hit }] : [],
+    );
     const rayScene = {
       mode: Cesium.SceneMode.SCENE3D,
       primitives: { length: 0, get: () => undefined },
       sampleHeightSupported: true,
       sampleHeightMostDetailed,
-      pickFromRayMostDetailed,
+      drillPickFromRayMostDetailed,
     };
     return {
       viewer: {
@@ -111,7 +113,7 @@ describe('computeLineOfSight through 3D Tiles', () => {
         scene: rayScene,
       } as unknown as Cesium.Viewer,
       sampleHeightMostDetailed,
-      pickFromRayMostDetailed,
+      drillPickFromRayMostDetailed,
     };
   }
 
@@ -131,10 +133,14 @@ describe('computeLineOfSight through 3D Tiles', () => {
 
   it('casts the line instead of sampling building heights from above', async () => {
     // The top-down samples are what called a line through a window blocked.
-    const { viewer: open, sampleHeightMostDetailed, pickFromRayMostDetailed } = rayViewer(null);
+    const {
+      viewer: open,
+      sampleHeightMostDetailed,
+      drillPickFromRayMostDetailed,
+    } = rayViewer(null);
     const { obstruction } = await computeLineOfSight(open, from, to, []);
     expect(obstruction).toBeNull();
-    expect(pickFromRayMostDetailed).toHaveBeenCalledOnce();
+    expect(drillPickFromRayMostDetailed).toHaveBeenCalledOnce();
     expect(sampleHeightMostDetailed).not.toHaveBeenCalled();
   });
 

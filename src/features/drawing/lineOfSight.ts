@@ -1,7 +1,12 @@
 import * as Cesium from 'cesium';
 
 /**
- * Line-of-sight analysis: can someone standing at one point see another?
+ * Line-of-sight analysis: is one point visible from another?
+ *
+ * The line runs exactly between the two points chosen — a window, a
+ * rooftop, a spot on the ground — not from a standing person's eye above
+ * the first. (The viewshed does raise its observer to `EYE_HEIGHT`: an
+ * eye at ground level sees almost nothing past the noise in the terrain.)
  *
  * **CesiumJS has no line-of-sight API.** It has the pieces one is built
  * from — terrain height sampling and scene height sampling — and this
@@ -15,7 +20,7 @@ import * as Cesium from 'cesium';
  *
  * Terrain is checked that way, sampled from the terrain tiles at their
  * most detailed level. **3D Tiles are checked by casting the sight line
- * itself through them** (`pickFromRayMostDetailed`, see
+ * itself through them** (`drillPickFromRayMostDetailed`, see
  * `firstHitAlongRay`), because a model is not a heightmap: a sight line
  * through a window, under a canopy, or from one floor of a building to
  * another passes beneath geometry that a top-down height sample would
@@ -24,7 +29,7 @@ import * as Cesium from 'cesium';
  * each building as solid up to its highest roof.
  */
 
-/** A standing adult's eye height — the convention for "can a person see it". */
+/** A standing adult's eye height — the viewshed's observer stands this tall. */
 export const EYE_HEIGHT = 1.7;
 
 /** Sample spacing along the sight line, in metres, before the cap below kicks in. */
@@ -39,7 +44,7 @@ const MAX_SAMPLES = 600;
 const TOLERANCE = 0.3;
 
 export interface LineOfSightResult {
-  /** Where the eye is: the observer's ground point, raised by `EYE_HEIGHT`. */
+  /** Where the sight line starts: the point chosen. */
   eye: Cesium.Cartesian3;
   target: Cesium.Cartesian3;
   /** Where the sight line first runs into something; `null` if clear. */
@@ -135,8 +140,9 @@ interface RayHit {
 /**
  * Cesium's ray picking, which isn't in its public typings.
  *
- * `Scene.pickFromRayMostDetailed` renders the scene along a ray — loading
- * 3D Tiles at full detail first — and returns the first thing it meets.
+ * `Scene.drillPickFromRayMostDetailed` renders the scene along a ray —
+ * loading 3D Tiles at full detail first — and returns what it passes
+ * through, nearest first, hiding each part it hits before looking again.
  * It's marked `@private` in Cesium's source, but it is the machinery the
  * public `sampleHeightMostDetailed` is built on (a height sample is a ray
  * cast straight down), and it has kept this signature across many
@@ -145,12 +151,24 @@ interface RayHit {
  * height samples instead of breaking.
  */
 interface RayPickingScene {
-  pickFromRayMostDetailed?: (
+  drillPickFromRayMostDetailed?: (
     ray: Cesium.Ray,
+    limit?: number,
     objectsToExclude?: object[],
     width?: number,
-  ) => Promise<RayHit | undefined>;
+  ) => Promise<RayHit[]>;
 }
+
+/**
+ * How far from the start a ray hit has to be to count. The line starts *on*
+ * a surface — the floor, sill or wall you clicked — and the ray meets that
+ * surface first; it's the thing you're looking from, not something in the
+ * way.
+ */
+const START_SURFACE = 0.5;
+
+/** Hits to look through for the first one past the start surface. */
+const HIT_LIMIT = 4;
 
 /**
  * The first surface the straight line from `eye` to `target` passes
@@ -167,25 +185,33 @@ async function firstHitAlongRay(
   const picking = scene as unknown as RayPickingScene;
   // Cesium throws for ray intersections outside 3D.
   if (scene.mode !== Cesium.SceneMode.SCENE3D) return undefined;
-  if (typeof picking.pickFromRayMostDetailed !== 'function') return undefined;
+  if (typeof picking.drillPickFromRayMostDetailed !== 'function') return undefined;
   const direction = Cesium.Cartesian3.normalize(
     Cesium.Cartesian3.subtract(target, eye, new Cesium.Cartesian3()),
     new Cesium.Cartesian3(),
   );
   try {
-    const hit = await picking.pickFromRayMostDetailed.call(
+    const hits = await picking.drillPickFromRayMostDetailed.call(
       scene,
       new Cesium.Ray(eye, direction),
+      HIT_LIMIT,
       exclude,
     );
-    return hit?.position ? Cesium.Cartesian3.clone(hit.position) : null;
+    // Nearest first: the first one clear of the surface the line starts on.
+    for (const { position } of hits) {
+      if (position && Cesium.Cartesian3.distance(eye, position) > START_SURFACE) {
+        return Cesium.Cartesian3.clone(position);
+      }
+    }
+    return null;
   } catch {
     return undefined;
   }
 }
 
 /**
- * Works out whether `to` is visible from an observer standing at `from`.
+ * Works out whether `to` is visible from `from`, along the straight line
+ * between exactly those two points.
  *
  * `exclude` should list the app's own entities, so the sight line being
  * drawn — or any other drawing — isn't sampled as an obstacle.
@@ -196,7 +222,7 @@ export async function computeLineOfSight(
   to: Cesium.Cartesian3,
   exclude: object[],
 ): Promise<LineOfSightResult> {
-  const eye = raise(from, EYE_HEIGHT);
+  const eye = Cesium.Cartesian3.clone(from);
   const target = Cesium.Cartesian3.clone(to);
   const length = Cesium.Cartesian3.distance(eye, target);
   const count = Math.min(MAX_SAMPLES, Math.max(32, Math.ceil(length / SAMPLE_SPACING)));
@@ -222,15 +248,18 @@ export async function computeLineOfSight(
     exclude,
   );
 
-  // The last couple of metres before the target are ignored: the target
-  // sits *on* that surface, so the samples beside it — and a ray arriving
-  // at it — meet that surface by construction and would read as a blocker.
-  const ignoreNearTarget = Math.max(2, length * 0.005);
+  // The couple of metres at each end are ignored for terrain: both points
+  // sit *on* the ground they were picked on, so the samples beside them
+  // meet that ground by construction — plus sampling noise — and would read
+  // as a blocker. (A ray arriving at the target meets its surface the same
+  // way, hence the check on `rayHit` below.)
+  const ignoreNearEnds = Math.max(2, length * 0.005);
 
   let obstruction: Cesium.Cartesian3 | null = null;
   for (let i = 0; i < along.length; i++) {
-    const distanceToTarget = length * (1 - (i + 1) / count);
-    if (distanceToTarget < ignoreNearTarget) break;
+    const distanceFromEye = length * ((i + 1) / count);
+    if (distanceFromEye < ignoreNearEnds) continue;
+    if (length - distanceFromEye < ignoreNearEnds) break;
     if (ground[i] > along[i].height + TOLERANCE) {
       // On the sight line, where it enters the blocker — not at the
       // blocker's height. A height sample is the *top* of whatever stands
@@ -247,7 +276,7 @@ export async function computeLineOfSight(
   }
 
   // Whichever blocker the line meets first: terrain or something the ray hit.
-  if (rayHit && Cesium.Cartesian3.distance(eye, rayHit) < length - ignoreNearTarget) {
+  if (rayHit && Cesium.Cartesian3.distance(eye, rayHit) < length - ignoreNearEnds) {
     const terrainFirst =
       obstruction !== null &&
       Cesium.Cartesian3.distance(eye, obstruction) < Cesium.Cartesian3.distance(eye, rayHit);

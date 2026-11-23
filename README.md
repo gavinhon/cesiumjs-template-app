@@ -71,7 +71,9 @@ CesiumJS, wired up **without** a Cesium ion account.
   - **Height** between two points: how far up or down, and how far across
     ("10.2 m up · 4.1 m horizontal"), drawn as a right triangle. Click a
     roof, then the street, and you've measured the building.
-  - **Line of sight**: can someone standing at one point see another? The
+  - **Line of sight**: is one point visible from another — a window from
+    the street, a rooftop from a hill? It runs from exactly the point you
+    pick. The
     sight line is cyan where clear and red past the first obstruction —
     terrain or building.
   - **Viewshed**: everything visible from a point within a radius, draped

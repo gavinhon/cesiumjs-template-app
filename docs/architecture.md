@@ -282,7 +282,7 @@ The one exception is line of sight through 3D Tiles. A height sample looks
 straight down, so it sees a building as solid from the ground to its
 highest roof — a sight line through a window or under a canopy would read
 as blocked. Line of sight therefore casts the sight line itself through the
-scene with `scene.pickFromRayMostDetailed`: marked private in Cesium, but
+scene with `scene.drillPickFromRayMostDetailed`: marked private in Cesium, but
 the machinery the public height sampling is built on. It's feature-detected,
 and without it line of sight falls back to height samples. The trade-off
 worth knowing:

@@ -727,11 +727,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           );
           break;
         case 'line-of-sight':
-          // The sight line leaves from the eye, EYE_HEIGHT above the click;
-          // the short dashed riser shows that drop, so the line doesn't seem
-          // to start in mid-air above the point you placed.
-          addPreviewLine(() => [start(), raise(start(), EYE_HEIGHT)], DASHED_SIGHT, 1.5);
-          addPreviewLine(() => [raise(start(), EYE_HEIGHT), liveEnd()], DASHED_SIGHT, 2);
+          // From exactly the point placed — see lineOfSight.ts.
+          addPreviewLine(() => [start(), liveEnd()], DASHED_SIGHT, 2);
           break;
         case 'viewshed':
           addPreviewLine(
@@ -740,6 +737,8 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             2,
           );
           addPreviewLine(() => [start(), liveEnd()], DASHED_SIGHT, 1.5);
+          // The viewshed's observer stands EYE_HEIGHT tall; the dashed riser
+          // shows that, so the eye doesn't seem to float above the point.
           addPreviewLine(() => [start(), raise(start(), EYE_HEIGHT)], DASHED_SIGHT, 1.5);
           break;
         default: {
@@ -791,7 +790,7 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
           break;
         }
         case 'line-of-sight': {
-          const eye = raise(start, EYE_HEIGHT);
+          const eye = start;
           entities = [
             tagPart(add({ polyline: { positions: [eye, end] } }), 'clear'),
             tagPart(add({ polyline: { positions: [] } }), 'blocked', {
@@ -800,7 +799,6 @@ export function useDrawingTools(viewer: Cesium.Viewer | null) {
             tagPart(add({ point: { ...pointStyle } }), 'obstruction', {
               color: MAP_COLORS.obstructed,
             }),
-            tagPart(add({ polyline: { positions: [start, eye] } }), 'stand', { dashed: true }),
             tagPart(add({ position: eye, point: { ...pointStyle } }), 'eye'),
             tagPart(add({ position: end, point: { ...pointStyle } }), 'target'),
           ];
