@@ -7,6 +7,7 @@ import {
   isPlaceable,
   placementHint,
   verticalShift,
+  WORLDWIDE_RADIUS,
   type TilesetFootprint,
 } from './placeTilesetOnTerrain';
 import { terrainHeightmap } from '@/cesium/terrainHeightmap';
@@ -341,9 +342,6 @@ export function useModels(viewer: Cesium.Viewer | null) {
   return { models, addModel, removeModel, toggleVisibility, zoomToModel, setPlacement };
 }
 
-/** Bigger than this (bounding-sphere radius, metres), a tileset isn't anywhere in particular. */
-const REGIONAL_RADIUS = 1_000_000;
-
 /**
  * Light from every direction equally, as Cesium's spherical-harmonic
  * coefficients: only the first (constant) term is set. Its strength is
@@ -465,7 +463,7 @@ function moveTilesets(entry: ManagedModel, modelMatrix: Cesium.Matrix4) {
  * black. A plain, even ambient light instead.
  */
 function frameOrLight(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[], flyTo: boolean) {
-  const regional = tilesets.filter((tileset) => tileset.boundingSphere.radius < REGIONAL_RADIUS);
+  const regional = tilesets.filter((tileset) => tileset.boundingSphere.radius < WORLDWIDE_RADIUS);
   for (const tileset of tilesets) {
     if (!regional.includes(tileset)) {
       tileset.imageBasedLighting.sphericalHarmonicCoefficients = EVEN_AMBIENT_LIGHT;

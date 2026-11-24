@@ -53,7 +53,7 @@ export function ModelPlacementControl(props: ModelPlacementControlProps) {
   const { placement, placeable, onChange } = props;
   return (
     <span className="model-placement-control">
-      <label className="model-placement-control__switch">
+      <label className="control-check model-placement-control__switch">
         <input
           type="checkbox"
           checked={placement !== 'as-authored'}

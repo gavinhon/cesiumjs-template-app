@@ -163,6 +163,19 @@ select {
   accent-color: var(--accent);
 }
 
+/* A checkbox with its label beside it — a two-state setting rather than an
+   action, so a plain label, not a button. Wrap the input and its text in a
+   <label class="control-check">; components add a class of their own for
+   layout (a minimum height in a list, no wrapping in a row). */
+.control-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
 /*
  * Shared look for every floating control (search bar, toolbar buttons,
  * panel form inputs): dark glass with a hairline border. Components add a

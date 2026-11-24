@@ -180,6 +180,14 @@ export function placementHint(tilesetJson: unknown): ModelPlacement | null {
 const LARGEST_PLACEABLE_RADIUS = 20_000;
 
 /**
+ * Bigger than this (bounding-sphere radius, metres), a tileset isn't
+ * anywhere in particular: a worldwide layer. It isn't flown to, it's lit
+ * evenly (`frameOrLight` in `useModels`), and draping reads the terrain
+ * wherever it has tiles rather than under the tileset's bounds.
+ */
+export const WORLDWIDE_RADIUS = 1_000_000;
+
+/**
  * Whether a tileset is small enough to be set on the terrain as one piece.
  *
  * Measured from the footprint's centre to its farthest corner in a straight

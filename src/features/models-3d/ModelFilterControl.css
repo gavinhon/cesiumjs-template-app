@@ -24,14 +24,9 @@
   scrollbar-color: var(--border) transparent;
 }
 
+/* A row per value: tall enough to hit, short enough for a dozen of them. */
 .model-filter__value {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   min-height: 24px;
-  font-size: 12px;
-  color: var(--ink);
-  cursor: pointer;
 }
 
 .model-filter__value span {
@@ -52,13 +47,9 @@
   color: var(--muted);
 }
 
+/* The switch spans the row; the slider and its readout share the next. */
 .model-filter__section-label {
-  display: flex;
   grid-column: 1 / -1;
-  align-items: center;
-  gap: 6px;
-  color: var(--ink);
-  cursor: pointer;
 }
 
 .model-filter__section input[type='range'] {

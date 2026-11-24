@@ -71,7 +71,7 @@ export function ModelFilterControl({
           <ul className="model-filter__values" aria-label={`${attribute.label} values`}>
             {attribute.values.map((value) => (
               <li key={value}>
-                <label className="model-filter__value">
+                <label className="control-check model-filter__value">
                   <input
                     type="checkbox"
                     checked={filter.values.includes(value)}
@@ -96,7 +96,7 @@ export function ModelFilterControl({
 
       {sectionRange && (
         <label className="model-filter__section">
-          <span className="model-filter__section-label">
+          <span className="control-check model-filter__section-label">
             <input
               type="checkbox"
               checked={filter.section !== null}

@@ -57,7 +57,8 @@ docker/                nginx.conf + entrypoint for the Docker image (Dockerfile,
 scripts/               build_terrain_tiles.py — GeoTIFF → static Cesium terrain;
                        writeRuntimeConfig.ts — the scan, at Docker container start
 public/                static files + datasets the scan offers in the panels
-docs/                  README (index), architecture, adding-a-feature, coding-conventions
+docs/                  README.md indexes the guides: architecture, features, conventions,
+                       Docker, local endpoints, terrain and heights, testing
 ```
 
 Filenames are unique across the repo and describe their contents, so a name

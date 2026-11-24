@@ -1,5 +1,6 @@
 import * as Cesium from 'cesium';
 import { DECODE_HEIGHT_GLSL, type TerrainHeightmap } from '@/cesium/terrainHeightmap';
+import { WORLDWIDE_RADIUS } from './placeTilesetOnTerrain';
 
 /**
  * Stands every vertex of a model on the terrain beneath it — what a city
@@ -119,7 +120,7 @@ export function drapeArea(
 ): Cesium.Rectangle {
   if (primitive instanceof Cesium.I3SDataProvider && primitive.extent) return primitive.extent;
   const sphere = primitive instanceof Cesium.Cesium3DTileset ? primitive.boundingSphere : undefined;
-  return sphere && sphere.radius < 1_000_000
+  return sphere && sphere.radius < WORLDWIDE_RADIUS
     ? Cesium.Rectangle.fromBoundingSphere(sphere)
     : Cesium.Rectangle.MAX_VALUE;
 }
