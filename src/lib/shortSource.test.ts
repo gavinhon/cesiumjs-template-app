@@ -5,9 +5,9 @@ describe('shortSource', () => {
   it('keeps the host and the service name of an ArcGIS URL', () => {
     expect(
       shortSource(
-        'tiles.arcgis.com/tiles/qN3V93cYGMKQCOxL/arcgis/rest/services/Singapore_1963/MapServer',
+        'tiles.arcgis.com/tiles/nGt4QxSblgDfeJn9/arcgis/rest/services/Population_Density/MapServer',
       ),
-    ).toBe('tiles.arcgis.com/…/Singapore_1963/MapServer');
+    ).toBe('tiles.arcgis.com/…/Population_Density/MapServer');
     expect(
       shortSource('services2.arcgis.com/j80Jz/arcgis/rest/services/Rail_Lines/FeatureServer/0'),
     ).toBe('services2.arcgis.com/…/Rail_Lines/FeatureServer/0');

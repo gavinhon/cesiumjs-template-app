@@ -32,14 +32,6 @@ export interface ExampleMapService {
 
 const EXAMPLE_MAP_SERVICES_ONLINE: readonly ExampleMapService[] = [
   {
-    // A scanned 1963 satellite photo, georeferenced — try it at partial
-    // opacity over a modern basemap to see the reclaimed coastline.
-    id: 'sg-1963-satellite',
-    type: 'arcgis-map',
-    name: 'Singapore 1963 satellite photo',
-    url: 'https://tiles.arcgis.com/tiles/qN3V93cYGMKQCOxL/arcgis/rest/services/Singapore_1963_Satellite_Photo/MapServer',
-  },
-  {
     id: 'sg-1839-map',
     type: 'arcgis-map',
     name: 'Map of Singapore, 1839',
