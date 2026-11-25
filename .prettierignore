@@ -6,3 +6,7 @@ package-lock.json
 # vite-plugin-cesium) and any 3D Tiles / GIS datasets dropped in here.
 # These are data, not source — reformatting them would be churn at best.
 public
+
+test-results
+playwright-report
+blob-report

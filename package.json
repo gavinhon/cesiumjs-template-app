@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "vite build && playwright test",
     "test:terrain-script": "python -m unittest discover -s scripts -v",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
     "preview": "vite preview",
@@ -24,6 +25,8 @@
     "vite-plugin-cesium": "^1.2.23"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

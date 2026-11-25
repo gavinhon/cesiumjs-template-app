@@ -20,6 +20,10 @@ npm run dev
 `npm run check` (typecheck, lint, format, tests) must pass: it gates the
 pre-commit hook and the GitHub Pages deploy. Run `npm run format` first.
 
+`npm run test:e2e` builds the app and runs the Playwright browser tests in
+`e2e/` (desktop and phone, with axe accessibility scans). Pages runs them too.
+First time: `npx playwright install chromium`.
+
 ## Deploy
 
 - **GitHub Pages:** pushes to `main` deploy via `.github/workflows/deploy-pages.yml`.
