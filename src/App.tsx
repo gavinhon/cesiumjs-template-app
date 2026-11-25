@@ -39,6 +39,7 @@ import { useModels } from '@/features/models-3d/useModels';
 import { LIVE_TRAFFIC_QUICK_ADD } from '@/features/live-traffic/liveTrafficQuickAdd';
 import { LiveTrafficStatus } from '@/features/live-traffic/LiveTrafficStatus';
 import { congestionLegend, incidentLegend } from '@/features/live-traffic/trafficPresentation';
+import { crowdLegend } from '@/features/live-traffic/crowdPresentation';
 import { useLiveTraffic } from '@/features/live-traffic/useLiveTraffic';
 import { useLiveTrafficInspector } from '@/features/live-traffic/useLiveTrafficInspector';
 import { useTerrain } from '@/features/terrain/useTerrain';
@@ -151,10 +152,25 @@ function App() {
                 ? { value: liveTraffic.roadDetail, onChange: liveTraffic.setRoadDetail }
                 : undefined
             }
+            timeShown={
+              entry.layer === 'crowd'
+                ? {
+                    value: liveTraffic.crowdTime,
+                    options: liveTraffic.crowdTimes,
+                    onChange: liveTraffic.setCrowdTime,
+                  }
+                : undefined
+            }
           />
         ),
         legend: () =>
-          Promise.resolve(entry.layer === 'congestion' ? congestionLegend() : incidentLegend()),
+          Promise.resolve(
+            entry.layer === 'congestion'
+              ? congestionLegend()
+              : entry.layer === 'crowd'
+                ? crowdLegend()
+                : incidentLegend(),
+          ),
       })),
       ...models.models.map((entry) => ({
         id: entry.config.id,

@@ -6,7 +6,7 @@ export type LegendContent =
 export interface LegendSwatch {
   label: string;
   color: string;
-  shape: 'line' | 'point';
+  shape: 'line' | 'point' | 'ring' | 'ring-dot' | 'halo';
 }
 
 export interface LegendItem {

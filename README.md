@@ -7,7 +7,7 @@ Singapore, with no Cesium ion account or API keys required.
 - Add data: WMS, WMTS, XYZ, WFS, ArcGIS, GeoJSON, plus datasets dropped into `public/`
 - Drawing, 3D measurement, line of sight, ground profiles
 - BIM model filtering and height cuts
-- Live LTA traffic congestion and incidents (needs `LTA_ACCOUNT_KEY` in `.env`)
+- Live LTA traffic congestion, incidents and MRT/LRT crowding (needs `LTA_ACCOUNT_KEY` in `.env`)
 - Search (coordinates, SVY21, places), shareable map links, phone layout
 
 ## Run

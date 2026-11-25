@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchDataMall, packCongestion, packIncidents } from './liveTrafficFeed';
+import { fetchDataMall, packCongestion, packCrowd, packIncidents } from './liveTrafficFeed';
 
 describe('packCongestion', () => {
   it('packs links into integer tuples, naming each road once', () => {
@@ -83,5 +83,83 @@ describe('fetchDataMall', () => {
     await expect(
       fetchDataMall('TrafficIncidents', 'bad', fetchImpl as typeof fetch),
     ).rejects.toThrow('LTA rejected the AccountKey');
+  });
+});
+
+describe('packCrowd', () => {
+  const stations = {
+    NS1: ['Jurong East', 103.742, 1.333],
+    EW24: ['Jurong East', 103.742, 1.333],
+    TE10: ['Mount Pleasant', 103.835, 1.326],
+  } as const;
+  const day = (station: string, levels: string[]) => ({
+    Station: station,
+    Interval: levels.map((level, i) => ({
+      Start: `2026-11-25T0${i}:00:00+08:00`,
+      CrowdLevel: level,
+    })),
+  });
+  const now = (station: string, level: string) => ({
+    Station: station,
+    StartTime: '2026-11-25T19:40:00+08:00',
+    EndTime: '2026-11-25T19:50:00+08:00',
+    CrowdLevel: level,
+  });
+
+  it('joins lines at one station and aligns forecasts to shared times', () => {
+    const snapshot = packCrowd(
+      [
+        {
+          line: 'NSL',
+          realtime: [now('NS1', 'm')],
+          forecast: [{ Stations: [day('NS1', ['l', 'm'])] }],
+        },
+        {
+          line: 'CEL',
+          realtime: [],
+          forecast: [
+            {
+              Stations: [
+                {
+                  Station: 'CE1',
+                  Interval: [{ Start: '2026-07-11T00:00:00+08:00', CrowdLevel: 'l' }],
+                },
+              ],
+            },
+          ],
+        },
+        { line: 'EWL', realtime: [now('EW24', 'l'), now('XX9', 'h')], forecast: [] },
+      ],
+      'fetched',
+      stations,
+    );
+    expect(snapshot.windowStart).toBe('2026-11-25T19:40:00+08:00');
+    expect(snapshot.forecastTimes).toHaveLength(2);
+    expect(snapshot.stations).toEqual([
+      {
+        name: 'Jurong East',
+        longitude: 103.742,
+        latitude: 1.333,
+        lines: [
+          { code: 'NS1', line: 'NSL', now: 'm', forecast: ['l', 'm'] },
+          { code: 'EW24', line: 'EWL', now: 'l', forecast: ['', ''] },
+        ],
+      },
+    ]);
+  });
+
+  it('drops stations LTA marks high all day (not in service)', () => {
+    const snapshot = packCrowd(
+      [
+        {
+          line: 'TEL',
+          realtime: [now('TE10', 'h')],
+          forecast: [{ Stations: [day('TE10', ['h', 'h'])] }],
+        },
+      ],
+      'fetched',
+      stations,
+    );
+    expect(snapshot.stations).toEqual([]);
   });
 });

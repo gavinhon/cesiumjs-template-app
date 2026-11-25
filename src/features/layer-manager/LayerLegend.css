@@ -89,6 +89,33 @@
   background: var(--swatch-color, var(--vector));
 }
 
+.layer-legend__swatch--ring,
+.layer-legend__swatch--ring-dot,
+.layer-legend__swatch--halo {
+  width: 12px;
+  height: 12px;
+  margin: 0 2px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.layer-legend__swatch--ring {
+  width: 9px;
+  height: 9px;
+  margin: 0 3.5px;
+  border: 2.5px solid var(--swatch-color);
+}
+
+.layer-legend__swatch--ring-dot {
+  border: 2.5px solid var(--swatch-color);
+  background: radial-gradient(circle, var(--swatch-color) 0 2px, transparent 2.5px);
+}
+
+.layer-legend__swatch--halo {
+  background: radial-gradient(circle, #fff 0 1.5px, var(--swatch-color) 2px);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--swatch-color) 30%, transparent);
+}
+
 .layer-legend__swatch--polygon {
   border: 1px solid var(--vector);
   background: color-mix(in srgb, var(--vector) 25%, transparent);

@@ -4,12 +4,22 @@ import { MAP_COLORS } from '@/cesium/mapColors';
 import { APP_CONFIG } from '@/lib/appConfig';
 import type {
   LiveTrafficFile,
+  MrtCrowdSnapshot,
   TrafficCongestionSnapshot,
   TrafficIncidentSnapshot,
   TrafficLink,
 } from '@/lib/liveTrafficTypes';
 import { LIVE_TRAFFIC_QUICK_ADD, type LiveTrafficLayerId } from './liveTrafficQuickAdd';
 import { ROAD_DETAIL, type RoadDetail } from './trafficPresentation';
+import {
+  busyCount,
+  CROWD_NOW,
+  crowdRank,
+  crowdTimeOptions,
+  stationLevelAt,
+  upcomingTimes,
+} from './crowdPresentation';
+import { CROWD_SYMBOL_SIZE, crowdSymbol } from './crowdSymbols';
 
 export interface LiveTrafficLayer {
   id: string;
@@ -19,11 +29,13 @@ export interface LiveTrafficLayer {
   fetchedAt: string | null;
   error: string | null;
   count: number;
+  busy?: number;
 }
 
 const FILE: Record<LiveTrafficLayerId, LiveTrafficFile> = {
   congestion: 'traffic-congestion.json',
   incidents: 'traffic-incidents.json',
+  crowd: 'mrt-crowd.json',
 };
 
 const POLL_MS = 60_000;
@@ -109,6 +121,52 @@ function drawIncidents(source: Cesium.CustomDataSource, snapshot: TrafficInciden
   source.entities.resumeEvents();
 }
 
+const CROWD_SCALE = new Cesium.NearFarScalar(1000, 1.1, 50_000, 0.7);
+const QUIET_FADE = new Cesium.NearFarScalar(15_000, 1, 50_000, 0.5);
+const QUIET_LABELS = new Cesium.DistanceDisplayCondition(0, 4_000);
+const BUSY_LABELS = new Cesium.DistanceDisplayCondition(0, 60_000);
+const LABEL_SCALE = new Cesium.NearFarScalar(1000, 1, 50_000, 0.8);
+
+function drawCrowd(source: Cesium.CustomDataSource, snapshot: MrtCrowdSnapshot, time: string) {
+  source.entities.suspendEvents();
+  source.entities.removeAll();
+  const ordered = snapshot.stations
+    .map((station, index) => ({ station, index, level: stationLevelAt(snapshot, station, time) }))
+    .sort((a, b) => crowdRank(a.level) - crowdRank(b.level));
+  for (const { station, index, level } of ordered) {
+    const size = CROWD_SYMBOL_SIZE[level];
+    const quiet = crowdRank(level) < 2;
+    source.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(station.longitude, station.latitude),
+      billboard: {
+        image: crowdSymbol(level),
+        width: size,
+        height: size,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: 50_000,
+        scaleByDistance: CROWD_SCALE,
+        translucencyByDistance: quiet ? QUIET_FADE : undefined,
+      },
+      label: {
+        text: station.name,
+        font: '600 12px Inter, system-ui, sans-serif',
+        fillColor: MAP_COLORS.measure,
+        outlineColor: MAP_COLORS.casing,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cesium.Cartesian2(0, -(size / 2 + 2)),
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: 50_000,
+        distanceDisplayCondition: quiet ? QUIET_LABELS : BUSY_LABELS,
+        scaleByDistance: LABEL_SCALE,
+      },
+      properties: { mrtCrowdStation: index },
+    });
+  }
+  source.entities.resumeEvents();
+}
+
 function setShown(target: { show: boolean } | null, show: boolean) {
   if (target) target.show = show;
 }
@@ -116,6 +174,9 @@ function setShown(target: { show: boolean } | null, show: boolean) {
 export function useLiveTraffic(viewer: Cesium.Viewer | null) {
   const [layers, setLayers] = useState<LiveTrafficLayer[]>([]);
   const [roadDetail, setRoadDetailState] = useState<RoadDetail>('main');
+  const [crowdSnapshot, setCrowdSnapshot] = useState<MrtCrowdSnapshot | null>(null);
+  const [crowdTimes, setCrowdTimes] = useState(() => crowdTimeOptions(null, 0));
+  const [crowdTime, setCrowdTimeState] = useState<string>(CROWD_NOW);
 
   const congestion = useRef<{
     latest: TrafficCongestionSnapshot | null;
@@ -124,13 +185,19 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
     generation: number;
   }>({ latest: null, shown: null, primitive: null, generation: 0 });
   const incidents = useRef<Cesium.CustomDataSource | null>(null);
+  const crowd = useRef<{
+    source: Cesium.CustomDataSource | null;
+    latest: MrtCrowdSnapshot | null;
+  }>({ source: null, latest: null });
   const timers = useRef(new Map<LiveTrafficLayerId, ReturnType<typeof setTimeout>>());
 
   const layersRef = useRef(layers);
   const roadDetailRef = useRef(roadDetail);
+  const crowdTimeRef = useRef(crowdTime);
   useLayoutEffect(() => {
     layersRef.current = layers;
     roadDetailRef.current = roadDetail;
+    crowdTimeRef.current = crowdTime;
   });
 
   const update = useCallback((layer: LiveTrafficLayerId, change: Partial<LiveTrafficLayer>) => {
@@ -195,6 +262,24 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
               ROAD_DETAIL[roadDetailRef.current].categories.has(link[5]),
             ).length,
           });
+        } else if (layer === 'crowd') {
+          const data = snapshot as MrtCrowdSnapshot;
+          let time = crowdTimeRef.current;
+          if (time !== CROWD_NOW && !upcomingTimes(data, Date.now()).includes(time)) {
+            time = CROWD_NOW;
+            crowdTimeRef.current = time;
+            setCrowdTimeState(time);
+          }
+          crowd.current.latest = data;
+          setCrowdSnapshot(data);
+          setCrowdTimes(crowdTimeOptions(data, Date.now()));
+          if (crowd.current.source) drawCrowd(crowd.current.source, data, time);
+          update(layer, {
+            fetchedAt: data.fetchedAt,
+            error: null,
+            count: data.stations.length,
+            busy: busyCount(data, time),
+          });
         } else {
           const data = snapshot as TrafficIncidentSnapshot;
           if (incidents.current) drawIncidents(incidents.current, data);
@@ -232,6 +317,9 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
       if (layer === 'incidents') {
         incidents.current = new Cesium.CustomDataSource(entry.item.name);
         await viewer.dataSources.add(incidents.current);
+      } else if (layer === 'crowd') {
+        crowd.current.source = new Cesium.CustomDataSource(entry.item.name);
+        await viewer.dataSources.add(crowd.current.source);
       }
       timers.current.set(
         layer,
@@ -269,6 +357,11 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
             primitive: null,
             generation: state.generation,
           };
+        } else if (layer === 'crowd') {
+          if (crowd.current.source) viewer.dataSources.remove(crowd.current.source, true);
+          crowd.current = { source: null, latest: null };
+          setCrowdSnapshot(null);
+          setCrowdTimes(crowdTimeOptions(null, 0));
         } else if (incidents.current) {
           viewer.dataSources.remove(incidents.current, true);
           incidents.current = null;
@@ -281,7 +374,14 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
 
   const toggleVisibility = useCallback((layer: LiveTrafficLayerId) => {
     const visible = !layersRef.current.find((entry) => entry.layer === layer)?.visible;
-    setShown(layer === 'congestion' ? congestion.current.primitive : incidents.current, visible);
+    setShown(
+      layer === 'congestion'
+        ? congestion.current.primitive
+        : layer === 'crowd'
+          ? crowd.current.source
+          : incidents.current,
+      visible,
+    );
     setLayers((current) =>
       current.map((entry) => (entry.layer === layer ? { ...entry, visible } : entry)),
     );
@@ -299,6 +399,18 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
       });
     },
     [showCongestion, update],
+  );
+
+  const setCrowdTime = useCallback(
+    (time: string) => {
+      crowdTimeRef.current = time;
+      setCrowdTimeState(time);
+      const { source, latest } = crowd.current;
+      if (!source || !latest) return;
+      drawCrowd(source, latest, time);
+      update('crowd', { busy: busyCount(latest, time) });
+    },
+    [update],
   );
 
   const zoomTo = useCallback(() => {
@@ -319,5 +431,18 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
     };
   }, []);
 
-  return { layers, roadDetail, add, remove, toggleVisibility, setRoadDetail, zoomTo, linkAt };
+  return {
+    layers,
+    roadDetail,
+    crowdSnapshot,
+    crowdTime,
+    crowdTimes,
+    add,
+    remove,
+    toggleVisibility,
+    setRoadDetail,
+    setCrowdTime,
+    zoomTo,
+    linkAt,
+  };
 }

@@ -7,20 +7,27 @@ import {
   type RoadDetail,
 } from './trafficPresentation';
 import type { LiveTrafficLayer } from './useLiveTraffic';
+import { CROWD_NOW } from './crowdPresentation';
 import './LiveTrafficStatus.css';
 
 interface LiveTrafficStatusProps {
   layer: LiveTrafficLayer;
   roadDetail?: { value: RoadDetail; onChange: (detail: RoadDetail) => void };
+  timeShown?: {
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (time: string) => void;
+  };
 }
 
 function countLabel(layer: LiveTrafficLayer): string {
   const count = layer.count.toLocaleString('en-SG');
   if (layer.layer === 'congestion') return `${count} road links`;
+  if (layer.layer === 'crowd') return `${count} stations · ${layer.busy ?? 0} busy`;
   return `${count} ${layer.count === 1 ? 'incident' : 'incidents'}`;
 }
 
-export function LiveTrafficStatus({ layer, roadDetail }: LiveTrafficStatusProps) {
+export function LiveTrafficStatus({ layer, roadDetail, timeShown }: LiveTrafficStatusProps) {
   const formId = useId();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -45,6 +52,34 @@ export function LiveTrafficStatus({ layer, roadDetail }: LiveTrafficStatusProps)
               {ROAD_DETAIL[detail].label}
             </option>
           ))}
+        </SelectField>
+      )}
+      {timeShown && (
+        <SelectField
+          formId={formId}
+          fieldId="time-shown"
+          label="Time shown"
+          value={timeShown.value}
+          onChange={(event) => timeShown.onChange(event.target.value)}
+        >
+          {timeShown.options
+            .filter((option) => option.value === CROWD_NOW)
+            .map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          {timeShown.options.length > 1 && (
+            <optgroup label="LTA forecast, today">
+              {timeShown.options
+                .filter((option) => option.value !== CROWD_NOW)
+                .map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+            </optgroup>
+          )}
         </SelectField>
       )}
       <p

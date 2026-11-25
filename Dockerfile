@@ -16,7 +16,8 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 COPY scripts/writeRuntimeConfig.ts scripts/fetchLiveTraffic.ts /opt/runtime-config/scripts/
-COPY vite-plugins/publicDatasetCatalog.ts vite-plugins/liveTrafficFeed.ts /opt/runtime-config/vite-plugins/
+COPY vite-plugins/publicDatasetCatalog.ts vite-plugins/liveTrafficFeed.ts vite-plugins/mrtStations.ts \
+  /opt/runtime-config/vite-plugins/
 RUN echo '{ "type": "module" }' > /opt/runtime-config/package.json
 
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

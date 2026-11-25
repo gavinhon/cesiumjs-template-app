@@ -1,12 +1,17 @@
 // Type imports only: Docker runs this file with Node type stripping and no node_modules.
 import type { Plugin } from 'vite';
 import type {
+  CrowdLevel,
   LiveTrafficFile,
+  MrtCrowdLine,
+  MrtCrowdSnapshot,
+  MrtCrowdStation,
   TrafficCongestionSnapshot,
   TrafficIncident,
   TrafficIncidentSnapshot,
   TrafficLink,
 } from '../src/lib/liveTrafficTypes.ts';
+import { MRT_STATIONS } from './mrtStations.ts';
 
 const DATAMALL = 'https://datamall2.mytransport.sg/ltaodataservice/';
 
@@ -17,7 +22,26 @@ const CONCURRENT_PAGES = 4;
 export const REFRESH_MS = {
   congestion: 5 * 60_000,
   incidents: 2 * 60_000,
+  crowd: 10 * 60_000,
 } as const;
+
+export const TRAIN_LINES = [
+  'CCL',
+  'CEL',
+  'CGL',
+  'DTL',
+  'EWL',
+  'NEL',
+  'NSL',
+  'BPL',
+  'SLRT',
+  'PLRT',
+  'TEL',
+] as const;
+
+const RETRY_MS = 60_000;
+
+const FORECAST_MS = 60 * 60_000;
 
 export const LIVE_TRAFFIC_URL = 'live/';
 
@@ -46,6 +70,20 @@ export async function fetchDataMall(
     for (const rows of batch) records.push(...rows);
     if (batch.some((rows) => rows.length < PAGE_SIZE)) return records;
   }
+}
+
+async function fetchDataMallOnce(
+  endpoint: string,
+  accountKey: string,
+  fetchImpl: Fetch,
+): Promise<unknown[]> {
+  const response = await fetchImpl(`${DATAMALL}${endpoint}`, {
+    headers: { AccountKey: accountKey, accept: 'application/json' },
+  });
+  if (response.status === 401) throw new Error('LTA rejected the AccountKey (HTTP 401).');
+  if (!response.ok) throw new Error(`LTA ${endpoint} answered HTTP ${response.status}.`);
+  const body = (await response.json()) as { value?: unknown };
+  return Array.isArray(body.value) ? body.value : [];
 }
 
 // Number('') is 0: blanks must read as NaN.
@@ -106,6 +144,119 @@ export function packIncidents(records: unknown[], fetchedAt: string): TrafficInc
   return { fetchedAt, incidents };
 }
 
+function crowdLevelOf(value: unknown): CrowdLevel {
+  return value === 'l' || value === 'm' || value === 'h' ? value : '';
+}
+
+function recordsOf(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    : [];
+}
+
+export interface LineReadings {
+  line: string;
+  realtime: unknown[];
+  forecast: unknown[];
+}
+
+export function packCrowd(
+  readings: LineReadings[],
+  fetchedAt: string,
+  stations: typeof MRT_STATIONS = MRT_STATIONS,
+): MrtCrowdSnapshot {
+  let windowStart = '';
+  let windowEnd = '';
+  for (const { realtime } of readings) {
+    for (const record of recordsOf(realtime)) {
+      if (typeof record.StartTime === 'string') windowStart = record.StartTime;
+      if (typeof record.EndTime === 'string') windowEnd = record.EndTime;
+    }
+  }
+  // Some lines' forecasts lag by months; keep only the live reading's day.
+  const today = windowStart.slice(0, 10);
+  const forecastByCode = new Map<string, Map<string, CrowdLevel>>();
+  const times = new Set<string>();
+  for (const { forecast } of readings) {
+    for (const day of recordsOf(forecast)) {
+      for (const station of recordsOf(day.Stations)) {
+        if (typeof station.Station !== 'string') continue;
+        const levels = forecastByCode.get(station.Station) ?? new Map<string, CrowdLevel>();
+        for (const interval of recordsOf(station.Interval)) {
+          if (typeof interval.Start !== 'string') continue;
+          if (today && !interval.Start.startsWith(today)) continue;
+          times.add(interval.Start);
+          levels.set(interval.Start, crowdLevelOf(interval.CrowdLevel));
+        }
+        forecastByCode.set(station.Station, levels);
+      }
+    }
+  }
+  const forecastTimes = [...times].sort((a, b) => Date.parse(a) - Date.parse(b));
+
+  const byName = new Map<string, MrtCrowdStation>();
+  for (const { line, realtime } of readings) {
+    for (const record of recordsOf(realtime)) {
+      const code = record.Station;
+      if (typeof code !== 'string') continue;
+      const place = stations[code];
+      if (!place) continue;
+      const [name, longitude, latitude] = place;
+      const station = byName.get(name) ?? { name, longitude, latitude, lines: [] };
+      const levels = forecastByCode.get(code);
+      // LTA reports stations not yet in service as 'h' all day.
+      if (levels && levels.size > 0 && [...levels.values()].every((level) => level === 'h'))
+        continue;
+      const entry: MrtCrowdLine = {
+        code,
+        line,
+        now: crowdLevelOf(record.CrowdLevel),
+        forecast: forecastTimes.map((time) => levels?.get(time) ?? ''),
+      };
+      station.lines.push(entry);
+      byName.set(name, station);
+    }
+  }
+  return { fetchedAt, windowStart, windowEnd, forecastTimes, stations: [...byName.values()] };
+}
+
+function crowdReader(accountKey: string, fetchImpl: Fetch): () => Promise<MrtCrowdSnapshot> {
+  const forecasts = new Map<string, { records: unknown[]; day: string; readAt: number }>();
+  const today = () => new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10);
+  return async () => {
+    const readings: LineReadings[] = [];
+    let failure: unknown = null;
+    for (const line of TRAIN_LINES) {
+      try {
+        const realtime = await fetchDataMallOnce(
+          `PCDRealTime?TrainLine=${line}`,
+          accountKey,
+          fetchImpl,
+        );
+        let forecast = forecasts.get(line);
+        if (!forecast || forecast.day !== today() || Date.now() - forecast.readAt > FORECAST_MS) {
+          try {
+            const records = await fetchDataMallOnce(
+              `PCDForecast?TrainLine=${line}`,
+              accountKey,
+              fetchImpl,
+            );
+            forecast = { records, day: today(), readAt: Date.now() };
+            forecasts.set(line, forecast);
+          } catch {
+            if (forecast?.day !== today()) forecast = undefined;
+          }
+        }
+        readings.push({ line, realtime, forecast: forecast?.records ?? [] });
+      } catch (error) {
+        failure = error;
+      }
+    }
+    if (readings.length === 0) throw failure;
+    return packCrowd(readings, new Date().toISOString());
+  };
+}
+
 export function startLiveTrafficFeed(options: {
   accountKey: string;
   publish: (file: LiveTrafficFile, json: string) => void;
@@ -113,41 +264,55 @@ export function startLiveTrafficFeed(options: {
   fetchImpl?: Fetch;
 }): () => void {
   const { accountKey, publish, log = console.log, fetchImpl = fetch } = options;
-  const feeds = [
+  const feeds: { file: LiveTrafficFile; every: number; read: () => Promise<unknown> }[] = [
     {
       file: 'traffic-congestion.json',
-      endpoint: 'v4/TrafficSpeedBands',
       every: REFRESH_MS.congestion,
-      pack: packCongestion,
+      read: async () =>
+        packCongestion(
+          await fetchDataMall('v4/TrafficSpeedBands', accountKey, fetchImpl),
+          new Date().toISOString(),
+        ),
     },
     {
       file: 'traffic-incidents.json',
-      endpoint: 'TrafficIncidents',
       every: REFRESH_MS.incidents,
-      pack: packIncidents,
+      read: async () =>
+        packIncidents(
+          await fetchDataMall('TrafficIncidents', accountKey, fetchImpl),
+          new Date().toISOString(),
+        ),
     },
-  ] as const;
+    {
+      file: 'mrt-crowd.json',
+      every: REFRESH_MS.crowd,
+      read: crowdReader(accountKey, fetchImpl),
+    },
+  ];
 
-  const timers: ReturnType<typeof setInterval>[] = [];
+  const timers = new Map<LiveTrafficFile, ReturnType<typeof setTimeout>>();
+  let stopped = false;
   for (const feed of feeds) {
-    let busy = false;
     const read = async () => {
-      if (busy) return;
-      busy = true;
+      let next = feed.every;
       try {
-        const records = await fetchDataMall(feed.endpoint, accountKey, fetchImpl);
-        const snapshot = feed.pack(records, new Date().toISOString());
-        publish(feed.file, JSON.stringify(snapshot));
+        publish(feed.file, JSON.stringify(await feed.read()));
       } catch (error) {
+        next = Math.min(feed.every, RETRY_MS);
         log(`Live traffic: ${feed.file} not updated — ${(error as Error).message}`);
-      } finally {
-        busy = false;
       }
+      if (!stopped)
+        timers.set(
+          feed.file,
+          setTimeout(() => void read(), next),
+        );
     };
     void read();
-    timers.push(setInterval(() => void read(), feed.every));
   }
-  return () => timers.forEach(clearInterval);
+  return () => {
+    stopped = true;
+    timers.forEach(clearTimeout);
+  };
 }
 
 export function liveTrafficFeed(options: { accountKey?: string }): Plugin {

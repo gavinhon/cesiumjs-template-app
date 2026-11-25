@@ -4,18 +4,62 @@ import type { FeatureCardContent } from '@/cesium/FeatureInfoCard';
 import { pickSurface } from '@/cesium/pickSurface';
 import type { LiveTrafficLayerId } from './liveTrafficQuickAdd';
 import { roadCategoryName, speedBandLabel } from './trafficPresentation';
-import type { LiveTrafficLayer, useLiveTraffic } from './useLiveTraffic';
+import {
+  busiestAhead,
+  clockTime,
+  CROWD_NOW,
+  crowdLevelName,
+  lineLevelAt,
+  lineName,
+} from './crowdPresentation';
+import type { useLiveTraffic } from './useLiveTraffic';
+import type { MrtCrowdSnapshot } from '@/lib/liveTrafficTypes';
 
 export interface InspectedTraffic extends FeatureCardContent {
   layer: LiveTrafficLayerId;
+  station?: string;
 }
 
-type LinkAt = ReturnType<typeof useLiveTraffic>['linkAt'];
+type Traffic = Pick<
+  ReturnType<typeof useLiveTraffic>,
+  'layers' | 'linkAt' | 'crowdSnapshot' | 'crowdTime'
+>;
+
+function crowdCard(
+  snapshot: MrtCrowdSnapshot,
+  name: string,
+  time: string,
+  position: Cesium.Cartesian3,
+): InspectedTraffic | null {
+  const station = snapshot.stations.find((candidate) => candidate.name === name);
+  if (!station) return null;
+  const window = `${clockTime(snapshot.windowStart)}–${clockTime(snapshot.windowEnd)}`;
+  return {
+    layer: 'crowd',
+    station: name,
+    title: name,
+    layerName: 'MRT & LRT crowding',
+    rows: [
+      {
+        key: 'Shown for',
+        value: time === CROWD_NOW ? `Now, ${window}` : `Forecast, ${clockTime(time)}`,
+      },
+      ...station.lines.map((line) => ({
+        key: line.code,
+        value: `${crowdLevelName(lineLevelAt(snapshot, line, time))} · ${lineName(line.line)}`,
+      })),
+      {
+        key: 'Busiest later',
+        value: busiestAhead(snapshot, station, Date.parse(snapshot.fetchedAt)),
+      },
+    ],
+    position,
+  };
+}
 
 function inspectAt(
   viewer: Cesium.Viewer,
-  linkAt: LinkAt,
-  layers: LiveTrafficLayer[],
+  { linkAt, layers, crowdSnapshot, crowdTime }: Traffic,
   windowPosition: Cesium.Cartesian2,
 ): InspectedTraffic | null {
   const picked: unknown = viewer.scene.pick(windowPosition);
@@ -47,6 +91,12 @@ function inspectAt(
     };
   }
 
+  if (id instanceof Cesium.Entity && shown('crowd') && crowdSnapshot) {
+    const index: unknown = id.properties?.getValue(viewer.clock.currentTime)?.mrtCrowdStation;
+    const station = typeof index === 'number' ? crowdSnapshot.stations[index] : undefined;
+    return station ? crowdCard(crowdSnapshot, station.name, crowdTime, position) : null;
+  }
+
   if (id instanceof Cesium.Entity && shown('incidents')) {
     const properties: unknown = id.properties?.getValue(viewer.clock.currentTime);
     if (!properties || typeof properties !== 'object' || !('liveTrafficIncident' in properties))
@@ -65,7 +115,7 @@ function inspectAt(
 
 export function useLiveTrafficInspector(
   viewer: Cesium.Viewer | null,
-  traffic: Pick<ReturnType<typeof useLiveTraffic>, 'layers' | 'linkAt'>,
+  traffic: Traffic,
   enabled: boolean,
 ) {
   const [inspected, setInspected] = useState<InspectedTraffic | null>(null);
@@ -81,8 +131,7 @@ export function useLiveTrafficInspector(
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction((event: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
       if (!enabledRef.current) return;
-      const { linkAt, layers } = trafficRef.current;
-      setInspected(inspectAt(viewer, linkAt, layers, event.position));
+      setInspected(inspectAt(viewer, trafficRef.current, event.position));
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     return () => handler.destroy();
   }, [viewer]);
@@ -101,5 +150,9 @@ export function useLiveTrafficInspector(
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [inspected]);
 
-  return { inspected, close: () => setInspected(null) };
+  const current =
+    inspected?.station && traffic.crowdSnapshot
+      ? crowdCard(traffic.crowdSnapshot, inspected.station, traffic.crowdTime, inspected.position)
+      : inspected;
+  return { inspected: current, close: () => setInspected(null) };
 }

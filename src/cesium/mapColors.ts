@@ -9,6 +9,11 @@ export const MAP_COLORS = {
   location: Cesium.Color.fromCssColorString('#ffffff'),
   obstructed: Cesium.Color.fromCssColorString('#f2555f'),
   incident: Cesium.Color.fromCssColorString('#ffd23f'),
+  crowd: {
+    l: Cesium.Color.fromCssColorString('#e6e3df'),
+    m: Cesium.Color.fromCssColorString('#d46bff'),
+    h: Cesium.Color.fromCssColorString('#ff3dbb'),
+  },
   trafficBands: [
     '#6b6b6b',
     '#a50026',

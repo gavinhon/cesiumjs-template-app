@@ -34,6 +34,10 @@
   --traffic-7: #66bd63;
   --traffic-8: #1a9850;
 
+  --crowd-low: #e6e3df;
+  --crowd-moderate: #d46bff;
+  --crowd-high: #ff3dbb;
+
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 
   --radius-sm: 4px;
