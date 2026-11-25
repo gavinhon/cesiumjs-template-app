@@ -1,17 +1,5 @@
 import { readArcGisError } from './arcGisRest';
 
-/**
- * Fetches an ArcGIS REST response, and throws a readable error for each of
- * the ways it goes wrong — which differ more than you'd expect:
- *
- *  - **Network or CORS failure:** `fetch` rejects with a bare `TypeError`
- *    ("Failed to fetch") that doesn't say which. CORS is the usual one: an
- *    ArcGIS Enterprise server only sends `Access-Control-Allow-Origin` for
- *    origins its administrator allowed.
- *  - **HTTP error:** rare, mostly a wrong path (404) or a proxy in front.
- *  - **ArcGIS error:** most failures come back as HTTP 200 with an
- *    `{"error": ...}` body — see `readArcGisError`.
- */
 export async function fetchArcGisJson(url: string): Promise<object> {
   let response: Response;
   try {

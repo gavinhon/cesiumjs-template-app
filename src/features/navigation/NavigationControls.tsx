@@ -9,28 +9,11 @@ interface NavigationControlsProps {
   viewer: Cesium.Viewer | null;
   is2D: boolean;
   onToggleSceneMode: () => void;
-  /** Extra buttons for the end of the row — the share-link button. */
   children?: ReactNode;
 }
 
 type LocateState = { state: 'idle' } | { state: 'locating' } | { state: 'error'; message: string };
 
-/**
- * The camera controls, in one row at the bottom-right: a compass that
- * shows which way is north and resets it, home, my location, and the
- * 2D/3D switch.
- *
- * Kept apart from the drawing rail on purpose. These move the *view*; the
- * rail's buttons put things *on the map*. Mixed in one strip, the 2D/3D
- * switch read as a drawing tool.
- *
- * No zoom buttons, deliberately: the scroll wheel, a trackpad pinch and a
- * touch pinch all zoom about the cursor or fingers, which a button about
- * the screen centre can't match — so on every device people actually use,
- * +/− were two tiles of chrome over the map that nobody pressed. What's
- * left is what a gesture does badly: finding north again after rotating
- * (pinch-to-rotate is fiddly), going home, and jumping to your location.
- */
 export function NavigationControls({
   viewer,
   is2D,
@@ -41,9 +24,6 @@ export function NavigationControls({
   const markerRef = useRef<PlaceMarker | null>(null);
   const [locate, setLocate] = useState<LocateState>({ state: 'idle' });
 
-  // The compass needle follows the camera's heading every frame, so it's
-  // rotated straight from the render loop rather than through React state
-  // (CLAUDE.md, per-frame data). Written only when the heading changes.
   useEffect(() => {
     if (!viewer) return;
     let lastHeading = Number.NaN;
@@ -68,8 +48,6 @@ export function NavigationControls({
       return;
     }
     setLocate({ state: 'locating' });
-    // Geolocation only works on a secure origin (https, or localhost in
-    // development) and asks the user's permission the first time.
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setLocate({ state: 'idle' });
@@ -109,8 +87,6 @@ export function NavigationControls({
         title="Reset to north"
       >
         <svg ref={needleRef} viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          {/* The north half filled, the south half outlined: which end is
-              north must read at a glance, at any rotation, without colour. */}
           <path d="M12 3 L16 12 L8 12 Z" fill="currentColor" />
           <path
             d="M12 21 L16 12 L8 12 Z"

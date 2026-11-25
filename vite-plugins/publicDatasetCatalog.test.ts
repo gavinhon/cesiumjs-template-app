@@ -6,7 +6,6 @@ import { scanPublicFolder } from './publicDatasetCatalog.ts';
 
 let publicDir: string;
 
-/** Writes a file under the fake `public/`, creating its folders. */
 function put(relativePath: string, content = '') {
   const full = path.join(publicDir, ...relativePath.split('/'));
   mkdirSync(path.dirname(full), { recursive: true });

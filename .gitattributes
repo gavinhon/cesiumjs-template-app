@@ -1,13 +1,4 @@
-# Shell scripts run inside Linux containers, where a CRLF line ending makes
-# `#!/bin/sh` name an interpreter called "sh" plus a carriage return, which
-# doesn't exist — the container exits the moment it starts. Git on Windows
-# (core.autocrlf) would otherwise check them out with CRLF.
 *.sh text eol=lf
 
-# Quantized-mesh terrain tiles are binary. Git usually detects that, but
-# this repo is used with core.autocrlf on Windows, and a tile misread as text
-# would have its bytes "fixed" on checkout — a corrupt tile doesn't error in
-# the browser, it silently stops the terrain refining. Say so explicitly.
 *.terrain binary
-# Likewise the 3D Tiles content of the committed BIM model.
 *.glb binary

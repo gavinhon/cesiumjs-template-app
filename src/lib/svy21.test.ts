@@ -9,7 +9,6 @@ describe('toSvy21', () => {
   });
 
   it('measures true metres near the origin (scale factor 1)', () => {
-    // 0.01° of longitude at 1.37°N is 1113.0 m on the WGS84 ellipsoid.
     const west = toSvy21(1.366666, 103.833333);
     const east = toSvy21(1.366666, 103.843333);
     expect(east.easting - west.easting).toBeCloseTo(1113.0, 0);
@@ -17,8 +16,6 @@ describe('toSvy21', () => {
   });
 
   it("matches the Singapore Land Authority's own coordinate for Marina Bay Sands", () => {
-    // As returned by OneMap's search API (SLA), which reports both systems
-    // for every address: X/Y in SVY21 alongside latitude/longitude.
     const { northing, easting } = toSvy21(1.283454196908438, 103.8608090489553);
     expect(easting).toBeCloseTo(31059.46258557215, 2);
     expect(northing).toBeCloseTo(29543.38041536324, 2);
@@ -28,11 +25,11 @@ describe('toSvy21', () => {
 describe('fromSvy21', () => {
   it('inverts toSvy21 to well under a millimetre across the island', () => {
     for (const [lat, lon] of [
-      [1.2834, 103.8607], // Marina Bay
-      [1.3521, 103.8198], // central
-      [1.4419, 103.7867], // Woodlands
-      [1.3644, 103.9915], // Changi
-      [1.2494, 103.6309], // Tuas
+      [1.2834, 103.8607],
+      [1.3521, 103.8198],
+      [1.4419, 103.7867],
+      [1.3644, 103.9915],
+      [1.2494, 103.6309],
     ]) {
       const grid = toSvy21(lat, lon);
       const back = fromSvy21(grid.northing, grid.easting);

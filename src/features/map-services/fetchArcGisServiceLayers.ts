@@ -2,12 +2,6 @@ import { describeUrl, parseArcGisServiceLayers, parseArcGisUrl } from './arcGisR
 import { fetchArcGisJson } from './fetchArcGisJson';
 import type { ServiceLayerOption } from './mapServiceTypes';
 
-/**
- * Looks up the layers an ArcGIS FeatureServer or MapServer offers, from its
- * `?f=json` description — the ArcGIS counterpart of `fetchWfsFeatureTypes`.
- * Unlike a capabilities document, the description doesn't carry each
- * layer's extent; a loaded data source knows its own, so none is needed.
- */
 export async function fetchArcGisServiceLayers(
   url: string,
   token?: string,

@@ -3,7 +3,6 @@ import type { LegendContent, LegendItem, VectorGeometry } from '@/lib/legendType
 import './LayerLegend.css';
 
 interface LayerLegendProps {
-  /** From the layer's `LayerEntry.legend`. */
   load: () => Promise<LegendContent | null>;
 }
 
@@ -18,17 +17,6 @@ const GEOMETRY_LABEL: Record<VectorGeometry, string> = {
   polygon: 'Areas',
 };
 
-/**
- * What a layer's symbols mean, under its row in the layer manager — open
- * by default, the way GIS workbenches (ArcGIS Map Viewer, TerriaJS) show
- * legends beside the layer rather than in a separate legend panel you have
- * to remember to open.
- *
- * A native `<details>`, so it folds away with no state of its own and is
- * keyboard- and screen-reader-friendly for free. Loaded once, when the row
- * first mounts — and since panels stay mounted (CLAUDE.md, invariant 5),
- * that's when the layer is added, not every time the panel opens.
- */
 export function LayerLegend({ load }: LayerLegendProps) {
   const [result, setResult] = useState<LoadState>({ state: 'loading' });
 
@@ -46,12 +34,9 @@ export function LayerLegend({ load }: LayerLegendProps) {
     return () => {
       current = false;
     };
-    // Load once per row: `load` is rebuilt on every App render, and a new
-    // closure over the same layer is not a reason to fetch again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A service with nothing to say gets no legend at all, not an empty box.
   if (result.state === 'done' && !result.legend) return null;
 
   return (
@@ -109,7 +94,6 @@ function LegendItems({ items }: { items: LegendItem[] }) {
         <LegendItemRow
           key={`${item.group ?? ''}:${item.label}:${index}`}
           item={item}
-          // A sublayer's name heads its first symbol.
           heading={item.group && item.group !== items[index - 1]?.group ? item.group : null}
         />
       ))}
@@ -118,9 +102,6 @@ function LegendItems({ items }: { items: LegendItem[] }) {
 }
 
 function LegendItemRow({ item, heading }: { item: LegendItem; heading: string | null }) {
-  // A WMS server that doesn't implement GetLegendGraphic answers with an
-  // error image or nothing at all; hide the row rather than show a broken
-  // image icon.
   const [broken, setBroken] = useState(false);
   if (broken) return null;
   return (

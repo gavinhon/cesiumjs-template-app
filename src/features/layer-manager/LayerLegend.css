@@ -1,12 +1,9 @@
-/* A layer's legend under its row — see LayerLegend.tsx. */
 .layer-legend {
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid var(--border);
 }
 
-/* The fold toggle, in the panel's small mono label style so it reads as a
-   section of the row, not as content. */
 .layer-legend__summary {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -21,8 +18,6 @@
   color: var(--ink);
 }
 
-/* A long classified legend scrolls inside the row rather than pushing
-   every other layer off the panel. */
 .layer-legend__list {
   display: flex;
   flex-direction: column;
@@ -51,8 +46,6 @@
   color: var(--muted);
 }
 
-/* Server symbols are drawn for a white map page; at their own size on a
-   faint light tile they read on the dark panel without being recoloured. */
 .layer-legend__image {
   flex-shrink: 0;
   max-width: 120px;
@@ -77,17 +70,12 @@
   color: var(--danger);
 }
 
-/* The app's own vector style, as vectorFeatureStyle.ts draws it: a 7px dot,
-   a 2px line, a 25% fill. */
 .layer-legend__swatch {
   flex-shrink: 0;
   width: 16px;
   height: 12px;
 }
 
-/* --swatch-color is set inline for a legend of the app's own colours (a
-   'swatches' legend — live traffic's speed bands); without it, the swatch
-   is the --vector blue every restyled vector layer is drawn in. */
 .layer-legend__swatch--point {
   width: 7px;
   height: 7px;

@@ -7,8 +7,6 @@ describe('tileAt', () => {
   });
 
   it('finds the tile over central Singapore', () => {
-    // Checked against https://tile.openstreetmap.org/11/1614/1016.png,
-    // which shows the middle of the island.
     expect(tileAt(103.8198, 1.3521, 11)).toEqual({ z: 11, x: 1614, y: 1016 });
   });
 

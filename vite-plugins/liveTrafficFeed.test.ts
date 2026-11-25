@@ -66,7 +66,6 @@ describe('fetchDataMall', () => {
     new Response(JSON.stringify({ value: Array.from({ length: count }, (_, i) => ({ i })) }));
 
   it('pages with $skip until a page comes back short', async () => {
-    // 500 + 500 + 500 + 120 records: one batch of four requests is enough.
     const sizes = [500, 500, 500, 120, 0, 0, 0, 0];
     const fetchImpl = vi.fn(async (url: string | URL | Request) => {
       const skip = Number(new URL(String(url)).searchParams.get('$skip'));

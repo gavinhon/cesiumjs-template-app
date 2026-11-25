@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { parseNominatimResults, parseOneMapResults } from './searchPlaces';
 
 describe('parseOneMapResults', () => {
-  // Trimmed from a real OneMap response, including the token notice it now sends.
   const response = {
     error:
       'Authentication token missing. Please create an account and generate or renew your API Token.',

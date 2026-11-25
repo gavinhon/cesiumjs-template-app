@@ -2,9 +2,6 @@ import * as Cesium from 'cesium';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computeLineOfSight } from './lineOfSight';
 
-// The terrain sampler is the one thing these tests replace: it would
-// otherwise need real terrain tiles over the network. `groundAt` decides
-// the terrain height at each longitude, so a test can draw any profile.
 let groundAt: (longitudeDegrees: number) => number = () => 0;
 
 vi.mock('cesium', async (importOriginal) => {
@@ -22,7 +19,6 @@ vi.mock('cesium', async (importOriginal) => {
   };
 });
 
-/** A viewer with terrain to sample and no 3D Tiles — just enough for the analysis. */
 const viewer = {
   terrainProvider: { availability: {} },
   scene: {
@@ -32,7 +28,6 @@ const viewer = {
   },
 } as unknown as Cesium.Viewer;
 
-// Observer and target 1 km apart along a line of latitude.
 const FROM_LON = 103.8;
 const TO_LON = 103.809;
 const from = Cesium.Cartesian3.fromDegrees(FROM_LON, 1.35, 0);
@@ -59,24 +54,19 @@ describe('computeLineOfSight', () => {
     const { obstruction } = await computeLineOfSight(viewer, from, to, []);
     expect(obstruction).not.toBeNull();
     const blocked = Cesium.Cartographic.fromCartesian(obstruction as Cesium.Cartesian3);
-    // On the hill's near face, and on the sight line itself — at ground
-    // level here — not up at the 30 m summit, so the clear line runs
-    // straight to it instead of bending up to the top of whatever blocked it.
     expect(Cesium.Math.toDegrees(blocked.longitude)).toBeGreaterThan(midway - 0.0006);
     expect(Cesium.Math.toDegrees(blocked.longitude)).toBeLessThan(midway);
     expect(Math.abs(blocked.height)).toBeLessThan(0.5);
   });
 
   it('ignores a bump lower than the sampling-noise tolerance', async () => {
-    // The sight line runs along the ground; 0.2 m pokes just above it.
     groundAt = (lon) => (Math.abs(lon - midway) < 0.0005 ? 0.2 : 0);
     const { obstruction } = await computeLineOfSight(viewer, from, to, []);
     expect(obstruction).toBeNull();
   });
 
   it('doesn’t count the ground the target stands on as a blocker', async () => {
-    // The target sits on a 20 m plateau that starts just short of it.
-    const plateauStart = TO_LON - 0.000005; // about half a metre
+    const plateauStart = TO_LON - 0.000005;
     groundAt = (lon) => (lon >= plateauStart ? 20 : 0);
     const raisedTarget = Cesium.Cartesian3.fromDegrees(TO_LON, 1.35, 20);
     const { obstruction } = await computeLineOfSight(viewer, from, raisedTarget, []);
@@ -85,10 +75,8 @@ describe('computeLineOfSight', () => {
 });
 
 describe('computeLineOfSight through 3D Tiles', () => {
-  /** A viewer whose scene can cast rays, answering with `hit` (or nothing). */
   function rayViewer(hit: Cesium.Cartesian3 | null) {
     const sampleHeightMostDetailed = vi.fn(async () => []);
-    // The start point's own surface comes first, as it does in a real scene.
     const drillPickFromRayMostDetailed = vi.fn(async () =>
       hit ? [{ position: Cesium.Cartesian3.clone(from) }, { position: hit }] : [],
     );
@@ -124,7 +112,6 @@ describe('computeLineOfSight through 3D Tiles', () => {
   });
 
   it('casts the line instead of sampling building heights from above', async () => {
-    // The top-down samples are what called a line through a window blocked.
     const {
       viewer: open,
       sampleHeightMostDetailed,

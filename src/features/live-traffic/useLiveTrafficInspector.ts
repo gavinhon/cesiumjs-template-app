@@ -6,14 +6,12 @@ import type { LiveTrafficLayerId } from './liveTrafficQuickAdd';
 import { roadCategoryName, speedBandLabel } from './trafficPresentation';
 import type { LiveTrafficLayer, useLiveTraffic } from './useLiveTraffic';
 
-/** A clicked road link or incident, for `<FeatureInfoCard>`, and which layer it's from. */
 export interface InspectedTraffic extends FeatureCardContent {
   layer: LiveTrafficLayerId;
 }
 
 type LinkAt = ReturnType<typeof useLiveTraffic>['linkAt'];
 
-/** What a click on the map picked, read as live traffic — or null for anything else. */
 function inspectAt(
   viewer: Cesium.Viewer,
   linkAt: LinkAt,
@@ -28,7 +26,6 @@ function inspectAt(
   const shown = (layer: LiveTrafficLayerId) =>
     layers.some((entry) => entry.layer === layer && entry.visible);
 
-  // A congestion link: the primitive's instance id is its index in the snapshot.
   if (
     id &&
     typeof id === 'object' &&
@@ -50,7 +47,6 @@ function inspectAt(
     };
   }
 
-  // An incident point: an entity flagged in its properties.
   if (id instanceof Cesium.Entity && shown('incidents')) {
     const properties: unknown = id.properties?.getValue(viewer.clock.currentTime);
     if (!properties || typeof properties !== 'object' || !('liveTrafficIncident' in properties))
@@ -67,13 +63,6 @@ function inspectAt(
   return null;
 }
 
-/**
- * Makes live traffic clickable: a road link shows its name and current
- * speed, an incident LTA's report, in the shared `<FeatureInfoCard>`. Like
- * the other inspectors it has its own `ScreenSpaceEventHandler`, acts only
- * with no drawing tool armed (`enabled`), and clears on Escape, on a click
- * elsewhere, or when its layer is hidden or removed.
- */
 export function useLiveTrafficInspector(
   viewer: Cesium.Viewer | null,
   traffic: Pick<ReturnType<typeof useLiveTraffic>, 'layers' | 'linkAt'>,
@@ -98,8 +87,6 @@ export function useLiveTrafficInspector(
     return () => handler.destroy();
   }, [viewer]);
 
-  // Cleared during render, not in an effect, when the card would describe
-  // something no longer on screen — the same reset useFeatureInspector does.
   const stale =
     inspected !== null &&
     (!enabled || !traffic.layers.some((entry) => entry.layer === inspected.layer && entry.visible));

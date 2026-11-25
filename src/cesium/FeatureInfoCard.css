@@ -1,11 +1,7 @@
-/* A clicked feature's attributes, pinned to the map — see FeatureInfoCard.tsx.
-   Positioned only by `transform`, written every frame from the render loop. */
 .feature-info {
   position: absolute;
   top: 0;
   left: 0;
-  /* Over the map, under the panels (10): a panel opened on top of the card
-     is the newer thing, so it wins. */
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -20,15 +16,10 @@
   color: var(--ink);
 }
 
-/* Behind the camera or round the far side of the globe. */
 .feature-info--hidden {
   visibility: hidden;
 }
 
-/* Compact layout: docked to the bottom like a panel sheet rather than
-   floating above the tapped point (FeatureInfoCard.tsx stops writing the
-   transform). Under an open panel sheet, as on desktop. 640px must match
-   COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
 @media (max-width: 640px) {
   .feature-info {
     top: auto;
@@ -40,8 +31,6 @@
     transition: height 0.2s ease;
   }
 
-  /* The same three heights as a panel sheet (useBottomSheet's snapping
-     uses these numbers — change both together). */
   .feature-info--sheet-peek {
     height: 128px;
   }
@@ -56,7 +45,6 @@
     height: calc(100dvh - var(--control-height) - 24px);
   }
 
-  /* The grab handle, as on a panel sheet: drag it, or tap to step up. */
   .feature-info__grabber {
     display: block;
     flex-shrink: 0;
@@ -79,7 +67,6 @@
   }
 }
 
-/* Only phones have a grabber. */
 @media (min-width: 641px) {
   .feature-info__grabber {
     display: none;
@@ -113,7 +100,6 @@
   color: var(--muted);
 }
 
-/* Same weight as a list row's remove button: closing is routine, not loud. */
 .feature-info__close {
   margin-left: auto;
   border: none;
@@ -129,8 +115,6 @@
   color: var(--ink);
 }
 
-/* Field names in the UI's data face, values in body text; long values
-   wrap rather than widening the card over the map. */
 .feature-info__attributes {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);

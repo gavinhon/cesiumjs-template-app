@@ -1,3 +1,4 @@
+// Type imports only: Docker runs this file with Node type stripping and no node_modules.
 import type { Plugin } from 'vite';
 import type {
   LiveTrafficFile,
@@ -7,58 +8,21 @@ import type {
   TrafficLink,
 } from '../src/lib/liveTrafficTypes.ts';
 
-/**
- * Reads LTA DataMall's live traffic feeds on a timer and packs them into
- * the two snapshots the map draws (`src/lib/liveTrafficTypes.ts`):
- * congestion (Traffic Speed Bands) and incidents.
- *
- * **Why on a server, never in the browser.** DataMall needs an
- * `AccountKey` on every request, and refuses browsers outright (no CORS;
- * its preflight answers 403). A key in the page would be anyone's key
- * anyway. So something server-side reads the feeds and the app fetches
- * the result from its own origin:
- *
- *  - in `npm run dev`, the `liveTrafficFeed` plugin below, with the key
- *    from `.env` (`LTA_ACCOUNT_KEY`), serving `/live/…` from memory;
- *  - in Docker, `scripts/fetchLiveTraffic.ts`, started by the entrypoint
- *    when `LTA_ACCOUNT_KEY` is set, writing files nginx serves at `/live/`.
- *
- * One reader for everyone also means one set of requests per refresh,
- * however many people have the map open.
- *
- * **Why packed.** Speed bands come 500 records a request; island-wide
- * that's ~144,000 links in ~290 pages, 30 MB of JSON. Packed into tuples
- * of integers it's under 7 MB, and smaller again gzipped.
- *
- * Like `publicDatasetCatalog.ts`, this file must keep to `import type`
- * from anything outside Node's standard library: the container runs it
- * as-is, with Node's type stripping and no node_modules.
- */
-
 const DATAMALL = 'https://datamall2.mytransport.sg/ltaodataservice/';
 
-/** DataMall returns at most this many records per request; `$skip` pages on. */
 const PAGE_SIZE = 500;
 
-/** Pages requested at once. DataMall publishes no rate limit; this stays polite. */
 const CONCURRENT_PAGES = 4;
 
-/** How often each feed is re-read, matching how often LTA updates it. */
 export const REFRESH_MS = {
   congestion: 5 * 60_000,
   incidents: 2 * 60_000,
 } as const;
 
-/** Where the snapshots are served, relative to the app's page. */
 export const LIVE_TRAFFIC_URL = 'live/';
 
-/** The fetch Node and browsers share, injectable for tests. */
 type Fetch = typeof fetch;
 
-/**
- * Every record of a DataMall feed, paging through it a few requests at a
- * time until a page comes back short.
- */
 export async function fetchDataMall(
   endpoint: string,
   accountKey: string,
@@ -84,11 +48,7 @@ export async function fetchDataMall(
   }
 }
 
-/**
- * A number from a field DataMall sends as a number or as a numeric string
- * — `NaN` for anything else, including a blank: `Number('')` is 0, which
- * would put a link with a missing coordinate off the coast of Africa.
- */
+// Number('') is 0: blanks must read as NaN.
 function numberOf(value: unknown): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
   if (typeof value !== 'string' || value.trim() === '') return NaN;
@@ -96,10 +56,6 @@ function numberOf(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
-/**
- * LTA's speed-band records as a `TrafficCongestionSnapshot`. Records with
- * unreadable coordinates are dropped rather than drawn at 0°, 0°.
- */
 export function packCongestion(records: unknown[], fetchedAt: string): TrafficCongestionSnapshot {
   const scale = 1e6;
   const roads: string[] = [];
@@ -132,7 +88,6 @@ export function packCongestion(records: unknown[], fetchedAt: string): TrafficCo
   return { fetchedAt, scale, roads, links };
 }
 
-/** LTA's incident records as a `TrafficIncidentSnapshot`, dropping any without a position. */
 export function packIncidents(records: unknown[], fetchedAt: string): TrafficIncidentSnapshot {
   const incidents: TrafficIncident[] = [];
   for (const record of records) {
@@ -151,13 +106,6 @@ export function packIncidents(records: unknown[], fetchedAt: string): TrafficInc
   return { fetchedAt, incidents };
 }
 
-/**
- * Keeps both snapshots current: reads each feed now and again at its own
- * interval, handing every successful result to `publish`. A failed read is
- * logged and retried at the next interval; the last good snapshot stands
- * until then, and the map says how old it is. Returns a function that
- * stops the timers.
- */
 export function startLiveTrafficFeed(options: {
   accountKey: string;
   publish: (file: LiveTrafficFile, json: string) => void;
@@ -182,8 +130,6 @@ export function startLiveTrafficFeed(options: {
 
   const timers: ReturnType<typeof setInterval>[] = [];
   for (const feed of feeds) {
-    // One read at a time per feed: a slow read (DataMall having a bad
-    // minute) mustn't stack up behind the next interval.
     let busy = false;
     const read = async () => {
       if (busy) return;
@@ -204,16 +150,6 @@ export function startLiveTrafficFeed(options: {
   return () => timers.forEach(clearInterval);
 }
 
-/**
- * In `npm run dev`: reads LTA with the key from `.env` and serves the
- * snapshots at `/live/<file>`, plus an `app-config.json` that switches
- * the live traffic layers on (`src/lib/appConfig.ts`). Without a key it
- * does nothing, and the app behaves as it does on GitHub Pages: no live
- * traffic in the catalogue.
- *
- * Dev only (`apply: 'serve'`): a static build has no server to read LTA
- * from. In Docker, `scripts/fetchLiveTraffic.ts` does this job instead.
- */
 export function liveTrafficFeed(options: { accountKey?: string }): Plugin {
   const accountKey = options.accountKey?.trim();
   return {
@@ -241,8 +177,6 @@ export function liveTrafficFeed(options: { accountKey?: string }): Plugin {
         const json = snapshots.get(url.slice(LIVE_TRAFFIC_URL.length + 1));
         response.setHeader('Cache-Control', 'no-store');
         if (!json) {
-          // Not read yet (the first congestion read takes ~15 s) or the
-          // read failed: the app shows "waiting for LTA" and retries.
           response.statusCode = 503;
           response.end('Live traffic not read yet');
           return;

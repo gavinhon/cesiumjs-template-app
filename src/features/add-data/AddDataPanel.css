@@ -1,8 +1,3 @@
-/* The Add data panel's tabs and catalogue filter — see AddDataPanel.tsx.
-   The panel shell, quick-add list and forms bring their own styles. */
-
-/* A segmented strip: the tabs share one box, the selected one marked the
-   app's "on" way — an orange label over a faint tint, never a fill. */
 .add-data__tabs {
   display: flex;
   gap: 2px;
@@ -43,8 +38,6 @@
   color: var(--accent);
 }
 
-/* The same field look as <Field>'s inputs, for a field with no label of
-   its own (its placeholder and aria-label say what it filters). */
 .add-data__filter {
   width: 100%;
   height: var(--control-height);

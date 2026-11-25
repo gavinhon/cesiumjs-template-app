@@ -1,20 +1,5 @@
 import { useLayoutEffect, type RefObject } from 'react';
 
-/**
- * Publishes an element's rendered width as a CSS custom property on the
- * document root, kept current as the element resizes.
- *
- * For layout that depends on how wide something *turned out*, which CSS
- * alone can't express. The case it exists for: the right rail wraps into a
- * second column on short screens, and the layer list beside it (and the
- * phone toolbar, which stretches towards it) has to stop clear of however
- * many columns there are. A media query could guess the
- * height at which that happens, but the guess would go stale the moment
- * someone adds a tool to the rail; measuring can't.
- *
- * A layout effect, so the variable is set before the first paint and the
- * list never flashes in the wrong place.
- */
 export function useWidthAsCssVariable(ref: RefObject<HTMLElement | null>, variable: `--${string}`) {
   useLayoutEffect(() => {
     const element = ref.current;

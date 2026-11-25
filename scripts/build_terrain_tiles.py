@@ -69,8 +69,7 @@ On a machine without internet, install it beforehand — `pyproj sync
 the same folder on the offline one (`python -c "import pyproj;
 print(pyproj.datadir.get_user_data_dir())"` prints it) — and set
 `PROJ_NETWORK=OFF` so a missing grid fails at once instead of waiting on
-the network. `Dockerfile.terrain` bakes the grid in and does both;
-docs/deployment-docker.md has the details.
+the network. `Dockerfile.terrain` bakes the grid in and does both.
 """
 
 from __future__ import annotations
@@ -115,9 +114,6 @@ METRES_PER_DEGREE = 111_320.0
 """Close enough for choosing levels and grid spacing; never used for geometry."""
 
 
-# --- Source raster ---------------------------------------------------------
-
-
 class SourceLevel:
     """One resolution of the source raster, plus the maths to sample it."""
 
@@ -152,7 +148,6 @@ class SourceLevel:
         """
         inverse = ~self.transform
         col, row = inverse * (x, y)
-        # Pixel *centres* are at +0.5 (the raster is AREA_OR_POINT=Area).
         col = np.asarray(col) - 0.5
         row = np.asarray(row) - 0.5
 
@@ -206,7 +201,6 @@ def fill_enclosed_gaps(heights: np.ndarray) -> int:
     for label, region in enumerate(ndimage.find_objects(labels), start=1):
         if region is None or label in open_water:
             continue
-        # Grow the bounding box by one pixel so the shoreline is inside it.
         rows = slice(max(region[0].start - 1, 0), region[0].stop + 1)
         cols = slice(max(region[1].start - 1, 0), region[1].stop + 1)
         mask = labels[rows, cols] == label
@@ -232,14 +226,9 @@ def build_source_pyramid(path: Path) -> tuple[list[SourceLevel], pyproj.CRS, tup
         bounds = transform_bounds(dataset.crs, "EPSG:4326", *dataset.bounds, densify_pts=21)
         levels = [SourceLevel(heights, dataset.transform)]
 
-    # Halve until a level is coarser than anything the shallowest terrain
-    # level inside the dataset will ask for.
     while min(levels[-1].heights.shape) > GRID_SIZE:
         levels.append(levels[-1].downsampled())
     return levels, crs, bounds
-
-
-# --- Geoid -----------------------------------------------------------------
 
 
 class GeoidGrid:
@@ -260,22 +249,9 @@ class GeoidGrid:
         lats = np.arange(self.north, south - 2 * self.STEP, -self.STEP)
         grid_lon, grid_lat = np.meshgrid(lons, lats)
 
-        # PROJ fetches the EGM2008 grid from its CDN the first time — unless
-        # PROJ_NETWORK=OFF says not to (air-gapped machines, where the grid
-        # is installed beforehand). Either way a grid already on disk is
-        # used without touching the network.
         network = os.environ.get("PROJ_NETWORK", "").upper() != "OFF"
         pyproj.network.set_network_enabled(network)
-        # Checked through a TransformerGroup, because a plain Transformer
-        # doesn't fail when the grid is missing: PROJ quietly falls back to
-        # a "ballpark" transformation that treats the geoid as the
-        # ellipsoid, every undulation comes out 0.00 m, and the terrain is
-        # written ~8 m low with no error at all — exactly what happens on an
-        # air-gapped machine without the grid. (`only_best=True` ought to
-        # catch this, but doesn't for this compound CRS in PROJ 9.8.)
         with warnings.catch_warnings():
-            # The group warns about the missing grid itself; the message
-            # below says the same with what to do about it.
             warnings.simplefilter("ignore", UserWarning)
             group = pyproj.transformer.TransformerGroup("EPSG:4326+3855", "EPSG:4979", always_xy=True)
         if group.best_available:
@@ -311,9 +287,6 @@ class GeoidGrid:
         return self.undulation.sample(lon, lat)
 
 
-# --- Geometry --------------------------------------------------------------
-
-
 def to_ecef(lon_deg: np.ndarray, lat_deg: np.ndarray, height: np.ndarray) -> np.ndarray:
     """Geodetic (degrees, metres) to Earth-centred Cartesian, shape (n, 3)."""
     lon = np.radians(lon_deg)
@@ -345,7 +318,6 @@ def lattice_normals(heights: np.ndarray, lats: np.ndarray, lons: np.ndarray, ste
     metres_east = step_deg * METRES_PER_DEGREE * np.cos(lat)
     metres_north = step_deg * METRES_PER_DEGREE
     d_row, d_col = np.gradient(heights)
-    # Rows run north to south, so a rise in row index is a fall northward.
     east = -d_col / metres_east
     north = d_row / metres_north
     up = np.ones_like(heights)
@@ -425,25 +397,10 @@ def encode_tile(
     mesher = Delatin(
         tile_heights.astype(np.float32).ravel(), width=GRID_SIZE, height=GRID_SIZE, max_error=max_error
     )
-    # Delatin's y counts *up* from the bottom row, not down like a raster
-    # row: the vertex it reports at y is raster row (GRID_SIZE - 1 - y).
-    # Reading y as a row still yields self-consistent tiles — every vertex
-    # lands at the right place with the right height — but Delatin then
-    # chose its points by fitting the tile's north–south mirror image, so
-    # `max_error` held for the mirror and not for the terrain actually drawn.
     grid_xy = mesher.vertices[:, :2].astype(np.int64)
     grid_xy[:, 1] = (GRID_SIZE - 1) - grid_xy[:, 1]  # now (column, row)
     triangles = mesher.triangles.astype(np.int64)
 
-    # Triangles must wind counter-clockwise seen from above (east right,
-    # north up), or Cesium's back-face culling hides the terrain from the
-    # sky. Delatin works in raster space, where rows run *down*, so check
-    # each triangle and flip the ones that come out clockwise.
-    #
-    # This has to happen before the renumbering below: swapping two corners
-    # of a triangle can put a vertex's first use after a later vertex's,
-    # which breaks the high-water-mark index encoding and makes Cesium's
-    # decoder read garbage indices.
     gx, gy = grid_xy[:, 0], -grid_xy[:, 1]  # east, north
     a, b, c = triangles[:, 0].copy(), triangles[:, 1].copy(), triangles[:, 2].copy()
     signed_area = (gx[b] - gx[a]) * (gy[c] - gy[a]) - (gx[c] - gx[a]) * (gy[b] - gy[a])
@@ -451,8 +408,6 @@ def encode_tile(
     triangles[clockwise, 1] = c[clockwise]
     triangles[clockwise, 2] = b[clockwise]
 
-    # Renumber vertices in the order triangles first reference them — the
-    # precondition for high-water-mark index encoding.
     order = np.unique(triangles.ravel(), return_index=True)[1]
     first_use = triangles.ravel()[np.sort(order)]
     renumber = np.empty(len(grid_xy), dtype=np.int64)
@@ -489,19 +444,11 @@ def encode_tile(
     out += struct.pack("<I", vertex_count)
     out += zigzag_delta(u).tobytes() + zigzag_delta(v).tobytes() + zigzag_delta(h).tobytes()
 
-    # 16-bit indices are enough: a 65 x 65 grid has at most 4,225 vertices.
     if len(out) % 2:
         out += b"\x00"
-    # High-water-mark: each index is stored as (next new vertex - index).
-    # Because vertices were renumbered by first use, "next new vertex" at
-    # any point is just one more than the largest index seen before it.
     flat = triangles.ravel()
     highest_before = np.concatenate([[0], np.maximum.accumulate(flat)[:-1] + 1])
     encoded = highest_before - flat
-    # Decode it back exactly as Cesium does (a zero means "the next new
-    # vertex"). A mistake here doesn't throw in the browser — the tile just
-    # silently fails to load and the terrain stops refining — so catch it
-    # at build time instead.
     decoded_highest = np.concatenate([[0], np.cumsum(encoded == 0)[:-1]])
     if np.any(encoded < 0) or not np.array_equal(decoded_highest - encoded, flat):
         raise AssertionError("triangle indices don't survive Cesium's high-water-mark decoding")
@@ -515,9 +462,6 @@ def encode_tile(
     encoded_normals = oct_encode(normals).tobytes()
     out += struct.pack("<BI", OCT_VERTEX_NORMALS_EXTENSION_ID, len(encoded_normals)) + encoded_normals
     return bytes(out)
-
-
-# --- Tiling ----------------------------------------------------------------
 
 
 def tile_degrees(level: int) -> float:
@@ -543,7 +487,6 @@ def auto_max_level(resolution_m: float) -> int:
 def tile_range(level: int, bounds: tuple[float, ...]) -> tuple[int, int, int, int]:
     """Tiles (x0, y0, x1, y1), inclusive, in Cesium's north-down y, covering bounds."""
     if level == 0:
-        # Both level-0 tiles must exist or Cesium has nothing to start from.
         return 0, 0, 1, 0
     size = tile_degrees(level)
     west, south, east, north = bounds
@@ -604,30 +547,17 @@ def main() -> None:
         size = tile_degrees(level)
         step = size / (GRID_SIZE - 1)
         spacing_m = step * METRES_PER_DEGREE
-        # Each level may deviate from the true surface by the error Cesium
-        # already assumes for it — finer would only cost bytes Cesium's
-        # level selection never benefits from. The deepest level has nothing
-        # finer to hand over to, so it gets the explicit accuracy instead.
         max_error = args.max_error if level == max_level else max(args.max_error, geometric_error(level) / 4)
 
-        # One lattice of sample points for the whole level, rather than one
-        # grid per tile: neighbouring tiles then read their shared edge from
-        # the *same* samples, so their edges agree.
         cols = (x1 - x0 + 1) * (GRID_SIZE - 1) + 1
         rows = (y1 - y0 + 1) * (GRID_SIZE - 1) + 1
         lons = -180.0 + x0 * size + np.arange(cols) * step
         lats = 90.0 - y0 * size - np.arange(rows) * step
         grid_lon, grid_lat = np.meshgrid(lons, lats)
 
-        # Outside the dataset the terrain is the bare ellipsoid, matching
-        # the rest of the globe. Inside it, the gaps left after
-        # `fill_enclosed_gaps` (the sea, or a clipped neighbouring country)
-        # are mean sea level.
         heights = np.zeros(grid_lon.shape, dtype=np.float64)
         inside = (grid_lon >= west) & (grid_lon <= east) & (grid_lat >= south) & (grid_lat <= north)
         if inside.any():
-            # The coarsest pre-averaged copy of the source that is still at
-            # least as fine as this level's sample spacing.
             source = next(
                 (s for s in reversed(pyramid) if s.resolution * metres_per_unit <= max(spacing_m, resolution_m)),
                 base,
@@ -691,8 +621,6 @@ def main() -> None:
         "bounds": [round(b, 6) for b in bounds],
         "attribution": args.attribution,
         "available": available,
-        # Not part of the format — Cesium ignores it. Recorded so a later
-        # reader can tell what the heights are relative to.
         "verticalDatum": "WGS84 ellipsoid (converted from EGM2008)"
         if geoid is not None
         else "WGS84 ellipsoid (as supplied)",

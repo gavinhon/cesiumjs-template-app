@@ -3,13 +3,10 @@ import './DrawingHint.css';
 
 interface DrawingHintProps {
   activeTool: DrawingTool;
-  /** Finishes the path in progress — the touch stand-in for Enter. */
   onFinish: () => void;
-  /** Removes the last vertex — the touch stand-in for Backspace. */
   onUndo: () => void;
 }
 
-/** What a click does, per tool. */
 const ACTION_HINT: Record<Exclude<DrawingTool, 'none'>, string> = {
   point: 'Click to place a point',
   label: 'Click to place a label',
@@ -20,30 +17,12 @@ const ACTION_HINT: Record<Exclude<DrawingTool, 'none'>, string> = {
   'line-of-sight': 'Click the point to look from, then the target',
 };
 
-/**
- * A caption that appears while a drawing tool is armed, saying what a click
- * will do and which keys are live.
- *
- * Drawing has three conventions a first-time user cannot guess — double-click
- * ends a path, Backspace removes the last point, Escape abandons it (and,
- * pressed again, exits the tool) — and an
- * icon-only toolbar has nowhere to put that. Rather than leave them
- * undiscoverable, they're stated while they're relevant and gone the rest of
- * the time.
- *
- * Rendered as a sibling of the map rather than inside the toolbar: it belongs
- * near where the user is looking (the cursor, over the map), not pinned to the
- * button that started the tool.
- */
 export function DrawingHint({ activeTool, onFinish, onUndo }: DrawingHintProps) {
   if (activeTool === 'none') return null;
 
   return (
     <div className="control drawing-hint" role="status">
       <span>{ACTION_HINT[activeTool]}</span>
-      {/* Keyboard conventions for a mouse; DrawingHint.css swaps in the
-          touch alternative below on a coarse pointer, where there are no
-          keys to press and a double-tap is easy to miss. */}
       <span className="drawing-hint__keys">
         {isPathTool(activeTool) &&
           'Double-click or Enter to finish · Backspace to undo · Esc to discard, again to exit'}

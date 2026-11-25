@@ -8,7 +8,6 @@ import './ElevationProfile.css';
 
 interface ElevationProfileProps {
   viewer: Cesium.Viewer;
-  /** The line's vertices, in order. Re-sampled whenever they change (a vertex dragged). */
   positions: Cesium.Cartesian3[];
 }
 
@@ -19,51 +18,25 @@ type Profile = {
   stats: ProfileStats;
 };
 
-/** What a terrain request answered — and for which line on which terrain. */
 type Answer = { positions: Cesium.Cartesian3[]; terrain: Cesium.TerrainProvider } & (
   { state: 'done'; profile: Profile } | { state: 'error'; message: string }
 );
 
-/** What the panel shows, worked out from the answer during render. */
 type LoadState =
   | { state: 'loading' }
   | { state: 'no-terrain' }
   | { state: 'done'; profile: Profile }
   | { state: 'error'; message: string };
 
-/** Enough to show every hill a hand-drawn line crosses, few enough to fetch instantly. */
 const SAMPLE_COUNT = 128;
 const WIDTH = 288;
 const HEIGHT = 88;
 
-/**
- * The ground's height along a drawn line or distance measurement — what
- * Google Earth shows under its measure tool, and the first thing a planner
- * asks of a route: how much does it climb?
- *
- * Samples the *terrain* (`sampleTerrainMostDetailed`), not whatever was
- * clicked: a measurement from roof to roof still profiles the ground
- * between. With no terrain loaded the ground is the bare ellipsoid —
- * height 0 everywhere — so it says so instead of drawing a flat line.
- *
- * Hovering the chart puts a marker on the map at that point, written to a
- * Cesium entity directly — never through React state per mouse move.
- */
 export function ElevationProfile({ viewer, positions }: ElevationProfileProps) {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const markerRef = useRef<Cesium.Entity | null>(null);
 
-  // Only the terrain's answer is state; "loading" and "no terrain" are
-  // worked out here, during render. Setting them from the effect would
-  // commit a frame showing the previous line's profile before switching —
-  // and the effect would be setting state that isn't an answer from
-  // anything outside React.
-  //
-  // The terrain provider is read here and passed to the effect as an input,
-  // so choosing a terrain while a line is selected re-samples it. (The App
-  // re-renders when the terrain finishes loading, which is when Cesium
-  // swaps the provider in.)
   const terrain = viewer.terrainProvider;
   const noTerrain = terrain instanceof Cesium.EllipsoidTerrainProvider;
   const result: LoadState = noTerrain
@@ -76,8 +49,6 @@ export function ElevationProfile({ viewer, positions }: ElevationProfileProps) {
     if (terrain instanceof Cesium.EllipsoidTerrainProvider) return;
     let current = true;
     const { cartographics, distances } = samplePath(positions, SAMPLE_COUNT);
-    // Fills in each cartographic's height from the most detailed terrain
-    // tiles available, fetching them if needed.
     Cesium.sampleTerrainMostDetailed(terrain, cartographics).then(
       (samples) => {
         if (!current) return;
@@ -104,7 +75,6 @@ export function ElevationProfile({ viewer, positions }: ElevationProfileProps) {
     };
   }, [terrain, positions]);
 
-  // The hover marker: created on first hover, removed with the chart.
   useEffect(
     () => () => {
       if (markerRef.current && !viewer.isDestroyed()) viewer.entities.remove(markerRef.current);
@@ -130,8 +100,6 @@ export function ElevationProfile({ viewer, positions }: ElevationProfileProps) {
         position,
         point: {
           pixelSize: 9,
-          // A measurement's colour with its dark casing: it's a reading off
-          // the measured line, not a new place.
           color: MAP_COLORS.measure,
           outlineColor: MAP_COLORS.casing,
           outlineWidth: 2,
@@ -228,8 +196,7 @@ function ProfileChart({
       >
         {hover !== null
           ? `${formatDistance(distances[hover])} along · ${formatHeight(heights[hover])}`
-          : // Arrows, not words: spelled out, the line wrapped in a 320px panel.
-            `${formatDistance(total)} · ↑${formatHeight(stats.climb)} ↓${formatHeight(stats.descent)}`}
+          : `${formatDistance(total)} · ↑${formatHeight(stats.climb)} ↓${formatHeight(stats.descent)}`}
       </p>
     </>
   );

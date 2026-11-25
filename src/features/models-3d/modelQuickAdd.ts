@@ -6,15 +6,6 @@ import type { ModelConfig } from './modelTypes';
 
 const FORMAT_BADGE = { '3d-tiles': '3D TILES', i3s: 'I3S' } as const;
 
-/**
- * Every 3D dataset — 3D Tiles and I3S — the Add data catalogue offers in one click, with the config that adds it:
- * tilesets the build-time scan found under `public/`, then the examples.
- * Each is added under the item's id, which is how the list tells it's
- * already on the map.
- *
- * Its own module, not the panel's, because App also reads it — see
- * MAP_SERVICE_QUICK_ADD.
- */
 export const MODEL_QUICK_ADD: readonly { item: QuickAddItem; config: ModelConfig }[] = [
   ...publicDatasetsOfKind('3d-tiles').map((dataset) => ({
     item: {

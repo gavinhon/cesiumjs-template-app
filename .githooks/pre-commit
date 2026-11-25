@@ -1,30 +1,5 @@
 #!/bin/sh
-#
-# Runs the same gate the GitHub Pages deploy runs (`npm run check` in
-# .github/workflows/deploy-pages.yml) before a commit is made, so a commit
-# that would fail the deploy fails here instead — on your machine, in
-# seconds, rather than on GitHub after you've pushed.
-#
-# Why this exists: twice, a commit that ran fine locally failed the deploy
-# on formatting alone (a stray blank line, then one over-long line). Local
-# `npm run dev` and `npm run build` never check formatting; the deploy does.
-#
-# What it checks:
-#   1. Prettier, on the files being committed only. Formatting is per file,
-#      and checking just the staged ones means another person's (or tool's)
-#      half-finished, unstaged files can't block your commit.
-#   2. Typecheck, lint and unit tests, on the whole project — those can't be
-#      judged one file at a time.
-#
-# A partially staged file is checked as it is on disk, not as staged.
-#
-# Installed by `npm install` (the `prepare` script runs
-# scripts/installGitHooks.mjs, which points git at this folder). To skip it
-# for one commit in an emergency: `git commit --no-verify` — the deploy will
-# still check.
 
-# A GUI git client may run hooks without node on its PATH. Don't block the
-# commit over a missing tool; say so loudly — the deploy still checks.
 if ! command -v npm >/dev/null 2>&1; then
   echo "pre-commit: npm not found on PATH; skipping checks. Run 'npm run check' yourself." >&2
   exit 0
@@ -36,15 +11,6 @@ if [ -z "$staged" ]; then
 fi
 
 echo "pre-commit: checking formatting of staged files…"
-# Only the file types Prettier formats, and nothing under public/ (data,
-# which .prettierignore excludes anyway). Filtering here rather than
-# leaving it to Prettier matters on Windows: `npx` runs through cmd.exe,
-# which refuses a command line over ~8,000 characters, and committing a
-# dataset stages thousands of paths. Passing them all made every batch fail
-# with "The command line is too long" — reported as a formatting failure.
-# `-s 7000` keeps each batch under that limit even for a large source
-# change. -z / -0 so file names with spaces survive; --ignore-unknown and
-# .prettierignore still apply to whatever gets through.
 if ! git diff --cached --name-only --diff-filter=ACMR -z |
   grep -zE '\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|css|md|html|ya?ml)$' |
   grep -zv '^public/' |

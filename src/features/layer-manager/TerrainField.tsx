@@ -7,17 +7,8 @@ interface TerrainFieldProps {
   terrain: TerrainChoice;
 }
 
-/** `<select>` values must be strings; this one stands for "no terrain". */
 const ELLIPSOID = '';
 
-/**
- * Which surface the globe is drawn on: a terrain tileset, or the bare
- * ellipsoid — in the terrain row's details in the layer list. A choice,
- * not a list: terrain is one slot.
- *
- * Shown even with nothing to choose, so the hint can say where terrain
- * would come from.
- */
 export function TerrainField({ terrain }: TerrainFieldProps) {
   const formId = useId();
   const selected = terrain.options.find((option) => option.id === terrain.selectedId);

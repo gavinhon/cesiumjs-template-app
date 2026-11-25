@@ -1,6 +1,3 @@
-/* The camera controls' row — see NavigationControls.tsx. Bottom-right,
-   directly above the status bar: its 16px inset, its height, then an 8px
-   gap, all from the tokens so the two never overlap if either changes. */
 .map-nav {
   position: absolute;
   right: 16px;
@@ -16,8 +13,6 @@
   backdrop-filter: blur(12px);
 }
 
-/* Square tiles like the drawing rail's, sized from the same token. Inside
-   a boxed group, so no shadow of their own. */
 .map-nav__button {
   display: flex;
   align-items: center;
@@ -28,19 +23,14 @@
   box-shadow: none;
 }
 
-/* The compass needle rotates from the render loop; this only keeps the
-   rotation about its own centre. */
 .map-nav__button svg {
   transform-origin: 50% 50%;
 }
 
-/* "My location" failed — the reason is in its tooltip and label. */
 .map-nav__button--error {
   color: var(--danger);
 }
 
-/* Compact layout. 640px must match COMPACT_LAYOUT_QUERY in
-   src/ui/compactLayoutQuery.ts. */
 @media (max-width: 640px) {
   .map-nav {
     right: 8px;

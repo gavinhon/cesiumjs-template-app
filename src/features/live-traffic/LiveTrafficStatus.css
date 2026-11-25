@@ -1,5 +1,3 @@
-/* A live traffic layer's details on its row in the layer list — see
-   LiveTrafficStatus.tsx. */
 .live-traffic-status {
   display: flex;
   flex: 1;
@@ -8,8 +6,6 @@
   min-width: 0;
 }
 
-/* How fresh the data is: quiet, like a model's placement note, until it
-   has gone stale or failed — then it says so in --danger. */
 .live-traffic-status__note {
   display: flex;
   flex-direction: column;

@@ -26,12 +26,10 @@ describe('rasterizeTriangle', () => {
 
   it('interpolates heights across the texels inside it', () => {
     const g = grid(4, 4);
-    // A slope rising 10 m per texel eastward.
     rasterizeTriangle(g, [0, 0, 0], [3, 0, 30], [0, 3, 0]);
     expect(g.filled[0]).toBe(1);
     expect(g.heights[2]).toBeCloseTo(20);
     expect(g.heights[1 * 4 + 1]).toBeCloseTo(10);
-    // (3, 3) is across the diagonal: the other triangle's.
     expect(g.filled[3 * 4 + 3]).toBe(0);
   });
 
@@ -44,7 +42,6 @@ describe('rasterizeTriangle', () => {
 
   it('clips to the grid', () => {
     const g = grid(2, 2);
-    // Far larger than the grid: covers it all without writing outside it.
     rasterizeTriangle(g, [-10, -10, 1], [30, -10, 1], [-10, 30, 1]);
     expect([...g.filled]).toEqual([1, 1, 1, 1]);
   });

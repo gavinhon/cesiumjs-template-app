@@ -50,9 +50,7 @@ describe('encodeMapUrlState / decodeMapUrlState', () => {
   it('leaves the default terrain out of a link, and writes any change from it', () => {
     const singapore = 'public:terrain/singapore';
     expect(terrainForLink(singapore, singapore)).toBeUndefined();
-    // No terrain anywhere: nothing to say, so a later default still loads.
     expect(terrainForLink(null, null)).toBeUndefined();
-    // Switched off, or swapped for another: deliberate, so written.
     expect(terrainForLink(null, singapore)).toBeNull();
     expect(terrainForLink('public:terrain/other', singapore)).toBe('public:terrain/other');
     expect(encodeMapUrlState({ terrain: terrainForLink(singapore, singapore) })).toBe('');

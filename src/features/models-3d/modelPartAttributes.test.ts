@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readModelPart } from './modelPartAttributes';
 
-// Shaped like a wall in the BIM tileset in public/: one merged class, so
-// the wall carries empty slots for the slab and beam property sets too.
 const wall = [
   { id: 'psetWallCommonIsExternal', value: 'True' },
   { id: 'psetSlabCommonIsExternal', value: undefined },

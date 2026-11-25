@@ -34,7 +34,6 @@ function feature(overrides: Partial<DrawnFeature> & { kind: DrawnFeatureKind }):
 
 const NOW = Cesium.JulianDate.now();
 
-/** A polyline entity's current positions; fails the test if it has none. */
 function linePositions(entity: Cesium.Entity): Cesium.Cartesian3[] {
   const positions: unknown = entity.polyline?.positions?.getValue(NOW);
   if (!Array.isArray(positions)) throw new Error('entity has no polyline positions');
@@ -84,7 +83,7 @@ describe('labelTextFor', () => {
     const climb = feature({
       kind: 'measure',
       labelSource: 'measurement',
-      positions: [p(103.8, 1.35, 0), p(103.80027, 1.35, 40)], // ~30 m across, 40 m up
+      positions: [p(103.8, 1.35, 0), p(103.80027, 1.35, 40)],
       measurement: '50.0 m · 30.0 m horizontal',
     });
     expect(labelTextFor(climb)).toBe('50.0 m');
@@ -97,7 +96,7 @@ describe('labelTextFor', () => {
     const diagonal = feature({
       kind: 'height',
       labelSource: 'measurement',
-      positions: [p(103.8, 1.35, 40), p(103.80027, 1.35, 10)], // ~30 m across, 30 m down
+      positions: [p(103.8, 1.35, 40), p(103.80027, 1.35, 10)],
     });
     expect(secondaryLabelsFor(diagonal, false)).toEqual([]);
     expect(secondaryLabelsFor(diagonal, true).map((label) => label.text)).toEqual([
@@ -165,7 +164,6 @@ describe('labelAnchorFor', () => {
     const carto = Cesium.Cartographic.fromCartesian(anchor);
     expect(Cesium.Math.toDegrees(carto.longitude)).toBeCloseTo(103.85, 9);
     expect(Cesium.Math.toDegrees(carto.latitude)).toBeCloseTo(1.35, 9);
-    // On the surface, not sunk into the planet as a Cartesian mean would be.
     expect(carto.height).toBeCloseTo(25, 4);
   });
 });
@@ -225,10 +223,10 @@ describe('applyGeometry', () => {
     applyGeometry(target, [from, to]);
 
     const [top, end] = linePositions(horizontal);
-    expect(heightOf(top)).toBeCloseTo(30, 4); // the corner is level with the end…
+    expect(heightOf(top)).toBeCloseTo(30, 4);
     expect(end).toEqual(to);
     const [start, corner] = linePositions(vertical);
-    expect(start).toEqual(from); // …and directly above the start
+    expect(start).toEqual(from);
     expect(Cesium.Cartesian3.equalsEpsilon(corner, top, 0, 1e-6)).toBe(true);
   });
 

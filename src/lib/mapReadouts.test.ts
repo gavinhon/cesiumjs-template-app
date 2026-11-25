@@ -26,11 +26,8 @@ describe('formatHeight', () => {
 
 describe('niceScaleBar', () => {
   it('picks the longest 1/2/5 distance that fits', () => {
-    // 100 px × 13.7 m/px = 1370 m available → 1 km.
     expect(niceScaleBar(13.7, 100)).toEqual({ widthPx: 1000 / 13.7, label: '1 km' });
-    // 100 px × 2.6 m/px = 260 m → 200 m.
     expect(niceScaleBar(2.6, 100)?.label).toBe('200 m');
-    // 100 px × 0.6 m/px = 60 m → 50 m.
     expect(niceScaleBar(0.6, 100)?.label).toBe('50 m');
   });
 

@@ -4,51 +4,23 @@ import { Panel } from '@/ui/Panel';
 import { QuickAddList, type QuickAddItem } from '@/ui/QuickAddList';
 import './AddDataPanel.css';
 
-/** One way to connect your own data, shown as a tab beside the catalogue. */
 export interface ConnectTab {
   id: string;
-  /** Tab label, e.g. "Map service". */
   label: string;
-  /** One line under the tabs naming the formats it takes. */
   formats: string;
-  /** The form itself, from the feature that knows the protocol. */
   form: ReactNode;
 }
 
 interface AddDataPanelProps {
   open: boolean;
   onClose: () => void;
-  /** True while the Cesium viewer hasn't finished initializing yet. */
   disabled: boolean;
-  /** Every ready-made dataset, from all the features that offer some. */
   catalogue: readonly QuickAddItem[];
   isAdded: (id: string) => boolean;
   onAdd: (item: QuickAddItem) => Promise<void>;
-  /** The "connect by URL" forms, one tab each. */
   connect: readonly ConnectTab[];
 }
 
-/**
- * The one place to add data: a catalogue of ready-made datasets — map
- * services, files in `public/`, 3D models — and a tab per way of
- * connecting your own by URL.
- *
- * It replaces two panels, Map Services and 3D Tiles, that split adding data
- * by protocol. That made people guess which panel a dataset was in, and
- * "3D Tiles" was the wrong name for a panel that also took I3S. The
- * catalogue groups by what the data is (CATALOGUE_GROUPS); the formats live
- * in the badges and in the connect tabs, which is where the protocol
- * actually matters — you're pasting a URL of that kind.
- *
- * This feature knows no protocols itself. `App` hands it the catalogue and
- * the forms from the features that own them (which may not import each
- * other), the same way it feeds the layer manager and search.
- *
- * Docks left, opposite the layer list (top-right), so what you add can be
- * seen arriving in the list. Tabs are switched with `hidden`, not by unmounting,
- * for the same reason panels stay mounted (CLAUDE.md, invariant 5): a
- * half-filled form survives a look at the catalogue.
- */
 export function AddDataPanel({
   open,
   onClose,
@@ -71,8 +43,6 @@ export function AddDataPanel({
           ),
         )
       : catalogue;
-    // QuickAddList lists groups in order of first appearance; sort so they
-    // always come in the catalogue's order, whatever order features supplied.
     const rank = (item: QuickAddItem) => {
       const index = CATALOGUE_GROUP_ORDER.indexOf(item.group);
       return index === -1 ? CATALOGUE_GROUP_ORDER.length : index;

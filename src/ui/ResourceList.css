@@ -1,4 +1,3 @@
-/* The list of resources a panel has added to the map — see ResourceList.tsx. */
 .resource-list {
   display: flex;
   flex-direction: column;
@@ -20,9 +19,6 @@
   background: var(--surface-variant);
 }
 
-/* The current selection: a faint accent tint and an orange left edge, the
-   same "on" language as an active button. Inset rather than a thicker
-   border, so the row doesn't jump by a pixel as selection moves. */
 .resource-list__item--selected {
   background: var(--accent-soft);
   box-shadow: inset 2px 0 0 var(--accent);
@@ -44,8 +40,6 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  /* Let a long layer name ellipsize instead of pushing the row's buttons
-     out of the panel. */
   min-width: 0;
 }
 
@@ -62,7 +56,6 @@
   text-underline-offset: 2px;
 }
 
-/* Trailing controls on the first row: any per-feature actions, then remove. */
 .resource-list__actions {
   display: flex;
   align-items: center;
@@ -74,26 +67,16 @@
   border: none;
   background: none;
   color: var(--muted);
-  /* Was the largest glyph in the panel at 16px, which made "remove" the
-     loudest thing in a list of layer names. Sized to the row's text, with
-     padding carrying the hit area instead. */
   font-size: 14px;
   line-height: 1;
   padding: 2px 4px;
   cursor: pointer;
 }
 
-/* The one deliberate spot of a third hue in an otherwise grey-and-orange
-   UI: a "remove this" action reads faster with a hint of red on hover. The
-   red is pushed toward pink precisely so it can't be mistaken for the
-   orange accent at a glance. */
 .resource-list__remove:hover {
   color: var(--danger);
 }
 
-/* A short monospace tag on the second row, e.g. the layer's service type.
-   Boxed rather than bare text: at 10px a loose word reads as a stray label,
-   while a chip reads as metadata attached to the row above it. */
 .resource-list__badge {
   flex-shrink: 0;
   padding: 2px 6px;

@@ -1,5 +1,3 @@
-/* A 3D model's placement, on its row in the layer manager — see
-   ModelPlacementControl.tsx. Takes the rest of the row after the badge. */
 .model-placement-control {
   display: flex;
   flex: 1;
@@ -9,13 +7,10 @@
   min-width: 0;
 }
 
-/* Kept on one line: the note beside it gives way instead. */
 .model-placement-control__switch {
   white-space: nowrap;
 }
 
-/* What the switch did — "Raised 12.9 m", "Underground" — kept quiet; it's
-   there to explain a model that moved, or one that didn't. */
 .model-placement-control__note {
   margin-left: auto;
   font-family: var(--font-mono);

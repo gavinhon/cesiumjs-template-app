@@ -7,16 +7,12 @@ import type { useDrawingTools } from './useDrawingTools';
 import './DrawingPanel.css';
 
 interface DrawingPanelProps {
-  /** The drawing feature's state, from `useDrawingTools` — called in `App`. */
   drawing: ReturnType<typeof useDrawingTools>;
-  /** For the elevation profile, which samples the viewer's terrain. */
   viewer: Cesium.Viewer | null;
   open: boolean;
-  /** Closes the panel from its own header (see `Panel`). */
   onClose: () => void;
 }
 
-/** Badge text per kind, so a glance at the list says what each row is. */
 const KIND_LABEL = {
   point: 'POINT',
   line: 'LINE',
@@ -27,15 +23,6 @@ const KIND_LABEL = {
   label: 'LABEL',
 } as const;
 
-/**
- * The list of everything drawn, and an editor for whichever shape is
- * selected.
- *
- * Selection is shared with the map: clicking a shape on the globe highlights
- * its row here and opens this panel, and clicking a row highlights the shape.
- * One selection, two views of it — anything else would leave the two
- * disagreeing about what the user is working on.
- */
 export function DrawingPanel({ drawing, viewer, open, onClose }: DrawingPanelProps) {
   const { features, selectedId, selectedFeature } = drawing;
 
@@ -70,9 +57,6 @@ export function DrawingPanel({ drawing, viewer, open, onClose }: DrawingPanelPro
 
       {selectedFeature && (
         <DrawnFeatureEditor
-          // Remounting per feature is deliberate: without it, switching
-          // selection would leave the previous shape's text sitting in the
-          // inputs until React reconciled each one.
           key={selectedFeature.id}
           feature={selectedFeature}
           onRename={(name) => drawing.renameFeature(selectedFeature.id, name)}
@@ -87,16 +71,11 @@ export function DrawingPanel({ drawing, viewer, open, onClose }: DrawingPanelPro
         />
       )}
 
-      {/* Lines and distance measurements get a ground profile: they're the
-          two kinds that trace a route across the land. */}
       {viewer &&
         selectedFeature &&
         (selectedFeature.kind === 'line' || selectedFeature.kind === 'measure') &&
         selectedFeature.positions.length >= 2 && (
           <ElevationProfile
-            // Remounts per feature, like the editor — but a key of its own:
-            // the two are siblings, and siblings sharing a key make React
-            // log an error and may reuse one in place of the other.
             key={`${selectedFeature.id}:profile`}
             viewer={viewer}
             positions={selectedFeature.positions}

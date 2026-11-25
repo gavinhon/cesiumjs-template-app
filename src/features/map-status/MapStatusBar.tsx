@@ -12,28 +12,10 @@ interface MapStatusBarProps {
 
 type CoordinateFormat = 'wgs84' | 'svy21';
 
-/** The scale bar never grows past this, so the status bar keeps a steady width. */
 const SCALE_BAR_MAX_PX = 96;
 
-/** Placeholder while the cursor is off the globe (over space, or off the map). */
 const NONE = '—';
 
-/**
- * The strip along the bottom-right a GIS user reads the map by: the
- * coordinate and ground height under the cursor, a scale bar, and the
- * camera's altitude — what Google Earth's status bar shows, and what
- * every desktop GIS has.
- *
- * Everything in it changes with the mouse or the camera, so none of it is
- * React state: the values are written straight to the DOM through refs,
- * from a mouse handler and from `scene.postRender` (CLAUDE.md, per-frame
- * data). The only state is which coordinate system to show, which changes
- * when someone clicks it.
- *
- * Click the coordinate to copy it. The WGS84/SVY21 switch beside it picks
- * the grid: SVY21 is Singapore's national grid, in which its plans and
- * government datasets are published (see src/lib/svy21.ts).
- */
 export function MapStatusBar({ viewer }: MapStatusBarProps) {
   const [format, setFormat] = useState<CoordinateFormat>('wgs84');
   const [copied, setCopied] = useState(false);
@@ -46,16 +28,9 @@ export function MapStatusBar({ viewer }: MapStatusBarProps) {
   const scaleLabelRef = useRef<HTMLSpanElement>(null);
   const cameraRef = useRef<HTMLSpanElement>(null);
 
-  // Read by the mouse handler, which is set up once per viewer and so
-  // can't close over `format` without being torn down on every switch.
   const formatRef = useRef(format);
-  // The last cursor position on the globe, so switching format or copying
-  // works from the same point the readout is showing.
   const cursorRef = useRef<Cesium.Cartographic | null>(null);
 
-  // Cesium's attribution line runs along the bottom-left and must stay
-  // readable (OSM and Esri require it); global.css stops it short of this
-  // bar by however wide the bar turned out.
   useWidthAsCssVariable(rootRef, '--map-status-width');
 
   useEffect(() => {
@@ -68,10 +43,6 @@ export function MapStatusBar({ viewer }: MapStatusBarProps) {
     const { scene, camera } = viewer;
     const canvas = scene.canvas;
 
-    // --- Cursor coordinate and ground height --------------------------
-    // Picking is far too expensive to run on every mousemove event (a
-    // fast mouse fires several per frame), so moves only record where the
-    // pointer is and one pick runs per animation frame at most.
     const pointer = new Cesium.Cartesian2();
     let frame = 0;
     const handler = new Cesium.ScreenSpaceEventHandler(canvas);
@@ -85,9 +56,6 @@ export function MapStatusBar({ viewer }: MapStatusBarProps) {
         cursorRef.current = cartographic;
         writeCoordinates(coordsRef.current, cartographic, formatRef.current);
         if (elevationRef.current) {
-          // pickSurface lands on terrain or a roof, so this is the height
-          // of whatever is under the cursor — above the WGS84 ellipsoid,
-          // which is what Cesium measures from (CLAUDE.md, terrain heights).
           elevationRef.current.textContent = cartographic
             ? formatHeight(cartographic.height)
             : NONE;
@@ -102,10 +70,6 @@ export function MapStatusBar({ viewer }: MapStatusBarProps) {
     }
     canvas.addEventListener('pointerleave', clearCursor);
 
-    // --- Scale bar and camera altitude --------------------------------
-    // Recomputed only when the camera has actually moved: the scale needs
-    // two picks, and the scene renders every frame whether or not anything
-    // changed.
     const lastPosition = new Cesium.Cartesian3();
     const lastDirection = new Cesium.Cartesian3();
     let first = true;
@@ -127,10 +91,6 @@ export function MapStatusBar({ viewer }: MapStatusBarProps) {
         cameraRef.current.textContent = formatHeight(camera.positionCartographic.height);
       }
 
-      // Ground resolution at the centre of the screen, from two points
-      // 100 px apart. In a tilted 3D view it varies across the screen —
-      // larger towards the horizon — so the centre, where people look,
-      // is the honest place to measure. Off the globe there's no scale.
       left.x = canvas.clientWidth / 2 - 50;
       right.x = canvas.clientWidth / 2 + 50;
       left.y = right.y = canvas.clientHeight / 2;
@@ -167,10 +127,7 @@ export function MapStatusBar({ viewer }: MapStatusBarProps) {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1200);
-    } catch {
-      // Clipboard access can be refused (permissions, an insecure origin);
-      // the coordinate is still on screen to read.
-    }
+    } catch {}
   }
 
   return (
@@ -210,11 +167,6 @@ export function MapStatusBar({ viewer }: MapStatusBarProps) {
   );
 }
 
-/**
- * Writes the cursor coordinate in the chosen format. SVY21 is only offered
- * where it means something; elsewhere it falls back to degrees rather than
- * printing grid numbers nobody could use.
- */
 function writeCoordinates(
   element: HTMLElement | null,
   cartographic: Cesium.Cartographic | null,

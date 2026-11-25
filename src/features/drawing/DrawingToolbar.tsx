@@ -8,11 +8,7 @@ interface DrawingToolbarProps {
   onClear: () => void;
 }
 
-// Small line-art icons, drawn by hand instead of pulling in an icon library
-// for nine glyphs. `stroke="currentColor"` makes each one pick up whatever
-// color the surrounding button/CSS sets, so hover/active states apply for free.
 const icons: Record<Exclude<DrawingTool, 'none'> | 'clear' | 'draw', ReactNode> = {
-  // The Draw menu's own icon, shown while none of its tools is armed.
   draw: (
     <svg
       viewBox="0 0 24 24"
@@ -146,16 +142,10 @@ const icons: Record<Exclude<DrawingTool, 'none'> | 'clear' | 'draw', ReactNode> 
 
 type ToolEntry = {
   tool: Exclude<DrawingTool, 'none'>;
-  /** Short name, shown in the menu. */
   name: string;
-  /** One line under the name: what it does, or how to use it. */
   hint: string;
 };
 
-/**
- * Two menus, because they answer different questions: the first puts
- * something on the map, the second asks the map something.
- */
 const TOOL_GROUPS: {
   id: 'draw' | 'analyse';
   name: string;
@@ -185,34 +175,9 @@ const TOOL_GROUPS: {
   },
 ];
 
-/**
- * The drawing, measurement and analysis tools, for the right rail: a
- * **Draw** button and a **Measure and analyse** button, each opening a
- * labelled menu of its four tools, then the discard button.
- *
- * This used to be eight icon buttons in two boxes. Icons alone made people
- * hover each one to learn what it was, and the strip was the tallest thing
- * on screen. Two menu buttons keep the rail short (it no longer needs to
- * wrap on a laptop) and put a name and a one-line hint beside every tool.
- * The group button shows the armed tool's icon, lit, so what's armed is
- * still visible with the menu closed.
- *
- * Returns a fragment rather than its own wrapper: each menu and the
- * discard button are separate items of `.app__right-rail`, which is what
- * lets the rail wrap them into a second column on short screens. Inside a
- * wrapper they'd be one tall item, and a flex item can't be split across
- * columns.
- *
- * Tools behave like radio buttons: picking one disarms whichever was armed
- * (`useDrawingTools` only ever tracks one `activeTool`). Picking the armed
- * tool again disarms it, handing map clicks back to the camera.
- */
 export function DrawingToolbar({ activeTool, onSelectTool, onClear }: DrawingToolbarProps) {
   const [openMenu, setOpenMenu] = useState<'draw' | 'analyse' | null>(null);
 
-  // Close on a click anywhere else, or on Escape — the usual menu manners.
-  // Escape is caught before useDrawingTools sees it: with a menu open,
-  // closing the menu is all the user meant, not disarming the tool too.
   useEffect(() => {
     if (!openMenu) return;
     function onPointerDown(event: PointerEvent) {

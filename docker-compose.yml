@@ -1,12 +1,3 @@
-# The app, and its terrain tool, for Docker Desktop — on Windows or anywhere
-# else. Settings come from .env beside this file (copy .env.example).
-# docs/deployment-docker.md walks through building, carrying the images to
-# an air-gapped machine, and running them.
-#
-#   docker compose up -d                       # the app, on http://localhost:8080
-#   docker compose restart app                 # rescan DATA_DIR after adding data
-#   docker compose run --rm terrain IN.tif OUT # GeoTIFF → terrain (see below)
-
 services:
   app:
     build: .
@@ -19,17 +10,10 @@ services:
       NOMINATIM_URL: ${NOMINATIM_URL:-}
       LTA_ACCOUNT_KEY: ${LTA_ACCOUNT_KEY:-}
     volumes:
-      # The datasets: terrain, 3D Tiles, tile pyramids (basemaps/ for base
-      # maps), GeoJSON — laid out as public/ is in dev. Read-only: the app
-      # only ever reads them, and nothing in the container should be able
-      # to change your data.
       - type: bind
         source: ${DATA_DIR:?Set DATA_DIR in .env to your datasets folder, e.g. C:/gis/data}
         target: /data
         read_only: true
-    # Nothing in the image needs to change at runtime except what the
-    # entrypoint writes to /run and nginx's scratch space, so the rest of
-    # the filesystem is locked.
     read_only: true
     tmpfs:
       - /run
@@ -39,13 +23,6 @@ services:
       - /var/log/nginx
     restart: unless-stopped
 
-  # scripts/build_terrain_tiles.py, with its EGM2008 grid baked in. Not
-  # started by `up` (the profile); run it on demand:
-  #
-  #   docker compose run --rm terrain /input/dtm.tif /output/terrain/my-dtm \
-  #     --name "My DTM" --attribution "Elevation: whoever made it"
-  #
-  # then `docker compose restart app` to have the app pick it up.
   terrain:
     build:
       context: .
@@ -57,26 +34,15 @@ services:
         source: ${TERRAIN_INPUT_DIR:-./terrain-input}
         target: /input
         read_only: true
-      # The datasets folder again, writable this time: the output goes
-      # straight where the app will find it.
       - type: bind
         source: ${DATA_DIR:?Set DATA_DIR in .env to your datasets folder, e.g. C:/gis/data}
         target: /output
 
-  # Optional: your own Nominatim for place search, from an OpenStreetMap
-  # extract on disk. Start it with `docker compose --profile geocoder up -d`
-  # and set NOMINATIM_URL=http://nominatim:8080 in .env. The first start
-  # imports the extract into PostgreSQL — tens of minutes for Singapore,
-  # hours for a large country — and keeps the result in a named volume.
-  # Settings follow the mediagis/nominatim README for the tag pinned here;
-  # check it if you change the tag (the database path follows the
-  # PostgreSQL version). Any Nominatim 4+ server works the same way.
   nominatim:
     image: mediagis/nominatim:5.1
     profiles: [geocoder]
     environment:
       PBF_PATH: /nominatim/extract/${NOMINATIM_PBF:-region.osm.pbf}
-      # No updates from the internet: an air-gapped server can't fetch them.
       REPLICATION_URL: ''
       IMPORT_WIKIPEDIA: 'false'
     volumes:

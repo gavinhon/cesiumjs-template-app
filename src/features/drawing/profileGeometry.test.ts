@@ -18,9 +18,6 @@ describe('samplePath', () => {
   });
 
   it('gives a long segment more samples than a short one', () => {
-    // ~2 km east, then ~0.5 km north: samples every ~500 m put five on the
-    // first leg (0, 500 … 2000 m) and only the end point past it. Counted by
-    // distance, not latitude: a geodesic doesn't follow a parallel.
     const positions = [at(103.8, 1.3), at(103.818, 1.3), at(103.818, 1.3045)];
     const firstLeg = new Cesium.EllipsoidGeodesic(
       Cesium.Cartographic.fromCartesian(positions[0]),
@@ -55,7 +52,6 @@ describe('profilePaths', () => {
   });
 
   it('keeps a nearly flat path looking flat', () => {
-    // A 1 m wobble on a 10 m minimum scale stays in the middle tenth.
     const { line } = profilePaths([0, 100], [5, 6], 100, 100);
     expect(line).toBe('M0.0,55.0 L100.0,45.0');
   });

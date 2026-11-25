@@ -1,17 +1,6 @@
 @import './designTokens.css';
 @import './fonts.css';
 
-/*
- * Global reset for a full-screen map app, plus the `.control` primitives
- * every floating widget is built from. Loaded once, from `src/main.tsx`.
- *
- * Cesium wants to own the entire viewport: its canvas draws the globe and
- * needs to know its own pixel size to size the WebGL render buffer and
- * pick the right level-of-detail tiles. If `html`/`body`/`#root` don't
- * stretch to 100% of the viewport (and something adds default margins or
- * lets the page scroll), Cesium's canvas ends up the wrong size and you
- * get a small/blurry globe with letterboxing.
- */
 html,
 body,
 #root {
@@ -19,24 +8,16 @@ body,
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden; /* no page scrollbars over a full-screen canvas */
+  overflow: hidden;
 }
 
 body {
   font: 400 14px/1.4 var(--font);
-  /* The app commits to one dark look rather than adapting to the OS light/
-     dark preference. This also fills in a near-black background for the
-     instant before Cesium's canvas has mounted, instead of a white flash. */
   color-scheme: dark;
   background: var(--bg);
   color: var(--ink);
-  /* Inter ships proper optical sizing and needs antialiasing hints to avoid
-     looking heavy on a dark background, where light-on-dark text naturally
-     blooms. Without these the whole UI reads a weight bolder than it is. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Inter's contextual alternates fix the spacing of sequences the UI is
-     full of, e.g. the "3D" in the scene-mode toggle. */
   font-feature-settings: 'cv05' 1;
 }
 
@@ -44,92 +25,41 @@ body {
   box-sizing: border-box;
 }
 
-/* The browser default selection blue is the one colour in the app nobody
-   chose. A dark accent tint keeps highlighted text readable and on-theme. */
 ::selection {
   background: rgba(255, 138, 61, 0.35);
   color: var(--ink);
 }
 
-/* The app root. Every piece of UI (the map canvas, the toolbars, the
-   panels) is absolutely positioned against this, so it must be a
-   positioned, full-size ancestor. */
 .app {
   position: relative;
   width: 100%;
   height: 100%;
-  /*
-   * Closed panels are slid off-screen, not removed (they stay mounted), and
-   * a bottom sheet slid down leaves overflow
-   * past the viewport's edge. `overflow: hidden` on #root hides the
-   * scrollbar but still lets the browser scroll programmatically — tapping
-   * a button near the edge scrolled the whole app, map and all, up by the
-   * sheet's height. `clip` makes this a non-scrolling box, so nothing can.
-   */
   overflow: clip;
 }
 
-/* The right-hand rail of icon buttons: the layer button (phones only),
-   then the drawing tools. Features contribute buttons to it without positioning
-   themselves, which is what lets them stack without hard-coded offsets.
-   Mirrors the top-left toolbar's 16px corner inset. */
 .app__right-rail {
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 20; /* above .panel, so the rail stays clickable while one is open */
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  /*
-   * On a screen too short for one column, wrap into another instead of
-   * running off the bottom — where the last tools, and the discard button,
-   * would be unreachable. The rail is about 470px tall, so this kicks in on
-   * short laptop windows and landscape tablets.
-   *
-   * `wrap-reverse` keeps the first column pinned to the screen edge and adds
-   * the overflow column to its *left*, so the tools that were already in
-   * view don't move. The wrap happens between whole button groups, never
-   * inside one, because each group is a single flex item.
-   *
-   * The layer list and the phone toolbar stop short of however wide this
-   * ends up — see `--right-rail-width` in LayerList.css and AppToolbar.css.
-   */
   flex-wrap: wrap-reverse;
-  /* It must also stop short of the navigation row and status bar stacked
-     in the bottom-right corner below it — see --bottom-right-stack. */
   max-height: calc(100vh - 32px - var(--bottom-right-stack));
-  /* The dynamic unit excludes mobile browser chrome that `vh` counts. */
   max-height: calc(100dvh - 32px - var(--bottom-right-stack));
 }
 
-/*
- * The height of what's stacked in the bottom-right corner: the status bar,
- * a gap, the navigation row (a control plus its group's 6px padding and
- * 1px border each side), and a gap above it. The rail stops above it and
- * the drawing hint sits on top of it, so both follow if a control height
- * changes — including the switch to touch sizes.
- */
 .app {
   --bottom-right-stack: calc(var(--control-height-sm) + 8px + var(--control-height) + 14px + 8px);
 }
 
-/* Cesium's attribution line (bottom-left) must stay readable — OSM and
-   Esri require it — so it wraps short of the status bar rather than
-   running under it. The bar's width is measured: see MapStatusBar.
-
-   `!important` because Cesium's Viewer writes `right: 0` as an *inline*
-   style on this container every time it resizes (Viewer.resize, making
-   room for the timeline widget we don't use), and nothing in a stylesheet
-   beats an inline style otherwise. */
 .app .cesium-viewer-bottom {
+  /* Cesium writes an inline right: 0 on every resize. */
   right: calc(var(--map-status-width, 0px) + 32px) !important;
 }
 
-/* Compact layout: a tighter inset, matching the toolbar's, because on a
-   phone every 8px of chrome is a noticeable slice of the map. 640px must
-   match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
 @media (max-width: 640px) {
   .app__right-rail {
     top: 8px;
@@ -138,10 +68,6 @@ body {
     max-height: calc(100dvh - 16px - var(--bottom-right-stack));
   }
 
-  /* Too narrow for the attribution beside the status bar: squeezed into
-     ~150px it wraps to four lines and runs into the navigation row. So on
-     a phone it takes the full width at the very bottom (up to three lines of
-     Cesium's 10px credit text), and the corner stack sits above it. */
   .app {
     --attribution-height: 48px;
     --bottom-right-stack: calc(
@@ -155,18 +81,11 @@ body {
   }
 }
 
-/* Form controls (checkboxes, radios, range sliders) are drawn by the OS/
-   browser, not by our CSS — `accent-color` is the one hook we get to make
-   them use the same accent orange as the rest of the UI. */
 input,
 select {
   accent-color: var(--accent);
 }
 
-/* A checkbox with its label beside it — a two-state setting rather than an
-   action, so a plain label, not a button. Wrap the input and its text in a
-   <label class="control-check">; components add a class of their own for
-   layout (a minimum height in a list, no wrapping in a row). */
 .control-check {
   display: flex;
   align-items: center;
@@ -176,12 +95,6 @@ select {
   cursor: pointer;
 }
 
-/*
- * Shared look for every floating control (search bar, toolbar buttons,
- * panel form inputs): dark glass with a hairline border. Components add a
- * second class for their own sizing/shape, composing like
- * `className="control control-button toolbar__button"`.
- */
 .control {
   background: var(--surface);
   color: var(--ink);
@@ -189,8 +102,6 @@ select {
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   backdrop-filter: blur(12px);
-  /* 13px, matching the inputs inside the panels. The 14px body size is for
-     prose; a control's label is not prose. */
   font: 400 13px/1.4 var(--font);
 }
 
@@ -204,22 +115,16 @@ select {
   color: var(--muted);
 }
 
-/* Focus is the edge turning orange — no glow. Every text field in the app
-   (here, Field.css, the attribute editor) does the same. */
 .control-input:focus {
   border-color: var(--accent-line);
 }
 
 .control-button {
-  /* Enough to keep an uppercase mono label off the border without the
-     button becoming mostly empty space. */
   padding: 0 14px;
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
-  /* JetBrains Mono is already a wide face, so it needs less tracking than
-     Plex Mono did to read as a spaced-out technical label. */
   letter-spacing: 0.045em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -229,36 +134,16 @@ select {
     color 0.15s ease;
 }
 
-/* Hover is neutral: a slightly lighter surface and edge. Orange is kept
-   for state, so pointing at a button can't be mistaken for turning it on.
- *
- * State tints are *layered over* the dark surface as a background-image,
- * never assigned as the background itself: they're translucent, and a
- * button sitting straight on the map — the top toolbar's — would show the
- * near-white street map through them and turn beige. */
 .control-button:hover:not(:disabled) {
   background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
   border-color: var(--border-strong);
 }
 
-/* Keyboard focus gets a visible edge; a mouse click doesn't leave one. */
 .control-button:focus-visible {
   outline: none;
   border-color: var(--accent-line);
 }
 
-/*
- * The two "this one" looks, both dark: `--active` for a toggle that is
- * currently on (toolbar panels, drawing tools, the phone's layer button) and
- * `--primary` for the one committing action in a form. Orange label, orange
- * edge, a faint orange tint behind — enough to find at a glance, without a
- * solid block of colour pulling the eye off the map.
- *
- * Shared rather than redefined per component. Both restate themselves for
- * :hover, because the generic hover rule above is a three-class selector
- * that would otherwise out-specify them and grey the tint out the moment
- * you moused over.
- */
 .control-button--active,
 .control-button--primary,
 .control-button--active:hover:not(:disabled),
@@ -268,9 +153,6 @@ select {
   background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
 }
 
-/* A primary action at rest is only outlined, so an open panel's toggle (a
-   state) and its submit button (an invitation) don't look identical; it
-   takes the tint when hovered. */
 .control-button--primary {
   background-image: none;
 }

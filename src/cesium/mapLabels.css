@@ -1,12 +1,7 @@
-/* Overlay plane for HTML map labels — see mapLabels.ts. Sits inside the
-   Cesium container so it lines up with the canvas and stacks below the
-   app's floating panels. */
 .map-labels {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  /* Labels sit directly over the map, including over the area the drawing
-     tools are being used on, so the plane must never intercept a click. */
   pointer-events: none;
 }
 
@@ -14,9 +9,6 @@
   position: absolute;
   top: 0;
   left: 0;
-  /* Positioned entirely by `transform` from the render loop; promoting it
-     to its own layer keeps that to a compositor move rather than a relayout
-     of the whole overlay on every frame. */
   will-change: transform;
   padding: 4px 8px;
   border: 1px solid var(--border);
@@ -27,31 +19,20 @@
   color: var(--ink);
   font: 400 13px/1.3 var(--font);
   white-space: nowrap;
-  /* A label anchored to a point is a caption for it, not a text box —
-     letting it grow to an arbitrary width would cover the map it describes. */
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Numeric readouts: the mono face the rest of the UI uses for data, plus
-   tabular figures so a live-updating distance doesn't jitter sideways as
-   digits change width. */
 .map-label--readout {
   font-family: var(--font-mono);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   color: var(--measure);
-  /* The width cap above guards against a long caption someone typed. A
-     readout is generated, bounded text — "Blocked at 463.5 m of
-     1.60 km" — and an ellipsis would cut off exactly the number it exists
-     to show. */
   max-width: none;
 }
 
-/* Off-screen or behind the globe. `display: none` rather than opacity so a
-   hidden label costs no compositing work at all. */
 .map-label--hidden {
   display: none;
 }

@@ -2,26 +2,6 @@ import type { LegendContent, LegendItem } from '@/lib/legendTypes';
 import { fetchArcGisJson } from './fetchArcGisJson';
 import type { ImageryServiceConfig } from './mapServiceTypes';
 
-/**
- * Where an imagery layer's legend comes from, by service type:
- *
- *  - **WMS:** a `GetLegendGraphic` image per layer. Strictly that request
- *    belongs to the SLD extension, not core WMS, but GeoServer, MapServer,
- *    QGIS Server and ArcGIS's WMS all answer it. A server that doesn't
- *    returns an error image or nothing; the legend component hides a
- *    broken image.
- *  - **ArcGIS MapServer:** `/legend?f=json`, which returns every symbol as
- *    a base64 PNG with its label, grouped by sublayer.
- *  - **WMTS and XYZ:** nothing to ask — pre-rendered tiles carry no
- *    legend. (WMTS capabilities *may* declare a LegendURL per style; the
- *    app doesn't keep the capabilities document after adding.)
- *
- * Vector layers aren't here: the app draws them in its own style, so their
- * legend is built from what's loaded (see App's scene entries).
- *
- * Returns a loader rather than a legend so nothing is fetched until the
- * layer manager actually shows it.
- */
 export function legendLoaderFor(
   config: ImageryServiceConfig,
 ): (() => Promise<LegendContent | null>) | undefined {
@@ -53,12 +33,6 @@ export function legendLoaderFor(
   }
 }
 
-/**
- * A WMS `GetLegendGraphic` URL for one layer, keeping whatever query the
- * service URL already carries (MapServer's `?map=…`, a vendor key).
- * `SLD_VERSION` is required by WMS 1.3.0 servers that implement it to the
- * letter (MapServer), and ignored by the rest.
- */
 export function wmsLegendUrl(serviceUrl: string, layer: string): string {
   return withQuery(serviceUrl, {
     SERVICE: 'WMS',
@@ -77,10 +51,6 @@ interface ArcGisLegendResponse {
   }[];
 }
 
-/**
- * ArcGIS `/legend?f=json` → items. A symbol's label is often empty when a
- * sublayer has one symbol; the sublayer's name stands in for it then.
- */
 export function parseArcGisLegend(json: unknown): LegendItem[] {
   const layers = (json as ArcGisLegendResponse | null)?.layers;
   if (!Array.isArray(layers)) return [];
@@ -100,7 +70,6 @@ export function parseArcGisLegend(json: unknown): LegendItem[] {
   );
 }
 
-/** `url` with `params` added, preserving any query it already has. */
 function withQuery(url: string, params: Record<string, string>): string {
   const [base, existing = ''] = url.split('?', 2);
   const query = new URLSearchParams(existing);

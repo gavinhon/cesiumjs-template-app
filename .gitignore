@@ -1,4 +1,3 @@
-# Logs
 logs
 *.log
 npm-debug.log*
@@ -13,34 +12,17 @@ dist
 dist-ssr
 *.local
 
-# Docker Compose settings for one machine (copy .env.example). Paths and
-# hosts are site-specific, so they stay out of git.
 .env
 
-# Datasets dropped into public/ for the app to offer — 3D Tiles, terrain and
-# imagery tile pyramids, GeoJSON. They're data, often thousands of files and
-# tens of MB, and regenerable from their sources, so they stay out of git.
-# Every dataset folder is ignored; loose top-level files (a favicon,
-# robots.txt) are not, so ordinary static assets can still live here.
 public/*/
 public/**/*.geojson
 
-# The one exception: the Singapore terrain is committed on purpose, so a
-# fresh clone and the GitHub Pages site (which has only what's in git) open
-# on real elevation rather than a smooth ellipsoid. 29 MB of small tiles.
-# Only this folder — any other terrain dropped beside it stays ignored.
-# (Git can't re-include a file whose parent folder is excluded, hence the
-# three steps: un-ignore terrain/, ignore what's in it, un-ignore this one.)
 !public/terrain/
 public/terrain/*/
 !public/terrain/singapore-gem15-dtm/
 
-# And one small BIM model (384 KB, an IFC conversion with per-element
-# attributes), so the Pages site has something to click, filter and run a
-# line of sight through.
 !public/af1-gpt61sol/
 
-# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea

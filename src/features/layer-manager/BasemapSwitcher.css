@@ -1,5 +1,3 @@
-/* The basemap tile in the bottom-left corner — see BasemapSwitcher.tsx.
-   Just above Cesium's attribution line, which runs along the very bottom. */
 .basemap-switcher {
   position: absolute;
   left: 16px;
@@ -7,8 +5,6 @@
   z-index: 20;
 }
 
-/* The closed tile: a picture of the current map with a caption across its
-   foot, the familiar maps-app "layers" square. */
 .basemap-switcher__tile {
   position: relative;
   display: block;
@@ -53,7 +49,6 @@
   color: var(--ink);
 }
 
-/* The open row of choices, rising to the right of the tile. */
 .basemap-switcher__options {
   position: absolute;
   bottom: 0;
@@ -86,7 +81,6 @@
   background: var(--surface-hover);
 }
 
-/* Selected: the app's "on" language — an orange edge over a faint tint. */
 .basemap-switcher__option--selected,
 .basemap-switcher__option--selected:hover {
   border-color: var(--accent-line);
@@ -109,8 +103,6 @@
   background: var(--surface-variant);
 }
 
-/* OpenStreetMap (grey) is the colour tile drawn without colour, as the
-   map itself is (Cesium's `saturation = 0`). */
 .basemap-switcher__image--grayscale {
   filter: grayscale(1);
 }
@@ -121,16 +113,10 @@
   text-align: center;
 }
 
-/* A side panel (Add data, Drawings) reaches down over this corner.
-   Hidden while one is open rather than stacked on top of it: neither is
-   a moment for changing the basemap, and closing the panel brings it back. */
 .app:has(.panel:not(.panel--collapsed)) .basemap-switcher {
   display: none;
 }
 
-/* On a phone this corner belongs to the navigation row and attribution;
-   the basemap row in the layer sheet is the way to switch there. 640px must
-   match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
 @media (max-width: 640px) {
   .basemap-switcher {
     display: none;

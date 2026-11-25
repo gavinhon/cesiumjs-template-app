@@ -1,4 +1,3 @@
-/* The terrain picker — see TerrainField.tsx. */
 .terrain-field__error {
   color: var(--danger);
 }

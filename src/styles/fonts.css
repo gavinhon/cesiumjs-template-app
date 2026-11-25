@@ -1,25 +1,3 @@
-/*
- * The app's two typefaces, served from the app itself rather than Google
- * Fonts — see designTokens.css for why there are two.
- *
- * Self-hosted so the UI looks the same with no internet connection (the
- * Docker deployment targets air-gapped networks, docs/deployment-docker.md)
- * and so loading the app doesn't tell a third party who opened it. Vite
- * fingerprints and bundles the files like any other asset.
- *
- * Each is one *variable* font file per script subset: a single file covers
- * every weight from 100 to 900, so the 400/500/600 the UI uses cost one
- * download, not three. `unicode-range` means the browser only fetches the
- * Latin Extended file when a page actually shows such a character (a place
- * name with a macron, say). Anything outside both ranges falls back to the
- * system fonts listed after these in `--font` / `--font-mono`.
- *
- * Files: @fontsource-variable/inter and @fontsource-variable/jetbrains-mono
- * 5.3.0, SIL Open Font License 1.1 (fonts/LICENSE-*.txt). They're copied
- * in rather than installed as npm packages so the font set is pinned in
- * the repo and the build needs nothing extra from a registry.
- */
-
 @font-face {
   font-family: Inter;
   font-style: normal;

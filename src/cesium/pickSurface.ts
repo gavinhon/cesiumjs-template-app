@@ -2,40 +2,6 @@ import * as Cesium from 'cesium';
 
 const depthScratch = new Cesium.Cartesian3();
 
-/**
- * The point on whatever is under the cursor — terrain, or a 3D Tiles
- * building — or `null` when the cursor is over space.
- *
- * Two Cesium APIs answer this, and each is right in a different case:
- *
- *  - `globe.pick` intersects the terrain mesh exactly, but only the
- *    terrain: it sees straight through buildings to the ground beneath.
- *  - `scene.pickPosition` reads the depth buffer, so it sees whatever was
- *    actually drawn — buildings included — but only to depth-buffer
- *    precision, which is several metres at an oblique angle a kilometre out.
- *
- * So both are asked. When they agree to within depth precision, the
- * cursor is on bare terrain and the exact globe answer wins. When they
- * disagree, something other than terrain was drawn there, and the depth
- * answer — what the user is actually looking at — wins. The margin scales
- * with distance because depth precision does.
- *
- * The globe is depth-tested (`depthTestAgainstTerrain`, set in
- * `CesiumMap`), so anything under or behind the terrain is hidden and
- * never wins: the depth buffer holds the terrain there, and the two
- * answers agree. Before that was switched on, a tileset sunk below the
- * DTM was drawn through the ground and its roofs were clickable through
- * it; "disagree" is still measured both ways so a depth hit a little
- * behind `globe.pick` — the terrain mesh and its rendered depth don't
- * match exactly at a distance — isn't mistaken for bare ground.
- *
- * Markers drawn with `disableDepthTestDistance` (the cursor ghost, vertex
- * handles) never reach the depth buffer, so they don't register as
- * "something else drawn here" — which is what makes this safe to call
- * under the drawing tools' own cursor marker.
- *
- * `pickPosition` only works in 3D, so 2D falls back to terrain alone.
- */
 export function pickSurface(
   viewer: Cesium.Viewer,
   windowPosition: Cesium.Cartesian2,
@@ -51,10 +17,6 @@ export function pickSurface(
       const toGround = Cesium.Cartesian3.distance(camera.positionWC, onGround);
       const toDepth = Cesium.Cartesian3.distance(camera.positionWC, inDepth);
       const margin = Math.max(2, toGround * 0.01);
-      // A buried tileset sits metres to tens of metres under the terrain,
-      // never kilometres. A depth hit that far behind the ground is a stale
-      // or empty depth buffer — the first frames before the globe has
-      // drawn return points ~100 km underground — not geometry to trust.
       const buriedTooDeep = toDepth - toGround > Math.max(1000, toGround * 0.05);
       if (Math.abs(toDepth - toGround) > margin && !buriedTooDeep) {
         return Cesium.Cartesian3.clone(inDepth);

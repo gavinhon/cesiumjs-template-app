@@ -15,11 +15,9 @@ import './SearchBox.css';
 
 interface SearchBoxProps {
   viewer: Cesium.Viewer | null;
-  /** The Add data catalogue, so a dataset can be found by name. */
   datasets: readonly SearchableDataset[];
 }
 
-/** One selectable row. Headings are rendered between groups, not as rows. */
 type Row =
   | {
       kind: 'coordinate';
@@ -33,49 +31,26 @@ type Row =
   | { kind: 'dataset'; id: string; dataset: SearchableDataset }
   | { kind: 'worldwide'; id: string };
 
-/** Where places are being looked up, and with what result — tagged by the service asked. */
 type PlaceState =
   | { state: 'idle' }
   | { state: 'loading'; service: PlaceService }
   | { state: 'done'; service: PlaceService; places: PlaceResult[] }
   | { state: 'error'; service: PlaceService; message: string };
 
-/** Typing pauses this long before a gazetteer is asked, so a word costs one request, not five. */
 const DEBOUNCE_MS = 300;
 const MIN_QUERY = 3;
 
-/** What the box can find: places only when the deployment has a gazetteer (`searchPlaces.ts`). */
 const SEARCH_LABEL = AS_YOU_TYPE_SERVICE
   ? 'Search places, coordinates or data'
   : 'Search coordinates or data';
 
 const IDLE: PlaceState = { state: 'idle' };
 
-/** Whether text is worth asking a gazetteer about: long enough, and not a coordinate. */
 function isPlaceQuery(text: string): boolean {
   const trimmed = text.trim();
   return trimmed.length >= MIN_QUERY && !parseCoordinateQuery(trimmed);
 }
 
-/**
- * The search box at the top-left — the front door of every web map.
- *
- * One box finds three kinds of thing, listed in this order:
- *
- *  1. **A coordinate** typed or pasted, in degrees or SVY21
- *     (`parseCoordinateQuery`), recognised instantly and offline.
- *  2. **Datasets** from the Add data catalogue, by name, group or
- *     format — so "rail" finds the rail layers without knowing they're
- *     in the catalogue. Adding one is a click.
- *  3. **Places**: Singapore addresses and buildings from OneMap as you
- *     type, or anywhere in the world from OpenStreetMap on request
- *     (`searchPlaces.ts` explains why the two behave differently). A
- *     deployment can swap both for its own Nominatim server, or — offline
- *     with none — leave places out; `searchPlaces.ts` decides which.
- *
- * Choosing a place or coordinate flies there and drops a pin
- * (`createPlaceMarker`), replacing the previous one.
- */
 export function SearchBox({ viewer, datasets }: SearchBoxProps) {
   const listId = useId();
   const [query, setQuery] = useState('');
@@ -99,19 +74,9 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
   const trimmed = query.trim();
   const coordinate = useMemo(() => parseCoordinateQuery(trimmed), [trimmed]);
 
-  // A coordinate or a couple of letters is never sent to a gazetteer, so for
-  // those the places section is simply idle — worked out here, not stored.
-  // The stored answer is also dropped in `changeQuery`, the event that made
-  // the query ineligible, so it can't flash back when a new word is typed.
   const eligible = AS_YOU_TYPE_SERVICE !== null && !coordinate && trimmed.length >= MIN_QUERY;
   const places: PlaceState = eligible ? fetchedPlaces : IDLE;
 
-  // The as-you-type gazetteer (OneMap, unless the deployment configured its
-  // own). Each keystroke cancels the previous request, so a slow early
-  // answer can never overwrite a later one. The only state set here is its
-  // answer (and "loading", once the debounce has elapsed and the request is
-  // really going out) — never a reset, which belongs to the event that
-  // caused it.
   useEffect(() => {
     requestRef.current?.abort();
     const service = AS_YOU_TYPE_SERVICE;
@@ -190,8 +155,6 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
   function goTo(longitude: number, latitude: number, bbox?: PlaceResult['bbox']) {
     if (!viewer) return;
     markerRef.current?.show(longitude, latitude);
-    // A district or a park is worth framing whole; a building or an
-    // address is a point, and framing its tiny box would dive to the roof.
     if (bbox && bbox.north - bbox.south > 0.01) {
       viewer.camera.flyTo({
         destination: Cesium.Rectangle.fromDegrees(bbox.west, bbox.south, bbox.east, bbox.north),
@@ -232,7 +195,6 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
     }
   }
 
-  /** Every edit of the query goes through here, so stale places are dropped where they go stale. */
   function changeQuery(value: string) {
     setQuery(value);
     if (!isPlaceQuery(value)) setPlaces(IDLE);
@@ -249,7 +211,6 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
       event.preventDefault();
       choose(rows[activeIndex]);
     } else if (event.key === 'Escape') {
-      // First Escape closes the list; a second clears the box.
       if (open) setOpen(false);
       else changeQuery('');
     }
@@ -262,8 +223,6 @@ export function SearchBox({ viewer, datasets }: SearchBoxProps) {
       ref={rootRef}
       className="search-box"
       onBlur={(event) => {
-        // Close when focus leaves the whole widget, not when it moves from
-        // the input to a result row inside it.
         if (!rootRef.current?.contains(event.relatedTarget as Node | null)) setOpen(false);
       }}
     >
@@ -336,7 +295,6 @@ interface ResultRowProps {
   onChoose: () => void;
 }
 
-/** One result, preceded by its group's heading when it's the first of its kind. */
 function ResultRow({
   row,
   id,
@@ -385,8 +343,6 @@ function ResultRow({
         role="option"
         aria-selected={active}
         className={className}
-        // Mouse down, not click: the input's blur fires before a click and
-        // would close the list out from under it.
         onMouseDown={(event) => {
           event.preventDefault();
           onChoose();
@@ -404,7 +360,6 @@ function ResultRow({
   );
 }
 
-/** The group heading to show above row `index`, if it starts a new group. */
 function headingBefore(rows: Row[], index: number, places: PlaceState): string | null {
   const kind = rows[index].kind;
   if (index > 0 && rows[index - 1].kind === kind) return null;
@@ -414,7 +369,6 @@ function headingBefore(rows: Row[], index: number, places: PlaceState): string |
     case 'dataset':
       return 'Datasets';
     case 'place':
-      // Every service's terms require credit; this is where it's given.
       return places.state === 'done' ? `Places · ${places.service.credit}` : null;
     case 'worldwide':
       return null;

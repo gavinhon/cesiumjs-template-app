@@ -12,16 +12,6 @@ interface DrawnFeatureEditorProps {
   onRemoveAttribute: (attributeId: string) => void;
 }
 
-/**
- * Everything you can change about one drawn shape: its name, the attributes
- * recorded against it, and which of them its map label shows.
- *
- * Attributes are free-form key/value pairs rather than a fixed schema,
- * because this is a template and nobody here knows what you're mapping.
- * Reshaping the geometry isn't in this panel — you do that by dragging the
- * vertex handles that appear on the map when a shape is selected, which is
- * where the shape actually is.
- */
 export function DrawnFeatureEditor({
   feature,
   onRename,
@@ -56,8 +46,6 @@ export function DrawnFeatureEditor({
             {source.label}
           </option>
         ))}
-        {/* Only measured and analysed shapes have one, so offering it elsewhere would be a
-            choice that silently does nothing. */}
         {feature.measurement !== null && <option value="measurement">Measurement</option>}
         {feature.attributes.map((attribute) => (
           <option key={attribute.id} value={attribute.id}>

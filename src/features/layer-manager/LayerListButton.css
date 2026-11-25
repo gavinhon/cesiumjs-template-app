@@ -1,5 +1,3 @@
-/* The rail's layer button — phones only; see LayerListButton.tsx. Square,
-   from the same height token as the drawing tools beside it. */
 .layer-list-button {
   display: none;
   align-items: center;
@@ -10,7 +8,6 @@
   border-radius: var(--radius-md);
 }
 
-/* 640px must match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts. */
 @media (max-width: 640px) {
   .layer-list-button {
     display: flex;

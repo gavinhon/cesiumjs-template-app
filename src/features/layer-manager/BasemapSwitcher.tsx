@@ -6,23 +6,11 @@ interface BasemapSwitcherProps {
   basemap: BasemapChoice;
 }
 
-/**
- * The basemap tile in the bottom-left corner, the way Google Maps and
- * Google Earth do it: a picture of the current map, which opens a row of
- * pictures of the others. Choosing between maps is a visual decision, so
- * it's made from previews; the basemap row in the layer list keeps a
- * dropdown too, and is the way on a phone, where this corner belongs to
- * the navigation row and the tile hides.
- *
- * The thumbnails are real tiles of the area the app opens on, fetched from
- * each basemap's own service (see `Basemap.thumbnail`).
- */
 export function BasemapSwitcher({ basemap }: BasemapSwitcherProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const current = basemap.options.find((option) => option.id === basemap.selectedId);
 
-  // Close on a click outside or Escape, like the drawing tools' menus.
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
@@ -96,8 +84,6 @@ export function BasemapSwitcher({ basemap }: BasemapSwitcherProps) {
 
 function Thumbnail({ option }: { option: BasemapChoice['options'][number] }) {
   const [failed, setFailed] = useState(false);
-  // A service that's down shows a plain swatch with the name beside it,
-  // not a broken-image icon.
   if (!option.thumbnail || failed) return <span className="basemap-switcher__image" />;
   return (
     <img

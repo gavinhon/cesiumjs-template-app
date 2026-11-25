@@ -10,7 +10,6 @@ import {
   type TilesetFootprint,
 } from './placeTilesetOnTerrain';
 
-// The bounds of two real tilesets this app was tested with.
 const CITY_REGION = {
   root: {
     boundingVolume: {
@@ -50,12 +49,10 @@ describe('footprintOf', () => {
 
   it('places a box through the root transform and finds its lowest corner', () => {
     const footprint = footprintOf(BIM_BOX);
-    // Matches what Cesium's own loaded bounding volume reports for this model.
     expect(footprint?.base).toBeCloseTo(-2.39, 1);
     expect(footprint?.top).toBeCloseTo(28.21, 1);
     expect(degrees(footprint?.center.longitude ?? 0)).toBeCloseTo(103.8717, 3);
     expect(degrees(footprint?.center.latitude ?? 0)).toBeCloseTo(1.3058, 3);
-    // Ground samples are positions on the surface; their heights are filled in later.
     expect(footprint?.under.every((point) => point.height === 0)).toBe(true);
   });
 

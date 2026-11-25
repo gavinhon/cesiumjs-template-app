@@ -1,32 +1,10 @@
-/**
- * Conversion between WGS84 latitude/longitude and SVY21, Singapore's
- * national grid (EPSG:3414).
- *
- * Singapore's government data — cadastral plans, URA's master plan, the
- * Singapore Land Authority's OneMap — is published in SVY21 eastings and
- * northings, not degrees. A GIS user reading a coordinate off this map to
- * compare with a plan, or pasting one from a plan into the search box,
- * needs it in that grid. Nothing in Cesium speaks SVY21, and pulling in
- * proj4 for one projection would be a large dependency for ~100 lines of
- * arithmetic, so it's done here.
- *
- * SVY21 is a plain Transverse Mercator on the WGS84 ellipsoid: origin
- * 1°22'N 103°50'E, scale factor 1, false easting 28001.642 m, false
- * northing 38744.572 m. The series expansions below are the standard
- * Redfearn formulas the Singapore Land Authority's own documentation
- * uses; they're accurate to well under a millimetre across the island.
- */
-
-const A = 6378137; // WGS84 semi-major axis, metres
-const F = 1 / 298.257223563; // WGS84 flattening
-// Exactly 1°22'N 103°50'E, as EPSG:3414 defines it. The constants often
-// copied around (1.366666, 103.833333) are truncated, and the truncation
-// alone puts every easting ~4 cm off SLA's own coordinates.
-const ORIGIN_LAT = 1 + 22 / 60; // degrees
-const ORIGIN_LON = 103 + 50 / 60; // degrees
+const A = 6378137;
+const F = 1 / 298.257223563;
+const ORIGIN_LAT = 1 + 22 / 60;
+const ORIGIN_LON = 103 + 50 / 60;
 const FALSE_NORTHING = 38744.572;
 const FALSE_EASTING = 28001.642;
-const K = 1; // central-meridian scale factor
+const K = 1;
 
 const B = A * (1 - F);
 const E2 = 2 * F - F * F;
@@ -39,7 +17,6 @@ const A6 = (E6 * 35) / 3072;
 
 const RAD = Math.PI / 180;
 
-/** Meridian distance from the equator to `latDeg`, in metres. */
 function meridianDistance(latDeg: number): number {
   const lat = latDeg * RAD;
   return A * (A0 * lat - A2 * Math.sin(2 * lat) + A4 * Math.sin(4 * lat) - A6 * Math.sin(6 * lat));
@@ -47,13 +24,11 @@ function meridianDistance(latDeg: number): number {
 
 const ORIGIN_M = meridianDistance(ORIGIN_LAT);
 
-/** An SVY21 grid coordinate, in metres. */
 export interface Svy21 {
   northing: number;
   easting: number;
 }
 
-/** WGS84 degrees → SVY21 metres. */
 export function toSvy21(latitude: number, longitude: number): Svy21 {
   const lat = latitude * RAD;
   const sinLat = Math.sin(lat);
@@ -70,8 +45,8 @@ export function toSvy21(latitude: number, longitude: number): Svy21 {
   const t6 = t4 * t2;
 
   const denominator = 1 - E2 * sinLat * sinLat;
-  const rho = (A * (1 - E2)) / denominator ** 1.5; // meridional radius of curvature
-  const v = A / Math.sqrt(denominator); // prime-vertical radius of curvature
+  const rho = (A * (1 - E2)) / denominator ** 1.5;
+  const v = A / Math.sqrt(denominator);
   const psi = v / rho;
   const psi2 = psi * psi;
   const psi3 = psi2 * psi;
@@ -107,7 +82,6 @@ export function toSvy21(latitude: number, longitude: number): Svy21 {
   return { northing, easting };
 }
 
-/** SVY21 metres → WGS84 degrees. */
 export function fromSvy21(
   northing: number,
   easting: number,
@@ -123,8 +97,6 @@ export function fromSvy21(
   const g = A * (1 - n) * (1 - n2) * (1 + (9 * n2) / 4 + (225 * n4) / 64) * RAD;
   const sigma = (mPrime * RAD) / g;
 
-  // The "footpoint latitude": the latitude whose meridian distance is the
-  // northing, which the series then corrects for the easting.
   const latPrime =
     sigma +
     ((3 * n) / 2 - (27 * n3) / 32) * Math.sin(2 * sigma) +
@@ -177,11 +149,6 @@ export function fromSvy21(
   return { latitude, longitude };
 }
 
-/**
- * Roughly the extent of SVY21's sensible use — mainland Singapore and its
- * islands with a margin. Outside it the grid still computes, but a number
- * in SVY21 there is meaningless to anyone reading it.
- */
 export function isWithinSvy21Area(latitude: number, longitude: number): boolean {
   return latitude > 1.1 && latitude < 1.5 && longitude > 103.55 && longitude < 104.1;
 }

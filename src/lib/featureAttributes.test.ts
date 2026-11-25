@@ -22,7 +22,6 @@ describe('readAttributes', () => {
     expect(
       readAttributes({ PAGETITLE: 'Chinatown Heritage Centre', ADDRESS: '48 Pagoda St' }).title,
     ).toBe('Chinatown Heritage Centre');
-    // A TYPE_NAME is a category, so the park's own name wins over it.
     expect(readAttributes({ TYPE_NAME: 'Park', PARK_NAME: 'Punggol Park' }).title).toBe(
       'Punggol Park',
     );

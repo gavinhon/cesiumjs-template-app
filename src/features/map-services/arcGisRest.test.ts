@@ -147,7 +147,6 @@ describe('extentToBoundingBox', () => {
   });
 
   it('unprojects a Web Mercator extent, under either of its ids', () => {
-    // 1°E is 111,319.49 m in Web Mercator; the equator is y = 0.
     const box = extentToBoundingBox({
       fullExtent: {
         xmin: 0,

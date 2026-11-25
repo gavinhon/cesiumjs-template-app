@@ -17,7 +17,6 @@ import {
   slantDistance,
 } from './measurement';
 
-/** A point near Singapore, `east` metres east and `up` metres above the ellipsoid. */
 function at(east: number, up: number): Cesium.Cartesian3 {
   const metresPerDegree = 111_320 * Math.cos(Cesium.Math.toRadians(1.35));
   return Cesium.Cartesian3.fromDegrees(103.8 + east / metresPerDegree, 1.35, up);
@@ -65,7 +64,6 @@ describe('describePath', () => {
   });
 
   it('hides a horizontal distance that differs only by terrain noise', () => {
-    // The readout this replaced printed "30.1 m 3D · 30.0 m ground" here.
     expect(describePath([at(0, 10), at(30, 12)])).not.toContain('horizontal');
   });
 
@@ -104,7 +102,6 @@ describe('the level line', () => {
 describe('pointAlong', () => {
   it('finds the point a fraction of the way along a path, by length', () => {
     const path = [at(0, 0), at(100, 0), at(100 + 300, 0)];
-    // Halfway along 400 m is 200 m: 100 m into the second segment.
     expect(Cesium.Cartesian3.distance(pointAlong(path, 0.5), at(200, 0))).toBeLessThan(0.01);
     expect(pointAlong(path, 0)).toEqual(path[0]);
     expect(Cesium.Cartesian3.distance(pointAlong(path, 1), path[2])).toBeLessThan(0.01);

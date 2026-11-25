@@ -11,25 +11,15 @@ import './LiveTrafficStatus.css';
 
 interface LiveTrafficStatusProps {
   layer: LiveTrafficLayer;
-  /** Congestion only: how many roads are drawn, and how to change it. */
   roadDetail?: { value: RoadDetail; onChange: (detail: RoadDetail) => void };
 }
 
-/** "27,345 roads" or "36 incidents". */
 function countLabel(layer: LiveTrafficLayer): string {
   const count = layer.count.toLocaleString('en-SG');
   if (layer.layer === 'congestion') return `${count} road links`;
   return `${count} ${layer.count === 1 ? 'incident' : 'incidents'}`;
 }
 
-/**
- * A live traffic layer's row details in the layer list: how fresh its data
- * is — so nobody mistakes a stalled feed for a quiet road — and, for
- * congestion, how many roads to draw.
- *
- * Re-renders itself every 30 seconds so "Updated 4 min ago" stays true
- * between refreshes; only this small component, never the map.
- */
 export function LiveTrafficStatus({ layer, roadDetail }: LiveTrafficStatusProps) {
   const formId = useId();
   const [now, setNow] = useState(() => Date.now());

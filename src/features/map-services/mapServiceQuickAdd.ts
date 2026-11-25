@@ -4,20 +4,6 @@ import type { QuickAddItem } from '@/ui/QuickAddList';
 import { EXAMPLE_MAP_SERVICES } from './exampleMapServices';
 import type { MapServiceConfig } from './mapServiceTypes';
 
-/**
- * Every map service and file the Add data catalogue offers in one click,
- * paired with the config that adds it: tile pyramids and GeoJSON files
- * found under `public/` at build time, then the example services. Grouped
- * by what the data is (see CATALOGUE_GROUPS); the row's source line says
- * where it comes from — `public/…` for this app's own files. A constant — both sources are fixed for
- * the life of the page.
- *
- * Its own module, not the panel's, because App also reads it: the search
- * box finds these by name, and a shared link restores them by id.
- *
- * Each is added under the item's own id, which is how the list tells it's
- * already on the map.
- */
 export const MAP_SERVICE_QUICK_ADD: readonly { item: QuickAddItem; config: MapServiceConfig }[] = [
   ...publicDatasetsOfKind('xyz').map((dataset) => ({
     item: {
@@ -50,8 +36,6 @@ export const MAP_SERVICE_QUICK_ADD: readonly { item: QuickAddItem; config: MapSe
     const item: QuickAddItem = {
       id,
       name: example.name,
-      // MapServer draws a picture; FeatureServer sends the features. One
-      // "ARCGIS" badge for both hid the difference that matters most.
       badge: example.type === 'arcgis-feature' ? 'ARCGIS FEATURE' : 'ARCGIS MAP',
       source: example.url.replace(/^https?:\/\//, ''),
       group:

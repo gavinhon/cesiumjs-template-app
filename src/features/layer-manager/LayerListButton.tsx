@@ -5,14 +5,6 @@ interface LayerListButtonProps {
   onToggle: () => void;
 }
 
-/**
- * The phone's way into the layer list: a button at the top of the right
- * rail that raises the layer sheet. On a wide screen the list's own chip is
- * always in view, so CSS hides this.
- *
- * A direct child of the rail, as every rail group must be — the rail wraps
- * between its children (see `.app__right-rail` in global.css).
- */
 export function LayerListButton({ open, onToggle }: LayerListButtonProps) {
   return (
     <button

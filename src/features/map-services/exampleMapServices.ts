@@ -1,32 +1,11 @@
 import { APP_CONFIG } from '@/lib/appConfig';
 import type { MapServiceType } from './mapServiceTypes';
 
-/**
- * Free, public services that fill in the add form with one pick, so each
- * service type can be tried without first hunting down an endpoint. All of
- * them cover Singapore, where the app starts.
- *
- * Every one answers without a key and sends CORS headers — both checked
- * when they were added, but they're other people's services on ArcGIS
- * Online, found through its public catalogue search
- * (`https://www.arcgis.com/sharing/rest/search?q=singapore …`), and can
- * move or close. Replace them with your own services when you fork.
- */
 export interface ExampleMapService {
   id: string;
-  /**
-   * ArcGIS only, because that's all `mapServiceQuickAdd.ts` knows how to
-   * turn into a layer: a feature layer, or else a MapServer. This used to be
-   * any `MapServiceType`, so a WMS entry compiled — and then went out as an
-   * ArcGIS MapServer request and failed when someone clicked Add. To list
-   * WMS, WMTS, WFS or XYZ here, widen this and build the matching config
-   * there (see `mapServiceTypes.ts`).
-   */
   type: Extract<MapServiceType, 'arcgis-map' | 'arcgis-feature'>;
-  /** Becomes the display name. */
   name: string;
   url: string;
-  /** Feature cap to fill in, for a layer with more features than the default 1,000. */
   maxFeatures?: number;
 }
 
@@ -54,7 +33,6 @@ const EXAMPLE_MAP_SERVICES_ONLINE: readonly ExampleMapService[] = [
     type: 'arcgis-feature',
     name: 'Rail lines',
     url: 'https://services2.arcgis.com/j80Jz20at6Bi0thr/arcgis/rest/services/Rail_Lines/FeatureServer/0',
-    // ~1,400 segments: over the default cap, within the server's 2,000.
     maxFeatures: 2000,
   },
   {
@@ -64,8 +42,6 @@ const EXAMPLE_MAP_SERVICES_ONLINE: readonly ExampleMapService[] = [
     url: 'https://services2.arcgis.com/j80Jz20at6Bi0thr/arcgis/rest/services/Rail_Stations/FeatureServer/0',
   },
   {
-    // Stored in SVY21, Singapore's own grid: the server reprojects it to
-    // lon/lat because the query asks for `outSR=4326`.
     id: 'sg-parks',
     type: 'arcgis-feature',
     name: 'Parks & green spaces',
@@ -73,11 +49,6 @@ const EXAMPLE_MAP_SERVICES_ONLINE: readonly ExampleMapService[] = [
   },
 ];
 
-/**
- * The examples on offer: none offline (`APP_CONFIG.offline`). Every one is
- * on the internet, and a catalogue of entries that can only fail is worse
- * than none; datasets in the data folder are offered instead.
- */
 export const EXAMPLE_MAP_SERVICES: readonly ExampleMapService[] = APP_CONFIG.offline
   ? []
   : EXAMPLE_MAP_SERVICES_ONLINE;

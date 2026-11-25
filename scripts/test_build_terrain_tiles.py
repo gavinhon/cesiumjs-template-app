@@ -53,7 +53,6 @@ def decode_tile(data: bytes) -> dict:
         offset += 1
     (triangle_count,) = take("<I")
     encoded = np.array(take(f"<{triangle_count * 3}H"), dtype=np.int64)
-    # High-water-mark decoding: a 0 means "the next vertex not yet used".
     indices = np.empty_like(encoded)
     highest = 0
     for i, code in enumerate(encoded):
@@ -131,8 +130,6 @@ class EncodeTileTest(unittest.TestCase):
         self.assertEqual(set(triangles.ravel().tolist()), set(range(vertex_count)))
 
     def test_every_triangle_winds_counter_clockwise_seen_from_above(self):
-        # Cesium culls clockwise triangles as back faces: terrain seen from
-        # the sky would vanish.
         u = self.tile["u"].astype(float)
         v = self.tile["v"].astype(float)
         a, b, c = self.tile["triangles"].T
@@ -158,8 +155,6 @@ class EncodeTileTest(unittest.TestCase):
         self.assertEqual(len(normals), 2 * len(self.tile["u"]))
 
     def test_heights_decode_back_to_the_source_values(self):
-        # Every vertex sits on a source grid point, so its decoded height must
-        # match that point to within one quantization step.
         tile = self.tile
         cols = np.round(tile["u"] / QMAX * (GRID - 1)).astype(int)
         rows = np.round((1 - tile["v"] / QMAX) * (GRID - 1)).astype(int)
@@ -168,9 +163,6 @@ class EncodeTileTest(unittest.TestCase):
         np.testing.assert_allclose(decoded, self.heights[rows, cols], atol=span / QMAX + 1e-3)
 
     def test_mesh_stays_within_max_error_of_every_source_point(self):
-        # The mesher promises the simplified surface is within `max_error`
-        # of the source grid. Check that against the tile as Cesium will
-        # draw it: interpolate the decoded triangles at every grid point.
         tile = self.tile
         cols = tile["u"] / QMAX * (GRID - 1)
         rows = (1 - tile["v"] / QMAX) * (GRID - 1)
@@ -205,7 +197,6 @@ class EncodeTileTest(unittest.TestCase):
 
 class EncodingPrimitivesTest(unittest.TestCase):
     def test_zigzag_delta(self):
-        # Deltas 0, +1, +2, -1 zig-zag to 0, 2, 4, 1.
         self.assertEqual(terrain.zigzag_delta(np.array([0, 1, 3, 2])).tolist(), [0, 2, 4, 1])
 
     def test_oct_encode_matches_cesium(self):
@@ -213,8 +204,6 @@ class EncodingPrimitivesTest(unittest.TestCase):
         self.assertEqual(terrain.oct_encode(normals).tolist(), [[128, 128], [255, 128], [255, 255]])
 
     def test_horizon_occlusion_point_is_undefined_for_a_hemisphere(self):
-        # The two level-0 tiles each span half the planet; "never cull" is NaN.
-        # Built as encode_tile sees such a tile: a full grid, bounding-box centre.
         lons, lats = np.meshgrid(np.linspace(-180, 0, GRID), np.linspace(90, -90, GRID))
         positions = terrain.to_ecef(lons.ravel(), lats.ravel(), np.zeros(lons.size))
         center = (positions.min(axis=0) + positions.max(axis=0)) / 2
@@ -227,7 +216,6 @@ class EncodingPrimitivesTest(unittest.TestCase):
         positions = terrain.to_ecef(lons, lats, np.array([0.0, 50.0, 100.0, 10.0]))
         point = terrain.horizon_occlusion_point(positions, positions.mean(axis=0))
         self.assertTrue(np.all(np.isfinite(point)))
-        # In ellipsoid-scaled space, so a point above the surface has length > 1.
         self.assertGreater(np.linalg.norm(point), 1.0)
 
 
@@ -236,11 +224,9 @@ class TilingTest(unittest.TestCase):
         self.assertEqual(terrain.tile_range(0, (103.6, 1.2, 104.1, 1.5)), (0, 0, 1, 0))
 
     def test_tile_range_covers_the_bounds(self):
-        # At level 1 tiles are 90 degrees; Singapore is in column 3, row 0.
         self.assertEqual(terrain.tile_range(1, (103.6, 1.2, 104.1, 1.5)), (3, 0, 3, 0))
 
     def test_auto_max_level_stops_where_the_data_runs_out(self):
-        # The 15 m Singapore DTM produced levels 0-14.
         self.assertEqual(terrain.auto_max_level(15.0), 14)
         self.assertEqual(terrain.auto_max_level(30.0), 13)
 

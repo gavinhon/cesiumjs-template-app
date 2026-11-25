@@ -1,74 +1,30 @@
-/*
- * Design tokens — the single source of truth for the app's look.
- *
- * Minimal and dark: near-black greys, hairline borders, sharp (not
- * pill-shaped) corners, and nothing that competes with the map for
- * attention. The UI is chrome around the globe; the globe is the content.
- *
- * Orange is a *signal*, not a surface. It marks what is on — an active
- * tool, the open panel, the primary action, a selected row — as coloured
- * text, a thin line or a faint tint over the dark surface, never as a
- * solid block or a glow. A screen full of filled orange buttons reads as
- * the brightest thing on screen; the map should be.
- *
- * The greys are very slightly warm (a touch more red than blue) so they sit
- * *with* the orange rather than fighting it. A truly neutral grey next to a
- * saturated orange reads faintly blue by contrast, which makes the whole UI
- * look like two themes stacked.
- *
- * Rule of thumb when adding UI: reach for a token, never a raw hex value.
- * Every floating control in the app is built from these same few values,
- * which is what makes the whole thing read as one system. If you need a
- * colour that isn't here, add a token rather than a one-off literal — and
- * if you're retheming, this file, `src/cesium/mapColors.ts`, and the font
- * `<link>` in index.html are the only places you should have to touch.
- */
 :root {
-  /*
-   * Inter for anything read as prose; JetBrains Mono — uppercase and
-   * letter-spaced — for labels, badges and numeric readouts. That split is
-   * what gives a dark dashboard its "instrument panel" feel: the mono face
-   * signals *data*, the sans signals *content*.
-   */
   --font: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
-  /* --- Greys ---------------------------------------------------------- */
-  --bg: #0a0a0b; /* the page behind Cesium's canvas */
-  --surface: rgba(15, 15, 16, 0.94); /* every floating card's background */
-  --surface-solid: #0f0f10; /* opaque --surface, for OS-drawn popups that can't blend */
-  --surface-variant: rgba(255, 255, 255, 0.04); /* subtle fill for things *inside* a card */
-  --surface-hover: rgba(255, 255, 255, 0.08); /* a control under the pointer */
-  --ink: #e6e3df; /* primary text — warm off-white */
-  --muted: #86827c; /* secondary text, labels, inactive icons */
-  --border: rgba(255, 255, 255, 0.08); /* hairline separators */
-  --border-strong: rgba(255, 255, 255, 0.18); /* a hovered control's edge */
+  --bg: #0a0a0b;
+  --surface: rgba(15, 15, 16, 0.94);
+  --surface-solid: #0f0f10;
+  --surface-variant: rgba(255, 255, 255, 0.04);
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --ink: #e6e3df;
+  --muted: #86827c;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.18);
 
-  /* --- Accent --------------------------------------------------------- */
-  --accent: #ff8a3d; /* the one active/primary colour — text and lines only */
-  --accent-line: rgba(255, 138, 61, 0.55); /* edge of an active control, focus ring */
-  --accent-soft: rgba(255, 138, 61, 0.12); /* faint tint behind an active control or row */
+  --accent: #ff8a3d;
+  --accent-line: rgba(255, 138, 61, 0.55);
+  --accent-soft: rgba(255, 138, 61, 0.12);
 
-  /*
-   * Slightly pink rather than a true red, so "destructive" stays legible
-   * next to the orange accent instead of blending into it.
-   */
-  --danger: #f2555f; /* also mirrored as MAP_COLORS.obstructed: blocked sight lines */
+  --danger: #f2555f;
 
-  /* --- Colours Cesium also needs (mirrored in src/cesium/mapColors.ts) ----- */
-  --measure: #f5f1ea; /* near-white — measurements, so they read as not-a-drawing */
-  --vector: #5b9dff; /* blue — WFS features, complementary to the accent */
-  --sight: #22d3ee; /* cyan — what an observer can see: the clear part of a line of sight */
-  --location: #ffffff; /* white — a place the app put there: your location, a search result */
-  --incident: #ffd23f; /* amber-yellow — a live traffic incident, clear of the congestion ramp */
+  --measure: #f5f1ea;
+  --vector: #5b9dff;
+  --sight: #22d3ee;
+  --location: #ffffff;
+  --incident: #ffd23f;
 
-  /*
-   * Live traffic congestion, LTA's speed bands 1 (under 10 km/h) to 8
-   * (70 km/h or more). The one place green appears: every traffic map
-   * reads red-slow to green-free, so a viewer shouldn't have to learn a
-   * new scale. Diverging, so the middle bands still read on a dark map.
-   */
-  --traffic-none: #6b6b6b; /* no reading */
+  --traffic-none: #6b6b6b;
   --traffic-1: #a50026;
   --traffic-2: #d73027;
   --traffic-3: #f46d43;
@@ -78,55 +34,18 @@
   --traffic-7: #66bd63;
   --traffic-8: #1a9850;
 
-  /* Just enough to lift a card off a bright street map — OSM is mostly
-     near-white, and without any shadow a dark card's edge blurs into it. */
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 
-  --radius-sm: 4px; /* small controls, form fields */
-  --radius-md: 6px; /* search bar, buttons, panel */
+  --radius-sm: 4px;
+  --radius-md: 6px;
 
-  /* --- Control sizing --------------------------------------------------
-   * One height for every interactive control — inputs, selects, buttons,
-   * and the square icon buttons in the rails. A dashboard reads as
-   * deliberate when its controls line up on a single rhythm; five
-   * near-identical heights (44/40/38/36/32) read as accidental.
-   *
-   * 34px is the dense-but-comfortable range most desktop tools settle on
-   * around 12-13px text. Don't go below ~30px: these are mouse targets,
-   * and the shrinking stops being density and starts being a nuisance.
-   *
-   * The toolbar offset in Panel.css is derived from this, so changing it
-   * moves the panels to match instead of leaving them overlapping. (The
-   * right rail's offset is measured instead, because the rail can wrap
-   * into extra columns — see .app__right-rail.) */
   --control-height: 34px;
-  --control-height-sm: 30px; /* compact grid rows, e.g. attribute key/value */
-  --control-height-touch: 44px; /* --control-height on a coarse pointer, below */
+  --control-height-sm: 30px;
+  --control-height-touch: 44px;
 }
 
-/*
- * Fingers, not a mouse. 34px is a comfortable mouse target and a frustrating
- * finger one; 44px is the size both Apple's and Google's guidelines settle
- * on. Swapping the one token, rather than adding per-component touch sizes,
- * keeps every control on a single rhythm at either size — and the panel
- * offsets calc()'d from it follow automatically.
- *
- * Keyed to the pointer, not the screen width: a tablet in landscape is wide
- * but still touched, and a narrow desktop window is still clicked.
- */
 @media (pointer: coarse) {
   :root {
     --control-height: var(--control-height-touch);
   }
 }
-
-/*
- * Cesium draws map graphics with WebGL, not CSS, so shapes rendered into the
- * scene (drawings, WFS features) have to be given a `Cesium.Color` in
- * JavaScript and can't read a CSS variable. Those few colours are mirrored
- * in exactly one place — `src/cesium/mapColors.ts`. Change a value here, change
- * it there.
- *
- * Text on the map is not part of that: map labels are HTML overlays (see
- * `src/cesium/mapLabels.ts`), so they use these tokens directly.
- */

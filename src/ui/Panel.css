@@ -1,27 +1,11 @@
-/*
- * The floating side panel shell (see Panel.tsx), plus the conventions for
- * the form that normally sits at the top of one.
- *
- * Everything here is feature-agnostic on purpose: the Layers, Add data and
- * Drawings panels share these classes, and so should the next panel you
- * add. Feature-specific styling, if you genuinely need any, belongs in a
- * stylesheet next to that feature's component.
- */
 .panel {
   position: absolute;
-  /* Below the toolbar: its 16px corner inset, its own height, then an 8px
-     gap. Derived from the height token rather than hard-coded, so resizing
-     the controls moves the panel to match instead of leaving the two
-     overlapping. */
   top: calc(16px + var(--control-height) + 8px);
   bottom: 16px;
   left: 16px;
-  z-index: 10; /* above the Cesium canvas, which has no explicit z-index */
+  z-index: 10;
   width: 320px;
   overflow-y: auto;
-  /* The OS default scrollbar is a bright slab on a near-black panel. These
-     two properties are the whole standards-track styling API, and degrade
-     to the default where unsupported. */
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
   border-radius: var(--radius-md);
@@ -38,9 +22,6 @@
     visibility 0.2s ease;
 }
 
-/* On a window too narrow for a left panel and the status bar side by
-   side, the left panel stops above the corner stack too. The status bar is
-   ~560px wide and the panel 320px plus insets. */
 @media (max-width: 960px) {
   .panel {
     bottom: calc(16px + var(--bottom-right-stack));
@@ -50,12 +31,9 @@
 .panel--collapsed {
   opacity: 0;
   visibility: hidden;
-  /* Keeps the (invisible, off-screen) panel from intercepting clicks meant
-     for the map or the toolbars. */
   pointer-events: none;
 }
 
-/* Slide out toward the edge the panel is docked to. */
 .panel--collapsed {
   transform: translateX(-100%);
 }
@@ -83,8 +61,6 @@
   color: var(--muted);
 }
 
-/* Same weight as the feature card's close and a list row's remove:
-   closing is routine, not loud. Padding carries the hit area. */
 .panel__close {
   margin: -4px -6px 0 auto;
   padding: 4px 6px;
@@ -100,20 +76,10 @@
   color: var(--ink);
 }
 
-/* Only phones have a grabber; see the compact layout below. */
 .panel__grabber {
   display: none;
 }
 
-/* --- Compact layout: the panel as a bottom sheet ----------------------
- *
- * On a phone a 320px side panel would cover the whole map at full height.
- * Docked to the bottom instead, it leaves the top of the map, the toolbar
- * and the top of the rail visible — the familiar maps-app sheet.
- *
- * 640px must match COMPACT_LAYOUT_QUERY in src/ui/compactLayoutQuery.ts
- * (a media query can't read a custom property).
- */
 @media (max-width: 640px) {
   .panel {
     top: auto;
@@ -122,21 +88,13 @@
     bottom: 8px;
     width: auto;
     max-width: none;
-    /* Above the right rail (20): the sheet spans the full width, so the
-       rail's lower buttons would otherwise sit on top of its contents. The
-       sheet is the thing being used; the rail's top stays visible above it. */
     z-index: 25;
   }
 
-  /* Slides down, since it's docked to the bottom. */
   .panel--collapsed {
     transform: translateY(100%);
   }
 
-  /* Three resting heights, dragged between with the grabber (useBottomSheet,
-     whose snapping uses the same numbers — change both together). Peek
-     shows the title row; half leaves the top of the map; full stops below
-     the toolbar. `dvh` excludes the mobile browser chrome `vh` counts. */
   .panel--sheet-peek {
     height: 128px;
   }
@@ -159,9 +117,6 @@
       height 0.2s ease;
   }
 
-  /* The grab handle: a real button, so it can be dragged, tapped or
-     pressed with a keyboard to change the height. Sticky, so it stays at
-     the top as the sheet's content scrolls under it. */
   .panel__grabber {
     position: sticky;
     top: -16px;
@@ -195,15 +150,12 @@
     background: var(--accent-line);
   }
 
-  /* Bigger target for a thumb, in step with the touch control height. */
   .panel__close {
     min-width: var(--control-height);
     min-height: var(--control-height);
     margin: -12px -12px 0 auto;
   }
 }
-
-/* --- The "add a resource" form at the top of a panel ------------------- */
 
 .panel-form {
   display: flex;
@@ -214,24 +166,18 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Nothing below it to separate it from. */
 .panel-form:last-child {
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
 }
 
-/* Sizing only — the orange label and edge come from `.control-button--primary`. */
 .panel-form__submit {
   width: 100%;
   height: var(--control-height);
   border-radius: var(--radius-md);
 }
 
-/* Secondary action (e.g. "Look up layers") — same control language as the
-   submit button, but left at the neutral .control-button look rather than
-   marked with the accent, since it's a preparatory step and not the
-   primary "commit" action. */
 .panel-form__action {
   width: 100%;
   height: var(--control-height);

@@ -1,54 +1,28 @@
 import * as Cesium from 'cesium';
 
-/**
- * The terrain's heights over an area as a grid — what a shader needs to
- * stand each vertex of a building on the ground (see `terrainDrape.ts`).
- *
- * Cesium has no way to give a shader the terrain: the globe is drawn from
- * its own tiles, and a vertex shader can't ask where the ground is. So the
- * heights are read once from the terrain tiles themselves and packed into
- * a texture. Two bytes per texel, red the high byte and green the low,
- * tenths of a metre from -1000 m (see `encodeHeight`) — plain RGBA8, so
- * no float-texture extension is needed. Blue is 255 where the terrain had
- * data; the shader reads gaps as the ellipsoid, as the globe draws them.
- */
 export interface TerrainHeightmap {
-  /** South-west corner and size of one texel, in radians. */
   west: number;
   south: number;
   texelWidth: number;
   texelHeight: number;
-  /** Texels across and up. Row 0 is the southern edge (WebGL's y-up). */
   width: number;
   height: number;
-  /** RGBA8, `width * height * 4` bytes, rows from south to north. */
   pixels: Uint8Array;
 }
 
-/** Tenths of a metre, from -1000 m: two bytes cover -1000 m to +5553.5 m. */
 const HEIGHT_FLOOR = -1000;
 const HEIGHT_STEP = 0.1;
 
-/** A height as the 16-bit value the texture stores; out-of-range heights clamp. */
 export function encodeHeight(height: number): number {
   return Math.max(0, Math.min(65535, Math.round((height - HEIGHT_FLOOR) / HEIGHT_STEP)));
 }
 
-/** The inverse of `encodeHeight` — what the shader computes from red and green. */
 export function decodeHeight(value: number): number {
   return value * HEIGHT_STEP + HEIGHT_FLOOR;
 }
 
-/** The GLSL that matches `decodeHeight`, for a texel read as normalised floats. */
 export const DECODE_HEIGHT_GLSL = `(c.r * 65280.0 + c.g * 255.0) * ${HEIGHT_STEP.toFixed(1)} + ${HEIGHT_FLOOR.toFixed(1)}`;
 
-/**
- * Writes one triangle's heights into a grid, interpolating across it —
- * every texel whose centre lies inside (edges included, so neighbouring
- * triangles leave no cracks).
- *
- * Coordinates are in texels, with texel (i, j)'s centre at (i, j).
- */
 export function rasterizeTriangle(
   grid: { width: number; height: number; heights: Float32Array; filled: Uint8Array },
   a: readonly [number, number, number],
@@ -64,8 +38,6 @@ export function rasterizeTriangle(
   const maxX = Math.min(grid.width - 1, Math.floor(Math.max(ax, bx, cx)));
   const minY = Math.max(0, Math.ceil(Math.min(ay, by, cy)));
   const maxY = Math.min(grid.height - 1, Math.floor(Math.max(ay, by, cy)));
-  // A texel centre exactly on a shared edge belongs to both triangles; the
-  // tolerance keeps rounding from dropping it from either.
   const epsilon = -1e-9;
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
@@ -80,7 +52,6 @@ export function rasterizeTriangle(
   }
 }
 
-/** The private arrays of a decoded quantized-mesh tile, which Cesium doesn't expose. */
 interface QuantizedMeshArrays {
   _uValues?: Uint16Array;
   _vValues?: Uint16Array;
@@ -90,27 +61,16 @@ interface QuantizedMeshArrays {
   _maximumHeight?: number;
 }
 
-/** Quantized-mesh coordinates run 0–32767 across a tile. */
 const QUANTIZED_MAX = 32767;
 
-/** Texels across one tile: the 65-vertex grid Cesium assumes for a tile, less one. */
 const TEXELS_PER_TILE = 64;
 
-/** More terrain tiles than this, and a coarser level is read instead. */
 const MAX_TILES = 1200;
 
-/** A texture any larger costs more GPU memory than draping is worth. */
 const MAX_TEXELS = 4_000_000;
 
-/** The deepest level read: ~38 m texels, finer than buildings need to stand level. */
 const MAX_LEVEL = 13;
 
-/**
- * The terrain tiles covering `area` at the deepest level that has at most
- * `MAX_TILES` of them, walking down from level 0 through the provider's
- * availability — which skips the parts of the world a local terrain
- * doesn't cover without ever listing them.
- */
 function tilesCovering(
   provider: Cesium.TerrainProvider,
   area: Cesium.Rectangle,
@@ -145,24 +105,9 @@ function tilesCovering(
     }
     current = next;
   }
-  // Level 0 alone is the whole hemisphere at a few hundred metres a vertex
-  // — that's no terrain to stand a building on.
   return best && best.level >= 6 ? best : null;
 }
 
-/**
- * Reads the terrain over `area` into a `TerrainHeightmap`, or `null` where
- * there's nothing to read: the ellipsoid, a provider without tile
- * availability, a terrain that doesn't reach the area, or tiles that
- * aren't quantized mesh.
- *
- * The tiles are requested straight from the provider — the same requests
- * the globe makes, so they usually come from the browser cache — and each
- * triangle is rasterised into the grid. That reads Cesium's private
- * decoded arrays (`_uValues` and friends), feature-detected: the public
- * `interpolateHeight` searches every triangle per point, minutes for a
- * whole island. Without them this returns `null` and nothing is draped.
- */
 export async function buildTerrainHeightmap(
   provider: Cesium.TerrainProvider,
   area: Cesium.Rectangle,
@@ -194,7 +139,6 @@ export async function buildTerrainHeightmap(
     filled: new Uint8Array(width * height),
   };
 
-  // Texel (i, j)'s centre sits at (i, j): half a texel in from the corner.
   const toTexel = (longitude: number, latitude: number): [number, number] => [
     (longitude - bounds.west) / texelWidth - 0.5,
     (latitude - bounds.south) / texelHeight - 0.5,
@@ -205,6 +149,7 @@ export async function buildTerrainHeightmap(
     const { x, y } = tiles[index];
     const data = (await provider.requestTileGeometry(x, y, level)) as
       (Cesium.TerrainData & QuantizedMeshArrays) | undefined;
+    // Private decoded arrays: feature-detected; without them nothing is draped.
     const u = data?._uValues;
     const v = data?._vValues;
     const h = data?._heightValues;
@@ -226,8 +171,6 @@ export async function buildTerrainHeightmap(
     }
   };
 
-  // A few requests at a time: hundreds at once would queue behind each
-  // other anyway and starve the globe's own tile loads.
   let next = 0;
   const worker = async () => {
     while (next < tiles.length) await read(next++).catch(() => undefined);
@@ -256,11 +199,6 @@ export async function buildTerrainHeightmap(
 
 const cache = new WeakMap<Cesium.TerrainProvider, Map<string, Promise<TerrainHeightmap | null>>>();
 
-/**
- * `buildTerrainHeightmap`, once per terrain and area: draping two layers
- * over the same terrain reads it once, and switching terrain back and
- * forth doesn't read it again.
- */
 export function terrainHeightmap(
   provider: Cesium.TerrainProvider,
   area: Cesium.Rectangle,

@@ -15,29 +15,19 @@ import { fetchWfsFeatureTypes } from './fetchWfsFeatureTypes';
 
 interface AddMapServiceFormProps {
   onAdd: (config: MapServiceConfig) => Promise<void>;
-  /** True while the Cesium viewer hasn't finished initializing yet. */
   disabled: boolean;
 }
 
-/**
- * State machine for the capabilities lookup — the "Look up layers" button
- * for WMS and "Look up feature types" for WFS. One state for both, because
- * from the form's point of view the two are the same interaction: ask the
- * server what it has, then pick from a list.
- */
 type Lookup =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'success'; options: ServiceLayerOption[] };
 
-/** State machine for the submit itself, which can fail for WFS. */
 type Submit = { status: 'idle' } | { status: 'loading' } | { status: 'error'; message: string };
 
-/** Service types whose layer/feature list can be discovered from the server. */
 const LOOKUP_SUPPORTED: MapServiceType[] = ['wms', 'wfs', 'arcgis-feature'];
 
-/** The display name used when none is typed. */
 const DEFAULT_NAME: Record<MapServiceType, string> = {
   wms: 'WMS layer',
   wmts: 'WMTS layer',
@@ -47,7 +37,6 @@ const DEFAULT_NAME: Record<MapServiceType, string> = {
   'arcgis-feature': 'ArcGIS feature layer',
 };
 
-/** Service URL placeholders; XYZ has a template field instead. */
 const URL_PLACEHOLDER: Record<MapServiceType, string> = {
   wms: 'https://ahocevar.com/geoserver/wms',
   wmts: 'https://your-server/wmts',
@@ -65,50 +54,17 @@ const URL_HINT: Partial<Record<MapServiceType, string>> = {
     'A FeatureServer, a MapServer, or one layer of either (ending in its id, e.g. /FeatureServer/0).',
 };
 
-/** Label for the hand-typed layer field, for the types that have one. */
 const LAYER_FIELD_LABEL: Partial<Record<MapServiceType, string>> = {
   wms: 'Layer name(s)',
   wfs: 'Feature type name',
   'arcgis-feature': 'Layer id',
 };
 
-/**
- * Form for connecting to a new OGC service.
- *
- * The fields change with the selected service type, because each protocol
- * needs different parameters to build a working request:
- *
- *   - **WMS** needs a `LAYERS` name (or comma-separated list).
- *   - **WMTS** needs a layer, style, format, and tile matrix set identifier,
- *     since it fetches pre-baked tiles from a fixed grid rather than asking
- *     the server to render an arbitrary bounding box.
- *   - **XYZ** just needs a URL with {z}/{x}/{y} placeholders.
- *   - **WFS** needs a feature type, a protocol version (which decides the
- *     query parameter names — see `createWfsDataSource`), and a feature
- *     cap, because WFS has no tiling and will otherwise try to hand back
- *     an entire dataset in one response.
- *   - **ArcGIS MapServer** needs only the service URL; Cesium reads the
- *     rest from the service's own description.
- *   - **ArcGIS feature layer** needs a layer — picked from the service, or
- *     already in the URL — and a feature cap, for the same reason as WFS.
- *   - Both ArcGIS types take an optional token, for secured services.
- *
- * WMS, WFS and ArcGIS feature layers additionally offer a lookup, so you
- * can pick a real identifier off the server instead of having to already
- * know it.
- *
- * The display name comes last: it's optional, and a lookup fills it in, so
- * it shouldn't be the first thing asked for. Ready-made services don't go
- * through this form at all — the panel's quick-add list adds them in one
- * click.
- */
 export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
   const formId = useId();
   const [type, setType] = useState<MapServiceType>('wms');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
-  // Shared by WMS `layers`, WMTS `layer`, and WFS `typeName` — all three are
-  // "which thing on this server", and only one is ever visible at a time.
   const [layerName, setLayerName] = useState('');
   const [style, setStyle] = useState('default');
   const [format, setFormat] = useState('image/png');
@@ -119,19 +75,13 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
   const [token, setToken] = useState('');
   const [lookup, setLookup] = useState<Lookup>({ status: 'idle' });
   const [submit, setSubmit] = useState<Submit>({ status: 'idle' });
-  // The selected layer's real extent, if known from the capabilities lookup
-  // — carried through to submit so "zoom to layer" can fly straight to it
-  // instead of falling back to a whole-globe view.
   const [boundingBox, setBoundingBox] = useState<GeographicBoundingBox>();
 
   const isArcGis = type === 'arcgis-map' || type === 'arcgis-feature';
-  // An ArcGIS URL can already point at one layer (`…/FeatureServer/0`), and
-  // then there's nothing left to pick.
   const needsLayer =
     type === 'wms' || type === 'wfs' || (type === 'arcgis-feature' && !urlNamesLayer(url));
   const supportsLookup = LOOKUP_SUPPORTED.includes(type) && needsLayer;
 
-  /** Anything that invalidates a previous lookup: a new URL, or a new service type. */
   function resetLookup() {
     setLookup({ status: 'idle' });
     setBoundingBox(undefined);
@@ -155,10 +105,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
     }
   }
 
-  // Selecting a discovered layer fills in its real identifier, and — if the
-  // user hasn't already typed their own display name — proposes the layer's
-  // human-readable title as a starting point. Display name stays optional
-  // either way: it's only ever a fallback when left blank.
   function handleSelectDiscovered(selectedName: string, options: ServiceLayerOption[]) {
     setLayerName(selectedName);
     const selected = options.find((option) => option.name === selectedName);
@@ -168,14 +114,9 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
     }
   }
 
-  /**
-   * Builds the discriminated-union config matching the selected service type.
-   * Throws for an ArcGIS URL it can't use, which the submit shows as an error.
-   */
   function buildConfig(): MapServiceConfig {
     const id = createId();
     const label = name.trim() || DEFAULT_NAME[type];
-    // A blank or nonsense cap would mean "no limit" to the server.
     const featureCap = Number(maxFeatures) || 1000;
     const accessToken = token.trim() || undefined;
 
@@ -209,8 +150,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
           token: accessToken,
         };
       default: {
-        // Exhaustiveness check: adding a service type without a case here
-        // is a compile error rather than a runtime surprise.
         const exhaustive: never = type;
         throw new Error(`Unsupported service type: ${String(exhaustive)}`);
       }
@@ -222,9 +161,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
     setSubmit({ status: 'loading' });
     try {
       await onAdd(buildConfig());
-      // Reset the entered values but keep the selected service type (and
-      // any token), so adding several layers of the same kind in a row
-      // stays quick.
       setName('');
       setUrl('');
       setLayerName('');
@@ -248,7 +184,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
         value={type}
         onChange={(e) => {
           setType(e.target.value as MapServiceType);
-          // A discovered layer list belongs to the service it came from.
           resetLookup();
           setLayerName('');
         }}
@@ -270,8 +205,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
           value={url}
           onChange={(e) => {
             setUrl(e.target.value);
-            // A previously-fetched list (and any bounding box it gave us)
-            // belongs to whatever URL it was fetched for.
             resetLookup();
           }}
           placeholder={URL_PLACEHOLDER[type]}
@@ -294,9 +227,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
         />
       )}
 
-      {/* WFS version first: it changes which parameters the capabilities
-          request and the eventual GetFeature request use, so it has to be
-          right before the lookup runs. */}
       {type === 'wfs' && (
         <SelectField
           formId={formId}
@@ -337,10 +267,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
         </>
       )}
 
-      {/* WMS layer / WFS feature type / ArcGIS layer: a picklist once
-          discovered, a plain text field otherwise. Same control either way,
-          so the form doesn't reshape itself around whether the lookup
-          happened to work. */}
       {needsLayer &&
         (lookup.status === 'success' ? (
           <SelectField
@@ -369,8 +295,6 @@ export function AddMapServiceForm({ onAdd, disabled }: AddMapServiceFormProps) {
             value={layerName}
             onChange={(e) => {
               setLayerName(e.target.value);
-              // A hand-typed name isn't necessarily the one a previous
-              // lookup's bounding box was for — don't zoom to the wrong place.
               setBoundingBox(undefined);
             }}
             placeholder={type === 'arcgis-feature' ? '0' : 'topp:states'}

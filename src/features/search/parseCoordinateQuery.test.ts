@@ -52,8 +52,8 @@ describe('parseCoordinateQuery', () => {
   it('declines things that only look like coordinates', () => {
     expect(parseCoordinateQuery('marina bay')).toBeNull();
     expect(parseCoordinateQuery('1.28')).toBeNull();
-    expect(parseCoordinateQuery('95, 200')).toBeNull(); // out of range either way round
-    expect(parseCoordinateQuery('900000 900000')).toBeNull(); // SVY21-sized, but not Singapore
+    expect(parseCoordinateQuery('95, 200')).toBeNull();
+    expect(parseCoordinateQuery('900000 900000')).toBeNull();
     expect(parseCoordinateQuery('1.28 N 103.86 N')).toBeNull();
     expect(parseCoordinateQuery('N 1.28 E 103.86 E')).toBeNull();
   });

@@ -20,86 +20,25 @@ import { fetchPropertyNames } from './tilesetPropertyNames';
 export interface ManagedModel {
   config: ModelConfig;
   visible: boolean;
-  /**
-   * What was added to `scene.primitives`: the tileset itself, or for I3S
-   * the provider that streams it. Showing and removing act on this.
-   */
   primitive: Cesium.Cesium3DTileset | Cesium.I3SDataProvider;
-  /**
-   * The tilesets that make it up — just the one for 3D Tiles, one per layer
-   * for I3S. Placing the model moves these, and zooming frames them.
-   */
   tilesets: Cesium.Cesium3DTileset[];
-  /**
-   * Where the model was authored, or `null` if it can't be placed and stays
-   * as authored: a tileset.json without usable bounds, or any I3S scene.
-   */
   footprint: TilesetFootprint | null;
   placement: ModelPlacement;
-  /** Metres the model is currently moved up (negative: down). 0 when as authored. */
   offset: number;
-  /** Why the placement was chosen automatically, shown beside it — e.g. "Underground". */
   reason: string | null;
-  /** The dataset's own attribution, shown on the map while it's loaded. See `copyrightOf`. */
   credit: Cesium.Credit | null;
-  /**
-   * Display names of its parts' properties, by id, from its metadata schema
-   * (`fetchPropertyNames`) — what the info card labels a clicked part with.
-   * Empty for I3S, and for tilesets without a schema.
-   */
   propertyNames: Record<string, string>;
-  /**
-   * Heights a section cut can move through, in the tileset's clipping frame
-   * (`sectionRange`); `null` when that frame isn't known, or for I3S.
-   */
   sectionRange: { min: number; max: number } | null;
-  /** Cesium converted it from sea level — I3S with the geoid service; see `drapeModel`. */
   geoidConverted: boolean;
 }
 
-/**
- * Owns the list of 3D datasets the user has connected — 3D Tiles and I3S
- * scene layers — and keeps it in sync with the Cesium viewer's
- * `scene.primitives` collection: the 3D equivalent of what `useMapServices`
- * does for `imageryLayers`.
- *
- * Each 3D Tiles model is set on the terrain when it loads, unless it's
- * underground — see `placeTilesetOnTerrain.ts` — and set again whenever
- * the terrain changes, so choosing a different terrain (or none) in the
- * layer manager carries the models with it.
- *
- * I3S scenes are never moved as one piece. They're georeferenced to real
- * heights (see `loadI3sSceneLayer`), and their declared bounds are
- * padded far beyond the geometry — hundreds of metres in Esri's own
- * samples — so "lift its lowest point onto the ground" would misplace
- * them by that much. A scene built on flat ground instead — one that says
- * it's ground-relative, or a catalogue entry marked `draped` — has each
- * building stood on the terrain by a shader (`terrainDrape.ts`), and so
- * does a 3D Tiles layer too large to move, when asked.
- *
- * Unlike our WMS/WMTS/XYZ imagery layers, a loaded tileset always knows
- * its own real bounding volume, so we can unconditionally fly to it on
- * add — no "only if we know the extent" guard needed here.
- */
 export function useModels(viewer: Cesium.Viewer | null) {
   const [models, setModels] = useState<ManagedModel[]>([]);
-  // Read by the terrain-change listener, which is subscribed once.
   const modelsRef = useRef<ManagedModel[]>([]);
-  // Kept current in a layout effect, not by assigning during render: React
-  // may render without committing (StrictMode, concurrent rendering), and a
-  // render-time write would leak a value that never reached the screen. A
-  // layout effect runs right after commit, before any input event can.
   useLayoutEffect(() => {
     modelsRef.current = models;
   });
 
-  /**
-   * How far to move a model for a placement, on the terrain that's loaded
-   * now. Applying it is a separate, synchronous step, so callers can drop a
-   * result that a later terrain change has made stale.
-   */
-  // One counter per model: a drape that finishes loading after a later
-  // request (undrape, a terrain change) for the same model is dropped.
   const drapeTokensRef = useRef(new Map<string, number>());
   const drape = useCallback(
     async (id: string, entry: DrapeTarget, on: boolean) => {
@@ -123,14 +62,12 @@ export function useModels(viewer: Cesium.Viewer | null) {
   );
 
   const addModel = useCallback(
-    // Pass `flyTo: false` when restoring a shared link: its camera is the point.
     async (config: ModelConfig, { flyTo = true }: { flyTo?: boolean } = {}) => {
       if (!viewer) return;
 
       if (config.format === 'i3s') {
         const scene = await loadI3sSceneLayer(config.url, config.name);
         const { provider, tilesets: parts, geoidConverted } = scene;
-        // Never moved as one piece (see above): "on terrain" means draped.
         const draped = config.placement ? config.placement !== 'as-authored' : scene.groundRelative;
         viewer.scene.primitives.add(provider);
         const copyright = sceneLayerCopyright(provider);
@@ -158,33 +95,13 @@ export function useModels(viewer: Cesium.Viewer | null) {
         return;
       }
 
-      // `config.url` can be an absolute URL (a remote 3D Tiles service, or
-      // an S3/CloudFront bucket — no special-casing needed, since from the
-      // browser's perspective a CORS-configured bucket is just another
-      // `https://` endpoint) or a relative path like
-      // "/tilesets/my-data/tileset.json", which resolves against this
-      // page's own origin — i.e. how you'd load a dataset placed under
-      // this app's own `public/` folder. Either way it needs the server to
-      // send CORS headers permitting our origin, same requirement our WMS
-      // lookups and imagery tiles have; a same-origin relative URL
-      // satisfies that automatically, since there's no cross-origin
-      // request to begin with.
-      //
-      // The JSON is fetched alongside for its bounding volume, which
-      // Cesium doesn't expose publicly (see `footprintOf`). The browser
-      // cache makes the second request essentially free.
       const [tileset, json] = await Promise.all([
-        // Credits from the tiles' own glTF go on screen, not into the
-        // attribution pop-up: they're often a licence condition (ODbL, CC
-        // BY). The tileset.json's credit is added below — see `copyrightOf`.
         Cesium.Cesium3DTileset.fromUrl(config.url, { showCreditsOnScreen: true }),
         fetch(config.url)
           .then((response): Promise<unknown> | null => (response.ok ? response.json() : null))
           .catch(() => null),
       ]);
 
-      // A tileset wider than a city (see `isPlaceable`) is treated like one
-      // without bounds: it stays where it was authored, with no switch.
       const bounds = footprintOf(json);
       const footprint = bounds && isPlaceable(bounds) ? bounds : null;
       let placement: ModelPlacement = 'as-authored';
@@ -202,14 +119,10 @@ export function useModels(viewer: Cesium.Viewer | null) {
         if (placement === 'on-terrain') offset = ground - footprint.base;
         tileset.modelMatrix = verticalShift(footprint.center, offset);
       } else if (hint === 'draped' || hint === 'on-terrain') {
-        // Too large to move as one piece, so standing it on the ground
-        // means draping it.
         placement = 'draped';
         reason = null;
       }
 
-      // Placed before it's added, so it never appears at the wrong height
-      // and the fly-to below heads for where it actually ends up.
       viewer.scene.primitives.add(tileset);
       const propertyNames = await fetchPropertyNames(json, config.url);
       const copyright = copyrightOf(json);
@@ -236,12 +149,10 @@ export function useModels(viewer: Cesium.Viewer | null) {
     [viewer, drape],
   );
 
-  /** Switches a model between standing on the terrain and its authored height. */
   const setPlacement = useCallback(
     async (id: string, placement: ModelPlacement) => {
       const target = modelsRef.current.find((entry) => entry.config.id === id);
       if (!target) return;
-      // A choice the user made replaces whatever was chosen for them.
       const record = (offset: number) =>
         setModels((prev) =>
           prev.map((entry) =>
@@ -261,17 +172,10 @@ export function useModels(viewer: Cesium.Viewer | null) {
     [offsetFor, drape],
   );
 
-  // The ground moved: re-seat every model standing on it. Cesium fires
-  // `terrainProviderChanged` once a newly chosen terrain is ready (not when
-  // it's chosen), so the samples below see the new surface.
   useEffect(() => {
     if (!viewer) return;
     let latest = 0;
     const reseat = async () => {
-      // While a newly chosen terrain loads, `scene.setTerrain` puts
-      // `undefined` on the globe as a placeholder and fires this event for
-      // it too. There's no ground to sit on yet — wait for the real one,
-      // which fires again.
       if (!currentTerrain(viewer)) return;
       const run = ++latest;
       const updates = await Promise.all(
@@ -282,14 +186,12 @@ export function useModels(viewer: Cesium.Viewer | null) {
             offset: await offsetFor(entry.footprint, 'on-terrain'),
           })),
       );
-      // A quicker second terrain change has already re-seated them.
       if (run !== latest || viewer.isDestroyed()) return;
       for (const { entry, offset } of updates) {
         if (entry.footprint) {
           moveTilesets(entry, verticalShift(entry.footprint.center, offset));
         }
       }
-      // Draped models read the new terrain's heights instead.
       for (const entry of modelsRef.current) {
         if (entry.placement === 'draped') void drape(entry.config.id, entry, true);
       }
@@ -342,38 +244,15 @@ export function useModels(viewer: Cesium.Viewer | null) {
   return { models, addModel, removeModel, toggleVisibility, zoomToModel, setPlacement };
 }
 
-/**
- * Light from every direction equally, as Cesium's spherical-harmonic
- * coefficients: only the first (constant) term is set. Its strength is
- * chosen by eye to read like an overcast sky against the map light; Cesium's
- * own fallback (0.35) leaves shaded walls nearly black.
- */
 const EVEN_AMBIENT_LIGHT = Array.from({ length: 9 }, (_, index) =>
   index === 0 ? new Cesium.Cartesian3(0.6, 0.6, 0.6) : Cesium.Cartesian3.ZERO,
 );
 
-/**
- * The attribution a tileset.json declares in `asset.copyright`, if any.
- *
- * Cesium shows the copyright embedded in each tile's glTF, but not this
- * one — and it's where datasets usually put their licence's attribution
- * (Re:Earth Buildings' ODbL notice, for one). It's third-party HTML; Cesium
- * runs credit HTML through DOMPurify before it reaches the page.
- */
 function copyrightOf(tilesetJson: unknown): string | null {
   const copyright = (tilesetJson as { asset?: { copyright?: unknown } } | null)?.asset?.copyright;
   return typeof copyright === 'string' && copyright.trim() ? copyright : null;
 }
 
-/**
- * The attribution an I3S scene's layers declare in `copyrightText`, joined,
- * or `null` when none does.
- *
- * Cesium reads none of it — an I3S scene loads with no credit at all — yet
- * it's often a licence condition: Esri's OpenStreetMap buildings say "Map
- * data OpenStreetMap contributors…" here and nowhere else, and ODbL needs
- * that on screen. Third-party text, sanitised by Cesium like `copyrightOf`.
- */
 function sceneLayerCopyright(provider: Cesium.I3SDataProvider): string | null {
   const texts = new Set<string>();
   for (const layer of provider.layers) {
@@ -383,16 +262,11 @@ function sceneLayerCopyright(provider: Cesium.I3SDataProvider): string | null {
   return texts.size > 0 ? [...texts].join(' · ') : null;
 }
 
-/**
- * The terrain on the globe, or `undefined` while a new one loads:
- * `scene.setTerrain` puts `undefined` there as a placeholder until the
- * provider is ready, though Cesium's types say it's never unset.
- */
+// scene.setTerrain leaves terrainProvider undefined while loading, despite the types.
 function currentTerrain(viewer: Cesium.Viewer): Cesium.TerrainProvider | undefined {
   return viewer.terrainProvider as Cesium.TerrainProvider | undefined;
 }
 
-/** Resolves the next time the globe's terrain changes. */
 function nextTerrain(viewer: Cesium.Viewer): Promise<void> {
   return new Promise((resolve) => {
     const remove = viewer.scene.terrainProviderChanged.addEventListener(() => {
@@ -402,26 +276,14 @@ function nextTerrain(viewer: Cesium.Viewer): Promise<void> {
   });
 }
 
-/** What draping needs of a model. */
 type DrapeTarget = Pick<ManagedModel, 'primitive' | 'tilesets' | 'geoidConverted'>;
 
-/**
- * Stands each building of a model on the terrain loaded now
- * (`terrainDrape.ts`) — or leaves it be where there's no terrain to read:
- * on the ellipsoid, the ground *is* height 0.
- *
- * The heightmap takes a few seconds the first time (it reads the terrain's
- * tiles); `stillWanted` drops the result if the model was undraped or the
- * terrain changed meanwhile, and a terrain change re-drapes it anyway.
- */
 async function drapeModel(
   viewer: Cesium.Viewer,
   entry: DrapeTarget,
   stillWanted: () => boolean,
 ): Promise<void> {
   const provider = currentTerrain(viewer);
-  // Still loading: keep the drape it has until the real terrain arrives,
-  // which drapes it again.
   if (!provider) return;
   const current = () =>
     stillWanted() && !viewer.isDestroyed() && viewer.terrainProvider === provider;
@@ -431,9 +293,6 @@ async function drapeModel(
     applyDrape(entry.tilesets, undefined);
     return;
   }
-  // The scene's "ground" after Cesium's conversion is the geoid, ~8 m above
-  // the ellipsoid here and within a metre of that across the island — one
-  // sample at the middle of the terrain serves the whole layer.
   const datum = entry.geoidConverted
     ? await geoidHeightAt(
         new Cesium.Cartographic(
@@ -446,22 +305,10 @@ async function drapeModel(
   applyDrape(entry.tilesets, createDrapeShader(heightmap, datum));
 }
 
-/** Applies one vertical shift to every tileset a model is made of. */
 function moveTilesets(entry: ManagedModel, modelMatrix: Cesium.Matrix4) {
   for (const tileset of entry.tilesets) tileset.modelMatrix = modelMatrix;
 }
 
-/**
- * What happens once a model has been added: fly to it — or, for a
- * worldwide layer (3D Tiles or I3S alike), stay put and fix its lighting.
- *
- * A worldwide layer is everywhere at once: flying "to" it would only pull
- * the camera out to space, away from what the user was viewing. And Cesium
- * lights each tileset's shaded sides with a sky rendered from the centre of
- * its bounds — for a worldwide layer, the centre of the Earth, where the
- * "sky" is black. Every wall facing away from the light renders solid
- * black. A plain, even ambient light instead.
- */
 function frameOrLight(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[], flyTo: boolean) {
   const regional = tilesets.filter((tileset) => tileset.boundingSphere.radius < WORLDWIDE_RADIUS);
   for (const tileset of tilesets) {
@@ -472,12 +319,6 @@ function frameOrLight(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[],
   if (flyTo && regional.length === tilesets.length) flyToTilesets(viewer, tilesets);
 }
 
-/**
- * Flies to frame one or more tilesets. `viewer.flyTo` takes a single
- * tileset; an I3S building scene can be several, so this frames the
- * bounding sphere around all of them — which is what `viewer.flyTo` does
- * for one, with the same default viewing angle.
- */
 function flyToTilesets(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[]) {
   const spheres = tilesets.map((tileset) => tileset.boundingSphere);
   const [first, ...rest] = spheres;
@@ -487,16 +328,6 @@ function flyToTilesets(viewer: Cesium.Viewer, tilesets: Cesium.Cesium3DTileset[]
   );
 }
 
-/**
- * The ground height under a footprint on whatever terrain is loaded once
- * sampling finishes.
- *
- * Sampling takes a moment, and the terrain can change during it — most
- * often at startup, when the app's own terrain is still loading as a
- * dataset is added. The terrain-change listener can't catch that case:
- * the tileset isn't in the list yet. So if the provider changed while we
- * sampled, sample again on the new one.
- */
 async function groundUnder(viewer: Cesium.Viewer, footprint: TilesetFootprint): Promise<number> {
   for (;;) {
     const provider = currentTerrain(viewer);

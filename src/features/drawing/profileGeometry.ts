@@ -1,24 +1,10 @@
 import * as Cesium from 'cesium';
 
-/**
- * The maths behind a line's elevation profile: where to sample along it,
- * what the samples add up to, and how to draw them — kept apart from the
- * terrain request and the chart component so it's unit-tested.
- */
-
-/** Points evenly spaced along a path, and how far along each one is. */
 export interface PathSamples {
   cartographics: Cesium.Cartographic[];
-  /** Metres from the start, over the ellipsoid surface. */
   distances: number[];
 }
 
-/**
- * `count` points spread evenly along a multi-segment path by distance —
- * so a long segment gets more samples than a short one — following the
- * geodesic on each segment rather than a straight chord through the earth.
- * The ends of the path are always included.
- */
 export function samplePath(positions: Cesium.Cartesian3[], count: number): PathSamples {
   const cartos = positions.map((position) => Cesium.Cartographic.fromCartesian(position));
   if (cartos.length < 2 || count < 2)
@@ -50,13 +36,10 @@ export function samplePath(positions: Cesium.Cartesian3[], count: number): PathS
   return { cartographics, distances };
 }
 
-/** What a profile adds up to. */
 export interface ProfileStats {
   min: number;
   max: number;
-  /** Total height gained going from start to end, summing every rise. */
   climb: number;
-  /** Total height lost, summing every fall. */
   descent: number;
 }
 
@@ -76,12 +59,6 @@ export function profileStats(heights: number[]): ProfileStats {
   };
 }
 
-/**
- * SVG path data for the profile in a `width` × `height` box: the line,
- * and the same line closed down to the baseline for the fill. The vertical
- * scale has a floor of `minRange` metres so a nearly flat path reads as
- * nearly flat rather than being stretched into dramatic noise.
- */
 export function profilePaths(
   distances: number[],
   heights: number[],

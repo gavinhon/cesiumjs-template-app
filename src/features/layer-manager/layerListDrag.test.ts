@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { dropIndex } from './layerListDrag';
 
 describe('dropIndex', () => {
-  // Four 40px rows starting at y = 100.
   const midpoints = [120, 160, 200, 240];
 
   it('stays put until the pointer passes a neighbour’s centre', () => {

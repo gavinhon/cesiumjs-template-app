@@ -1,10 +1,5 @@
 import * as Cesium from 'cesium';
 
-/**
- * Flies to look straight down at a point from `height` metres, north up —
- * a street at ~1,500 m, a town at ~10 km. Shared by "my location" and
- * search, which both take you to a place rather than to a dataset.
- */
 export function flyToPoint(
   viewer: Cesium.Viewer,
   longitude: number,

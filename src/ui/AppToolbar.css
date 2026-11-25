@@ -1,34 +1,22 @@
-/* Pinned to the top-left corner, above the map and the panels. The shared
-   "dark glass" look comes from the .control classes in
-   src/styles/global.css — this file only adds this toolbar's own sizing
-   and layout. */
 .app-toolbar {
   position: absolute;
   top: 16px;
   left: 16px;
-  z-index: 20; /* above .panel, so it stays clickable while a panel is open */
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* Wide enough for a place name, but no wider: this bar sits over the map,
-   and every pixel of chrome is a pixel of map you can't see. */
 .app-toolbar__search {
   width: 220px;
 }
 
-/* A panel button — same height as the search bar, so the two form one
-   visually aligned row. */
 .app-toolbar__button {
   height: var(--control-height);
   border-radius: var(--radius-md);
 }
 
-/* On a wide screen the panel buttons sit in the toolbar row itself:
-   `display: contents` makes the wrapper vanish from layout, so they are
-   flex items of .app-toolbar exactly as if it weren't there. The menu
-   button that folds them away is for the compact layout only. */
 .app-toolbar__panels {
   display: contents;
 }
@@ -37,15 +25,6 @@
   display: none;
 }
 
-/*
- * Compact layout: search plus a menu button, the panel buttons in a column
- * under it. Two uppercase buttons beside a search field need ~440px;
- * a phone has ~360.
- *
- * The toolbar stretches to the right rail (whose measured width App
- * publishes as --right-rail-width), so the search field takes whatever is
- * left instead of a fixed 220px. 640px must match COMPACT_LAYOUT_QUERY.
- */
 @media (max-width: 640px) {
   .app-toolbar {
     top: 8px;
