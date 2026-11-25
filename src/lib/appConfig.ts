@@ -10,9 +10,11 @@
  * site, so the container's entrypoint writes this file from its
  * environment each time it starts (`scripts/writeRuntimeConfig.ts`).
  *
- * In `npm run dev` and on GitHub Pages there is no such file, and the
- * defaults below are exactly how the app behaved before it existed:
- * online, with the datasets the build-time scan of `public/` found.
+ * On GitHub Pages there is no such file, and the defaults below are exactly
+ * how the app behaved before it existed: online, with the datasets the
+ * build-time scan of `public/` found. `npm run dev` has none either —
+ * unless `.env` holds an LTA key, when the dev server answers with one
+ * that switches live traffic on (`vite-plugins/liveTrafficFeed.ts`).
  *
  * **One switch, read in one place each.** Every internet dependency checks
  * `APP_CONFIG.offline` where it's defined — the basemap list, the example
@@ -43,6 +45,15 @@ export interface AppConfig {
    * place search, offline or not — see `searchPlaces.ts`.
    */
   nominatimUrl?: string;
+  /**
+   * Base URL of the live traffic snapshots (`live/`), present only where a
+   * server is reading LTA DataMall with the deployment's key: the dev server
+   * with `LTA_ACCOUNT_KEY` in `.env`, or the Docker container with it set
+   * and not offline. Absent — GitHub Pages, no key, offline — the live
+   * traffic layers aren't offered at all, rather than offered and failing.
+   * See `vite-plugins/liveTrafficFeed.ts`.
+   */
+  liveTraffic?: string;
 }
 
 const DEFAULTS: AppConfig = { offline: false };
@@ -80,6 +91,8 @@ async function loadAppConfig(): Promise<AppConfig> {
         record.defaultBasemap && { defaultBasemap: record.defaultBasemap }),
       ...(typeof record.nominatimUrl === 'string' &&
         record.nominatimUrl && { nominatimUrl: record.nominatimUrl }),
+      ...(typeof record.liveTraffic === 'string' &&
+        record.liveTraffic && { liveTraffic: record.liveTraffic }),
     };
   } catch {
     return DEFAULTS;

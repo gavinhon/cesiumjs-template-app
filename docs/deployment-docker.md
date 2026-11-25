@@ -300,6 +300,31 @@ host. Any Nominatim 4 or later works:
 `docker compose restart app` after changing `NOMINATIM_URL`. Results are
 credited to OpenStreetMap contributors, as the ODbL requires.
 
+## 7. Live traffic from LTA (online deployments)
+
+With an [LTA DataMall](https://datamall.lta.gov.sg/content/datamall/en/request-for-api.html)
+key (free), the app offers two live layers in Add data, under "Live —
+updated every few minutes": **Traffic congestion** (every road link
+coloured by its current speed band, refreshed every 5 minutes) and
+**Traffic incidents** (accidents, breakdowns, roadworks, every 2
+minutes). Set it in `.env` and turn offline mode off:
+
+```ini
+APP_OFFLINE=false
+LTA_ACCOUNT_KEY=your-key
+```
+
+then `docker compose up -d` (or `restart app`). The container reads LTA
+itself and serves the result at `/live/`, so the key never reaches a
+browser and LTA is asked once per refresh however many people have the
+map open. Without a key, or offline, the layers simply aren't offered —
+there's nothing for an end user to configure or be confused by.
+`docker compose logs app` shows "Live traffic (LTA): on" at start, and a
+line whenever a read fails (a rejected key says so).
+
+The same key in `.env` turns live traffic on in `npm run dev`. GitHub
+Pages can't have it: a static site has no server to read LTA from.
+
 ## How it works
 
 The app is a static site, so in development everything it knows is baked
@@ -315,12 +340,15 @@ container start
          ├─ /run/app/datasets.json             over the mounted /data
          ├─ /run/app/app-config.json           offline, catalogue URL, basemap, geocoder
          └─ /run/app/nginx-nominatim.conf      only with NOMINATIM_URL
+    └─ node scripts/fetchLiveTraffic.ts &     only with LTA_ACCOUNT_KEY, online:
+         └─ /run/app/live/*.json               LTA congestion and incidents, kept fresh
   nginx
     /                  → the built app
     /data/             → the mounted folder (read-only)
     /app-config.json   → /run/app/app-config.json
     /datasets.json     → /run/app/datasets.json
     /nominatim/        → NOMINATIM_URL (if set)
+    /live/             → /run/app/live/ (if LTA_ACCOUNT_KEY is set)
 
 browser
   src/lib/appConfig.ts       fetches app-config.json before the app starts

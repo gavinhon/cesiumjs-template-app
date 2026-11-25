@@ -12,7 +12,20 @@ export type LegendContent =
    * Vector data the app draws in its own style (`--vector`), so its legend
    * is the app's swatches for the geometry types present, not the server's.
    */
-  | { kind: 'vector'; geometries: VectorGeometry[] };
+  | { kind: 'vector'; geometries: VectorGeometry[] }
+  /**
+   * Symbols the app draws in colours of its own choosing — live traffic's
+   * speed bands — each a line or point swatch in a CSS colour (a design
+   * token, e.g. `var(--traffic-3)`).
+   */
+  | { kind: 'swatches'; items: LegendSwatch[] };
+
+export interface LegendSwatch {
+  label: string;
+  /** A CSS colour, normally a design token: `var(--incident)`. */
+  color: string;
+  shape: 'line' | 'point';
+}
 
 export interface LegendItem {
   label: string;

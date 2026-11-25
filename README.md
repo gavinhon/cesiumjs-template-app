@@ -91,6 +91,15 @@ CesiumJS, wired up **without** a Cesium ion account.
     pick. The
     sight line is cyan where clear and red past the first obstruction —
     terrain or building.
+- **Live traffic from LTA**, with a free
+  [LTA DataMall](https://datamall.lta.gov.sg/content/datamall/en/request-for-api.html)
+  key as `LTA_ACCOUNT_KEY` in `.env`: **traffic congestion** (every road
+  link coloured by its current speed, every 5 minutes, main roads by
+  default) and **traffic incidents** (accidents, breakdowns, roadworks)
+  in Add data. A server reads LTA — the dev server, or the Docker
+  container — so the key never reaches a browser; without one the
+  layers aren't offered at all. Click a road for its speed, an incident
+  for LTA's report.
 - **Datasets in `public/` show up on their own.** A build-time scan finds
   3D Tiles, terrain, image tile pyramids and GeoJSON files under `public/`
   and lists them in the panel that loads each one — one click to add, no

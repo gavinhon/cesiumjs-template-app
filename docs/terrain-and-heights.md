@@ -43,6 +43,13 @@ change.
 | Vector lines and polygons (WFS, ArcGIS feature layers, GeoJSON) | Any z values in the data are ignored | `clampToGround`: drawn as ground primitives, draped over the terrain _and_ 3D models.                                                                                                                                                           | Draped  | Nothing to change | They follow the surface automatically. |
 | Vector points (same sources)                                    | Ignored                              | `CLAMP_TO_GROUND` onto the terrain. It doesn't reach 3D models: Cesium clamps to a tileset only when its `enableCollision` is on, and the app leaves that off. Drawn without depth testing within 50 km, so a hill doesn't cut a point in half. | Clamped | Nothing to change | They follow the surface automatically. |
 
+### Live traffic (LTA)
+
+| Data                     | Heights it carries                                  | How it meets the terrain                                                                                                                                                                                                                                                   | Terrain changed or none                |
+| ------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Congestion (speed bands) | None: each road link is two latitude/longitude ends | `GroundPolylinePrimitive`, classifying the **terrain only** (`ClassificationType.TERRAIN`): draped on the ground, and never painted onto a building roof above the road. A line at a fixed height would vanish into every hill now that the terrain hides what's under it. | It follows the surface automatically.  |
+| Incidents                | None: a latitude/longitude                          | `CLAMP_TO_GROUND` points, drawn without depth testing within 50 km, as vector points are.                                                                                                                                                                                  | They follow the surface automatically. |
+
 ## 3D models
 
 Every model has an **On terrain** switch on its row in the layer list (the

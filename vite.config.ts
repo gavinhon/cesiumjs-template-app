@@ -1,10 +1,11 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import cesium from 'vite-plugin-cesium';
 // With its `.ts` extension: Vite plans to load this config natively in
 // Node, which (like scripts/writeRuntimeConfig.ts) resolves only the file
 // name as written. tsconfig.node.json allows the extension for this.
+import { liveTrafficFeed } from './vite-plugins/liveTrafficFeed.ts';
 import { publicDatasetCatalog } from './vite-plugins/publicDatasetCatalog.ts';
 
 // https://vite.dev/config/
@@ -25,7 +26,14 @@ import { publicDatasetCatalog } from './vite-plugins/publicDatasetCatalog.ts';
 // 3D Tiles, terrain, tile pyramids and GeoJSON, so the panels can offer
 // whatever datasets you've dropped in there. See the plugin file for why
 // that has to happen at build time rather than in the browser.
-export default defineConfig({
+//
+// `liveTrafficFeed` reads LTA DataMall's live congestion and incidents in
+// `npm run dev`, when `.env` has an `LTA_ACCOUNT_KEY` — read here with
+// `loadEnv` (all variables, not only `VITE_` ones, which Vite would
+// otherwise inline into the bundle) and handed to the plugin, which must
+// not import `vite` itself (the Docker image runs it as-is). No key, no
+// live traffic: the app is as it is on GitHub Pages.
+export default defineConfig(({ mode }) => ({
   // A *relative* base, so the build works wherever it's served from: at a
   // domain root, or under a sub-path like GitHub Pages'
   // `https://<user>.github.io/<repo>/` — whatever the repo is called, so
@@ -38,7 +46,12 @@ export default defineConfig({
   // for what is really `dist/cesium/` — every web worker 404s and the
   // globe never draws. With './' both resolve to `dist/cesium/`.
   base: './',
-  plugins: [react(), cesium(), publicDatasetCatalog()],
+  plugins: [
+    react(),
+    cesium(),
+    publicDatasetCatalog(),
+    liveTrafficFeed({ accountKey: loadEnv(mode, process.cwd(), '').LTA_ACCOUNT_KEY }),
+  ],
   resolve: {
     alias: {
       // Mirror of the `paths` mapping in tsconfig.app.json. TypeScript's
@@ -47,4 +60,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-});
+}));

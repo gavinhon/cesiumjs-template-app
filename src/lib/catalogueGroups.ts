@@ -8,13 +8,14 @@
  * 3D Tiles panel — was by protocol, and "3D Tiles" was simply wrong for a
  * panel that also loads I3S.
  *
- * Shared because two features feed the catalogue (map services and 3D
- * models) and neither may import the other.
+ * Shared because several features feed the catalogue (map services, 3D
+ * models, live traffic) and none may import another.
  */
 export const CATALOGUE_GROUPS = {
   imagery: 'Maps and imagery',
   features: 'Features — points, lines and areas',
   models: '3D buildings and models',
+  live: 'Live — updated every few minutes',
 } as const;
 
 /** The headings in the order they're listed. */
@@ -22,4 +23,5 @@ export const CATALOGUE_GROUP_ORDER: readonly string[] = [
   CATALOGUE_GROUPS.imagery,
   CATALOGUE_GROUPS.features,
   CATALOGUE_GROUPS.models,
+  CATALOGUE_GROUPS.live,
 ];

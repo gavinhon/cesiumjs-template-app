@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { LegendContent, LegendItem, VectorGeometry } from '@/lib/legendTypes';
 import './LayerLegend.css';
 
@@ -77,6 +77,20 @@ function LegendBody({ legend }: { legend: LegendContent }) {
             <li key={geometry} className="layer-legend__item">
               <span className={`layer-legend__swatch layer-legend__swatch--${geometry}`} />
               {GEOMETRY_LABEL[geometry]}
+            </li>
+          ))}
+        </ul>
+      );
+    case 'swatches':
+      return (
+        <ul className="layer-legend__list">
+          {legend.items.map((item) => (
+            <li key={item.label} className="layer-legend__item">
+              <span
+                className={`layer-legend__swatch layer-legend__swatch--${item.shape}`}
+                style={{ '--swatch-color': item.color } as CSSProperties}
+              />
+              {item.label}
             </li>
           ))}
         </ul>

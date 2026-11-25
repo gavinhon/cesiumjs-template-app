@@ -85,17 +85,20 @@
   height: 12px;
 }
 
+/* --swatch-color is set inline for a legend of the app's own colours (a
+   'swatches' legend — live traffic's speed bands); without it, the swatch
+   is the --vector blue every restyled vector layer is drawn in. */
 .layer-legend__swatch--point {
   width: 7px;
   height: 7px;
   margin: 0 4.5px;
   border-radius: 50%;
-  background: var(--vector);
+  background: var(--swatch-color, var(--vector));
 }
 
 .layer-legend__swatch--line {
-  height: 2px;
-  background: var(--vector);
+  height: 3px;
+  background: var(--swatch-color, var(--vector));
 }
 
 .layer-legend__swatch--polygon {

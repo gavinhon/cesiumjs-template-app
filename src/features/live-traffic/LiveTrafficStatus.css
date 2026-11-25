@@ -1,0 +1,31 @@
+/* A live traffic layer's details on its row in the layer list — see
+   LiveTrafficStatus.tsx. */
+.live-traffic-status {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* How fresh the data is: quiet, like a model's placement note, until it
+   has gone stale or failed — then it says so in --danger. */
+.live-traffic-status__note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.live-traffic-status__note--warning {
+  color: var(--danger);
+}
+
+.live-traffic-status__error {
+  font-family: var(--font);
+  overflow-wrap: anywhere;
+}

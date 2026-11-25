@@ -60,6 +60,23 @@
   --vector: #5b9dff; /* blue — WFS features, complementary to the accent */
   --sight: #22d3ee; /* cyan — what an observer can see: the clear part of a line of sight */
   --location: #ffffff; /* white — a place the app put there: your location, a search result */
+  --incident: #ffd23f; /* amber-yellow — a live traffic incident, clear of the congestion ramp */
+
+  /*
+   * Live traffic congestion, LTA's speed bands 1 (under 10 km/h) to 8
+   * (70 km/h or more). The one place green appears: every traffic map
+   * reads red-slow to green-free, so a viewer shouldn't have to learn a
+   * new scale. Diverging, so the middle bands still read on a dark map.
+   */
+  --traffic-none: #6b6b6b; /* no reading */
+  --traffic-1: #a50026;
+  --traffic-2: #d73027;
+  --traffic-3: #f46d43;
+  --traffic-4: #fdae61;
+  --traffic-5: #fee08b;
+  --traffic-6: #d9ef8b;
+  --traffic-7: #66bd63;
+  --traffic-8: #1a9850;
 
   /* Just enough to lift a card off a bright street map — OSM is mostly
      near-white, and without any shadow a dark card's edge blurs into it. */

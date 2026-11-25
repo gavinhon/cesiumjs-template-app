@@ -52,10 +52,12 @@ src/
   ui/                  shared: Panel, Field, ResourceList, QuickAddList, AppToolbar, panelIds.ts
   lib/                 shared helpers with no UI or Cesium ties; publicDatasets.ts
   styles/              designTokens.css (tokens) + global.css (reset, .control)
-vite-plugins/          publicDatasetCatalog.ts — scans public/ at build time
+vite-plugins/          publicDatasetCatalog.ts — scans public/ at build time;
+                       liveTrafficFeed.ts — reads LTA live traffic (dev server + Docker)
 docker/                nginx.conf + entrypoint for the Docker image (Dockerfile, Dockerfile.terrain)
 scripts/               build_terrain_tiles.py — GeoTIFF → static Cesium terrain;
-                       writeRuntimeConfig.ts — the scan, at Docker container start
+                       writeRuntimeConfig.ts — the scan, at Docker container start;
+                       fetchLiveTraffic.ts — the LTA reader beside nginx in Docker
 public/                static files + datasets the scan offers in the panels
 docs/                  README.md indexes the guides: architecture, features, conventions,
                        Docker, local endpoints, terrain and heights, testing
@@ -151,7 +153,10 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   `--measure` near-white with a dark `--bg` casing (so they read on light
   streets), analyses `--sight` cyan, blocked sight lines `--danger`, WFS
   data `--vector` blue, and a place the app marked (your location, a search
-  result) `--location` white — one shared pin, `createPlaceMarker`.
+  result) `--location` white — one shared pin, `createPlaceMarker`. Live
+  traffic incidents are `--incident` amber-yellow, and congestion is the
+  `--traffic-1`…`--traffic-8` ramp, red-slow to green-free: the one place
+  green appears, because every traffic map reads that way.
 - **The UI is minimal and dark; orange is a signal, not a surface.** An
   active toggle, the primary button and a selected row are an orange label
   or edge over a faint `--accent-soft` tint — never a solid orange fill,
@@ -336,6 +341,22 @@ step by step. For style questions, [docs/coding-conventions.md](docs/coding-conv
   deployment's own Nominatim, proxied by the container at `nominatim/`).
   Fonts are bundled (`src/styles/fonts.css`), never fetched from Google.
   Guide: [docs/deployment-docker.md](docs/deployment-docker.md).
+- **Live traffic is read by a server, never the browser.** LTA DataMall
+  needs an `AccountKey` and refuses browsers (no CORS), so
+  `vite-plugins/liveTrafficFeed.ts` reads congestion (Traffic Speed Bands,
+  ~144,000 links in ~290 pages of 500) and incidents on timers, packs
+  them (`src/lib/liveTrafficTypes.ts`, types-only, shared) and the app
+  fetches `live/<file>` from its own origin: the dev server serves it with
+  `LTA_ACCOUNT_KEY` from `.env` (plus an `app-config.json` switching it
+  on), Docker runs `scripts/fetchLiveTraffic.ts` beside nginx. The plugin
+  keeps to `import type` like the scan plugin — `vite.config.ts` does the
+  `loadEnv` and passes the key in. `APP_CONFIG.liveTraffic` is set only
+  where something reads LTA (never offline: `writeRuntimeConfig` drops it),
+  and without it `LIVE_TRAFFIC_QUICK_ADD` is empty — no key means no
+  entries, never a greyed-out or failing one. Congestion is a
+  `GroundPolylinePrimitive` (terrain-only), rebuilt per snapshot and
+  swapped in once `ready`; the map polls every minute (`no-cache`, so
+  nginx answers 304 until a new snapshot lands).
 - **Terrain is a single slot.** `useTerrain` holds a selection, not a list;
   `null` means `EllipsoidTerrainProvider`. It's applied with
   `scene.setTerrain(new Cesium.Terrain(...))` — Cesium's current API, which

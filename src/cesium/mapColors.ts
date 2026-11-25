@@ -70,4 +70,23 @@ export const MAP_COLORS = {
    * half.
    */
   obstructed: Cesium.Color.fromCssColorString('#f2555f'),
+  /** --incident: a live traffic incident, amber-yellow so it stands out on red and green roads. */
+  incident: Cesium.Color.fromCssColorString('#ffd23f'),
+  /**
+   * --traffic-none, --traffic-1 … --traffic-8: live congestion by LTA speed
+   * band, indexed by band (0 = no reading). Red-slow to green-free, the
+   * scale every traffic map uses — the one exception to keeping green off
+   * the map, made so nobody has to learn a new one.
+   */
+  trafficBands: [
+    '#6b6b6b',
+    '#a50026',
+    '#d73027',
+    '#f46d43',
+    '#fdae61',
+    '#fee08b',
+    '#d9ef8b',
+    '#66bd63',
+    '#1a9850',
+  ].map((css) => Cesium.Color.fromCssColorString(css)),
 };

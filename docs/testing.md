@@ -172,6 +172,17 @@ pointer coarse) or a real phone on the same network (`npm run dev -- --host`).
 | M7  | Drag a line-of-sight vertex                                                            | Shows "Analysing…", then the new result                                                     |
 | M8  | Start a measurement; switch to 2D; keep clicking; switch back to 3D                    | The measurement keeps working in both modes                                                 |
 
+### Live traffic (with `LTA_ACCOUNT_KEY` in `.env`)
+
+| #   | Do                                                | Expect                                                                                                              |
+| --- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| LT1 | Add data → "Live — updated every few minutes"     | Traffic congestion and Traffic incidents, badged LTA LIVE. Without a key (or on GitHub Pages) the group isn't there |
+| LT2 | Add Traffic congestion                            | Main roads coloured red (slow) to green (free), lying on the terrain; its row reads "Updated … · 27,… road links"   |
+| LT3 | Its "…" → Roads shown → Every road                | ~144,000 links within a few seconds; the count follows; back to Main roads the same                                 |
+| LT4 | Add Traffic incidents; click one, then a red road | Amber-yellow points; the card shows LTA's report, then the road's name, current speed and road type                 |
+| LT5 | Copy the share link, open it in a new tab         | Both layers come back                                                                                               |
+| LT6 | Leave the map open 10 minutes                     | The rows' "Updated … ago" stays under ~6 minutes as new readings arrive                                             |
+
 ### Layers and data
 
 | #    | Do                                                                                   | Expect                                                                                                                                                                                                                                             |

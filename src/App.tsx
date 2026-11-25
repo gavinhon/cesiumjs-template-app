@@ -36,6 +36,11 @@ import { ModelPlacementControl } from '@/features/models-3d/ModelPlacementContro
 import { useModelFilters } from '@/features/models-3d/useModelFilters';
 import { useModelPartInspector } from '@/features/models-3d/useModelPartInspector';
 import { useModels } from '@/features/models-3d/useModels';
+import { LIVE_TRAFFIC_QUICK_ADD } from '@/features/live-traffic/liveTrafficQuickAdd';
+import { LiveTrafficStatus } from '@/features/live-traffic/LiveTrafficStatus';
+import { congestionLegend, incidentLegend } from '@/features/live-traffic/trafficPresentation';
+import { useLiveTraffic } from '@/features/live-traffic/useLiveTraffic';
+import { useLiveTrafficInspector } from '@/features/live-traffic/useLiveTrafficInspector';
 import { useTerrain } from '@/features/terrain/useTerrain';
 import { AppToolbar } from '@/ui/AppToolbar';
 import { SINGLE_PANEL_QUERY } from '@/ui/compactLayoutQuery';
@@ -48,7 +53,9 @@ import { useWidthAsCssVariable } from '@/ui/useWidthAsCssVariable';
  * not put in links (see src/features/share-link/mapUrlState.ts).
  */
 const CATALOGUE_IDS = new Set(
-  [...MAP_SERVICE_QUICK_ADD, ...MODEL_QUICK_ADD].map((entry) => entry.item.id),
+  [...MAP_SERVICE_QUICK_ADD, ...MODEL_QUICK_ADD, ...LIVE_TRAFFIC_QUICK_ADD].map(
+    (entry) => entry.item.id,
+  ),
 );
 
 /**
@@ -99,6 +106,9 @@ function App() {
   const mapServices = useMapServices(viewer);
   const models = useModels(viewer);
   const terrain = useTerrain(viewer);
+  // Live congestion and incidents from LTA — offered only where a server
+  // reads LTA with this deployment's key (see liveTrafficQuickAdd.ts).
+  const liveTraffic = useLiveTraffic(viewer);
 
   // The right rail wraps into extra columns on short screens; the layer
   // list and the phone toolbar read its measured width to stay clear of it.
@@ -116,6 +126,8 @@ function App() {
   // shows its metadata in the same card. A click picks one object, so at
   // most one of the two has something to show.
   const partInspector = useModelPartInspector(viewer, models.models, activeTool === 'none');
+  // …and a live traffic road link or incident: its speed, or LTA's report.
+  const trafficInspector = useLiveTrafficInspector(viewer, liveTraffic, activeTool === 'none');
   // Each 3D Tiles model filtered by its parts' attributes, and cut at a
   // height — controls on its row in the layer list.
   const modelFilters = useModelFilters(models.models);
@@ -180,10 +192,31 @@ function App() {
       }
     : null;
 
-  // 3D Tiles and WFS vectors share a section: neither is part of the
-  // imagery draw order, so neither can be dragged.
+  // 3D Tiles, WFS vectors and live traffic share a section: none is part
+  // of the imagery draw order, so none can be dragged.
   const sceneEntries = useMemo<LayerEntry[]>(
     () => [
+      ...liveTraffic.layers.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        kind: 'LTA LIVE',
+        visible: entry.visible,
+        onToggleVisibility: () => liveTraffic.toggleVisibility(entry.layer),
+        onZoomTo: liveTraffic.zoomTo,
+        onRemove: () => liveTraffic.remove(entry.layer),
+        detail: (
+          <LiveTrafficStatus
+            layer={entry}
+            roadDetail={
+              entry.layer === 'congestion'
+                ? { value: liveTraffic.roadDetail, onChange: liveTraffic.setRoadDetail }
+                : undefined
+            }
+          />
+        ),
+        legend: () =>
+          Promise.resolve(entry.layer === 'congestion' ? congestionLegend() : incidentLegend()),
+      })),
       ...models.models.map((entry) => ({
         id: entry.config.id,
         name: entry.config.name,
@@ -223,7 +256,7 @@ function App() {
         legend: () => Promise.resolve(vectorLegend(layer.dataSource)),
       })),
     ],
-    [models, mapServices, modelFilters],
+    [models, mapServices, modelFilters, liveTraffic],
   );
 
   // Every ready-made dataset, from both features that offer some, with how
@@ -242,6 +275,12 @@ function App() {
       item,
       isAdded: models.models.some((entry) => entry.config.id === item.id),
       add: (options?: { flyTo?: boolean }) => models.addModel(config, options),
+    })),
+    ...LIVE_TRAFFIC_QUICK_ADD.map(({ item, layer }) => ({
+      item,
+      isAdded: liveTraffic.layers.some((entry) => entry.layer === layer),
+      // Island-wide, so adding never moves the camera: there's nowhere to fly.
+      add: () => liveTraffic.add(layer),
     })),
   ];
   const addFromCatalogue = async (id: string) => {
@@ -276,6 +315,7 @@ function App() {
         ...mapServices.imagery.map((entry) => entry.id),
         ...mapServices.vectors.map((entry) => entry.id),
         ...models.models.map((entry) => entry.config.id),
+        ...liveTraffic.layers.map((entry) => entry.id),
       ].filter((id) => CATALOGUE_IDS.has(id)),
     },
     {
@@ -388,10 +428,13 @@ function App() {
       />
       <FeatureInfoCard
         viewer={viewer}
-        feature={featureInspector.inspected ?? partInspector.inspected}
+        feature={
+          featureInspector.inspected ?? partInspector.inspected ?? trafficInspector.inspected
+        }
         onClose={() => {
           featureInspector.close();
           partInspector.close();
+          trafficInspector.close();
         }}
       />
 

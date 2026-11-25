@@ -17,6 +17,7 @@ services:
       APP_OFFLINE: ${APP_OFFLINE:-true}
       DEFAULT_BASEMAP: ${DEFAULT_BASEMAP:-}
       NOMINATIM_URL: ${NOMINATIM_URL:-}
+      LTA_ACCOUNT_KEY: ${LTA_ACCOUNT_KEY:-}
     volumes:
       # The datasets: terrain, 3D Tiles, tile pyramids (basemaps/ for base
       # maps), GeoJSON — laid out as public/ is in dev. Read-only: the app

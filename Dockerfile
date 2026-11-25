@@ -26,21 +26,24 @@ RUN npm run build
 
 # --- Serve: nginx plus Node, for the startup scan --------------------------
 #
-# Node is here only to run scripts/writeRuntimeConfig.ts when the container
+# Node is here to run scripts/writeRuntimeConfig.ts when the container
 # starts — the same dataset scan the Vite plugin does, over the mounted
-# folder. Starting from the Node image and adding nginx (rather than the
-# reverse) pins Node 24, whose built-in TypeScript type stripping is what
-# lets that script run as-is, without a compiler or node_modules.
+# folder — and, with an LTA key, scripts/fetchLiveTraffic.ts beside nginx.
+# Starting from the Node image and adding nginx (rather than the reverse)
+# pins Node 24, whose built-in TypeScript type stripping is what lets those
+# scripts run as-is, without a compiler or node_modules.
 FROM node:24-alpine
 RUN apk add --no-cache nginx
 
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# The startup scan: the script, the plugin whose scan it reuses, and a
-# package.json saying these .ts files are ES modules.
-COPY scripts/writeRuntimeConfig.ts /opt/runtime-config/scripts/
-COPY vite-plugins/publicDatasetCatalog.ts /opt/runtime-config/vite-plugins/
+# The startup scan and the live traffic reader: the scripts, the plugins
+# whose logic they reuse, and a package.json saying these .ts files are ES
+# modules. (The plugins' `import type`s of src/lib are stripped, so src/
+# isn't needed.)
+COPY scripts/writeRuntimeConfig.ts scripts/fetchLiveTraffic.ts /opt/runtime-config/scripts/
+COPY vite-plugins/publicDatasetCatalog.ts vite-plugins/liveTrafficFeed.ts /opt/runtime-config/vite-plugins/
 RUN echo '{ "type": "module" }' > /opt/runtime-config/package.json
 
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
@@ -55,6 +58,7 @@ RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
 ENV APP_OFFLINE=true \
     DEFAULT_BASEMAP= \
     NOMINATIM_URL= \
+    LTA_ACCOUNT_KEY= \
     NODE_NO_WARNINGS=1
 
 EXPOSE 8080

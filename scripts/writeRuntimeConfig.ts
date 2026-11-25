@@ -8,9 +8,12 @@
  *   - `nginx-nominatim.conf`, only with `--nominatim-upstream`: the nginx
  *     location that proxies `nominatim/` to a Nominatim server.
  *
+ * With `--live-traffic true` the config also switches on the live traffic
+ * layers, which read the snapshots `fetchLiveTraffic.ts` writes.
+ *
  *     node scripts/writeRuntimeConfig.ts --data /data --data-url data \
  *       --out /run/app --offline true [--default-basemap <id>] \
- *       [--nominatim-upstream http://nominatim:8080]
+ *       [--nominatim-upstream http://nominatim:8080] [--live-traffic true]
  *
  * Run by `docker/docker-entrypoint.sh` each time the container starts.
  *
@@ -35,6 +38,7 @@
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { LIVE_TRAFFIC_URL } from '../vite-plugins/liveTrafficFeed.ts';
 import { scanPublicFolder } from '../vite-plugins/publicDatasetCatalog.ts';
 
 /** Where the app looks for the catalogue, relative to `index.html` — nginx serves it there. */
@@ -58,6 +62,7 @@ const { values } = parseArgs({
     offline: { type: 'string', default: 'false' },
     'default-basemap': { type: 'string', default: '' },
     'nominatim-upstream': { type: 'string', default: '' },
+    'live-traffic': { type: 'string', default: 'false' },
   },
 });
 
@@ -73,6 +78,8 @@ if (!dataDir || !dataUrl || !outDir) {
 }
 
 const offline = parseBoolean(values.offline);
+// LTA is on the internet, so offline wins even if a key was left in .env.
+const liveTraffic = parseBoolean(values['live-traffic'], '--live-traffic') && !offline;
 const nominatim = values['nominatim-upstream'] ? parseUpstream(values['nominatim-upstream']) : null;
 // The scan prefixes every dataset URL with `dataUrl` — relative ("data"),
 // so the app resolves it against its own page and stays same-origin
@@ -85,6 +92,7 @@ writeAtomically(path.join(outDir, 'app-config.json'), {
   datasetCatalogue: CATALOGUE_URL,
   ...(values['default-basemap'] && { defaultBasemap: values['default-basemap'] }),
   ...(nominatim && { nominatimUrl: NOMINATIM_PATH }),
+  ...(liveTraffic && { liveTraffic: LIVE_TRAFFIC_URL }),
 });
 
 // Written or removed on every start, so taking NOMINATIM_URL out of `.env`
@@ -97,6 +105,7 @@ const counts = new Map<string, number>();
 for (const dataset of datasets) counts.set(dataset.kind, (counts.get(dataset.kind) ?? 0) + 1);
 const summary = [...counts].map(([kind, count]) => `${count} ${kind}`).join(', ') || 'none';
 console.log(`Datasets in ${dataDir}: ${summary}. Offline mode: ${offline ? 'on' : 'off'}.`);
+console.log(`Live traffic (LTA): ${liveTraffic ? 'on' : 'off'}.`);
 if (nominatim) {
   console.log(`Place search: Nominatim at ${nominatim.origin}${nominatim.basePath}/`);
 }
@@ -106,11 +115,11 @@ if (nominatim) {
  * error rather than a guess: a typo in `.env` that silently left the app
  * trying to reach the internet would be found the slow way.
  */
-function parseBoolean(text: string): boolean {
+function parseBoolean(text: string, flag = '--offline'): boolean {
   const value = text.trim().toLowerCase();
   if (['true', '1', 'yes', 'on'].includes(value)) return true;
   if (['false', '0', 'no', 'off', ''].includes(value)) return false;
-  console.error(`--offline must be true or false, not "${text}"`);
+  console.error(`${flag} must be true or false, not "${text}"`);
   process.exit(2);
 }
 
