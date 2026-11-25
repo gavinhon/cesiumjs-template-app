@@ -60,11 +60,17 @@ export function createCrowdLabelLayer(
 
   const groundPosition = (entry: Tracked) => {
     if (entry.position) return entry.position;
-    const height = viewer.scene.globe.getHeight(entry.cartographic);
+    // Early terrain samples can be wildly wrong (~-6,356 km); don't cache those.
+    const sampled = viewer.scene.globe.getHeight(entry.cartographic);
+    const plausible = sampled !== undefined && Math.abs(sampled) < 10_000;
     const position = Cesium.Cartographic.toCartesian(
-      new Cesium.Cartographic(entry.cartographic.longitude, entry.cartographic.latitude, height),
+      new Cesium.Cartographic(
+        entry.cartographic.longitude,
+        entry.cartographic.latitude,
+        plausible ? sampled : 0,
+      ),
     );
-    if (height !== undefined) entry.position = position;
+    if (plausible) entry.position = position;
     return position;
   };
 

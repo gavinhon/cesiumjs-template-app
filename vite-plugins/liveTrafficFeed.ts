@@ -176,6 +176,7 @@ export function packCrowd(
   // Some lines' forecasts lag by months; keep only the live reading's day.
   const today = windowStart.slice(0, 10);
   const forecastByCode = new Map<string, Map<string, CrowdLevel>>();
+  const alwaysHigh = new Map<string, boolean>();
   const times = new Set<string>();
   for (const { forecast } of readings) {
     for (const day of recordsOf(forecast)) {
@@ -184,9 +185,14 @@ export function packCrowd(
         const levels = forecastByCode.get(station.Station) ?? new Map<string, CrowdLevel>();
         for (const interval of recordsOf(station.Interval)) {
           if (typeof interval.Start !== 'string') continue;
+          const level = crowdLevelOf(interval.CrowdLevel);
+          alwaysHigh.set(
+            station.Station,
+            (alwaysHigh.get(station.Station) ?? true) && level === 'h',
+          );
           if (today && !interval.Start.startsWith(today)) continue;
           times.add(interval.Start);
-          levels.set(interval.Start, crowdLevelOf(interval.CrowdLevel));
+          levels.set(interval.Start, level);
         }
         forecastByCode.set(station.Station, levels);
       }
@@ -204,9 +210,8 @@ export function packCrowd(
       const [name, longitude, latitude] = place;
       const station = byName.get(name) ?? { name, longitude, latitude, lines: [] };
       const levels = forecastByCode.get(code);
-      // LTA reports stations not yet in service as 'h' all day.
-      if (levels && levels.size > 0 && [...levels.values()].every((level) => level === 'h'))
-        continue;
+      // LTA reports stations not yet in service as 'h' all day; judge by any day's forecast.
+      if (alwaysHigh.get(code)) continue;
       const entry: MrtCrowdLine = {
         code,
         line,
@@ -244,7 +249,7 @@ function crowdReader(accountKey: string, fetchImpl: Fetch): () => Promise<MrtCro
             forecast = { records, day: today(), readAt: Date.now() };
             forecasts.set(line, forecast);
           } catch {
-            if (forecast?.day !== today()) forecast = undefined;
+            // Keep the last forecast: packCrowd shows only today's, but needs it to spot unopened stations.
           }
         }
         readings.push({ line, realtime, forecast: forecast?.records ?? [] });

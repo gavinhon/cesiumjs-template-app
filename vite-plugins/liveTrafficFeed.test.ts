@@ -162,4 +162,29 @@ describe('packCrowd', () => {
     );
     expect(snapshot.stations).toEqual([]);
   });
+
+  it('drops unopened stations using a forecast from an earlier day', () => {
+    const snapshot = packCrowd(
+      [
+        {
+          line: 'TEL',
+          realtime: [now('TE10', 'h')],
+          forecast: [
+            {
+              Stations: [
+                {
+                  Station: 'TE10',
+                  Interval: [{ Start: '2026-07-11T00:00:00+08:00', CrowdLevel: 'h' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      'fetched',
+      stations,
+    );
+    expect(snapshot.stations).toEqual([]);
+    expect(snapshot.forecastTimes).toEqual([]);
+  });
 });
