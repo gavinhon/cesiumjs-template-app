@@ -20,6 +20,7 @@ import {
   upcomingTimes,
 } from './crowdPresentation';
 import { CROWD_SYMBOL_SIZE, crowdSymbol } from './crowdSymbols';
+import { createCrowdLabelLayer, type CrowdLabelLayer } from './crowdLabels';
 
 export interface LiveTrafficLayer {
   id: string;
@@ -123,11 +124,16 @@ function drawIncidents(source: Cesium.CustomDataSource, snapshot: TrafficInciden
 
 const CROWD_SCALE = new Cesium.NearFarScalar(1000, 1.1, 50_000, 0.7);
 const QUIET_FADE = new Cesium.NearFarScalar(15_000, 1, 50_000, 0.5);
-const QUIET_LABELS = new Cesium.DistanceDisplayCondition(0, 4_000);
-const BUSY_LABELS = new Cesium.DistanceDisplayCondition(0, 60_000);
-const LABEL_SCALE = new Cesium.NearFarScalar(1000, 1, 50_000, 0.8);
 
-function drawCrowd(source: Cesium.CustomDataSource, snapshot: MrtCrowdSnapshot, time: string) {
+interface CrowdLayer {
+  source: Cesium.CustomDataSource | null;
+  labels: CrowdLabelLayer | null;
+  latest: MrtCrowdSnapshot | null;
+}
+
+function drawCrowd(layer: CrowdLayer, snapshot: MrtCrowdSnapshot, time: string) {
+  const { source, labels } = layer;
+  if (!source) return;
   source.entities.suspendEvents();
   source.entities.removeAll();
   const ordered = snapshot.stations
@@ -135,36 +141,31 @@ function drawCrowd(source: Cesium.CustomDataSource, snapshot: MrtCrowdSnapshot, 
     .sort((a, b) => crowdRank(a.level) - crowdRank(b.level));
   for (const { station, index, level } of ordered) {
     const size = CROWD_SYMBOL_SIZE[level];
-    const quiet = crowdRank(level) < 2;
     source.entities.add({
       position: Cesium.Cartesian3.fromDegrees(station.longitude, station.latitude),
       billboard: {
         image: crowdSymbol(level),
         width: size,
         height: size,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        heightReference: Cesium.HeightReference.CLAMP_TO_TERRAIN,
         disableDepthTestDistance: 50_000,
         scaleByDistance: CROWD_SCALE,
-        translucencyByDistance: quiet ? QUIET_FADE : undefined,
-      },
-      label: {
-        text: station.name,
-        font: '600 12px Inter, system-ui, sans-serif',
-        fillColor: MAP_COLORS.measure,
-        outlineColor: MAP_COLORS.casing,
-        outlineWidth: 3,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        pixelOffset: new Cesium.Cartesian2(0, -(size / 2 + 2)),
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        disableDepthTestDistance: 50_000,
-        distanceDisplayCondition: quiet ? QUIET_LABELS : BUSY_LABELS,
-        scaleByDistance: LABEL_SCALE,
+        translucencyByDistance: crowdRank(level) < 2 ? QUIET_FADE : undefined,
       },
       properties: { mrtCrowdStation: index },
     });
   }
   source.entities.resumeEvents();
+  labels?.set(
+    ordered.map(({ station, level }) => ({
+      name: station.name,
+      longitude: station.longitude,
+      latitude: station.latitude,
+      level,
+      busy: crowdRank(level) >= 2,
+      symbolSize: CROWD_SYMBOL_SIZE[level],
+    })),
+  );
 }
 
 function setShown(target: { show: boolean } | null, show: boolean) {
@@ -185,10 +186,7 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
     generation: number;
   }>({ latest: null, shown: null, primitive: null, generation: 0 });
   const incidents = useRef<Cesium.CustomDataSource | null>(null);
-  const crowd = useRef<{
-    source: Cesium.CustomDataSource | null;
-    latest: MrtCrowdSnapshot | null;
-  }>({ source: null, latest: null });
+  const crowd = useRef<CrowdLayer>({ source: null, labels: null, latest: null });
   const timers = useRef(new Map<LiveTrafficLayerId, ReturnType<typeof setTimeout>>());
 
   const layersRef = useRef(layers);
@@ -273,7 +271,7 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
           crowd.current.latest = data;
           setCrowdSnapshot(data);
           setCrowdTimes(crowdTimeOptions(data, Date.now()));
-          if (crowd.current.source) drawCrowd(crowd.current.source, data, time);
+          drawCrowd(crowd.current, data, time);
           update(layer, {
             fetchedAt: data.fetchedAt,
             error: null,
@@ -319,6 +317,7 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
         await viewer.dataSources.add(incidents.current);
       } else if (layer === 'crowd') {
         crowd.current.source = new Cesium.CustomDataSource(entry.item.name);
+        crowd.current.labels = createCrowdLabelLayer(viewer, CROWD_SCALE);
         await viewer.dataSources.add(crowd.current.source);
       }
       timers.current.set(
@@ -359,7 +358,8 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
           };
         } else if (layer === 'crowd') {
           if (crowd.current.source) viewer.dataSources.remove(crowd.current.source, true);
-          crowd.current = { source: null, latest: null };
+          crowd.current.labels?.destroy();
+          crowd.current = { source: null, labels: null, latest: null };
           setCrowdSnapshot(null);
           setCrowdTimes(crowdTimeOptions(null, 0));
         } else if (incidents.current) {
@@ -374,6 +374,7 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
 
   const toggleVisibility = useCallback((layer: LiveTrafficLayerId) => {
     const visible = !layersRef.current.find((entry) => entry.layer === layer)?.visible;
+    if (layer === 'crowd') crowd.current.labels?.setShown(visible);
     setShown(
       layer === 'congestion'
         ? congestion.current.primitive
@@ -405,9 +406,9 @@ export function useLiveTraffic(viewer: Cesium.Viewer | null) {
     (time: string) => {
       crowdTimeRef.current = time;
       setCrowdTimeState(time);
-      const { source, latest } = crowd.current;
-      if (!source || !latest) return;
-      drawCrowd(source, latest, time);
+      const { latest } = crowd.current;
+      if (!latest) return;
+      drawCrowd(crowd.current, latest, time);
       update('crowd', { busy: busyCount(latest, time) });
     },
     [update],

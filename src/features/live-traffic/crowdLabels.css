@@ -1,0 +1,14 @@
+.map-label--station {
+  padding: 1px 6px;
+  font: 500 11px/1.4 var(--font);
+  box-shadow: none;
+}
+
+.map-label--crowd-m {
+  border-color: var(--crowd-moderate);
+}
+
+.map-label--crowd-h {
+  border-color: var(--crowd-high);
+  color: #fff;
+}
